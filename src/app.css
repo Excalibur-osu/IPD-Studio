@@ -86,3 +86,8 @@ button { font: inherit; }
 .align-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-bottom: 10px; }
 .align-grid button { padding: 4px 2px; font-size: 11px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
 .align-grid button:hover { background: #eef2f7; }
+
+.loop-row { display: flex; align-items: center; gap: 4px; }
+.loop-row .drawer-item { flex: 1; }
+.loop-diagram-btn { border: 1px solid #ccc; border-radius: 4px; background: #fff; padding: 2px 8px; font-size: 11px; cursor: pointer; white-space: nowrap; }
+.loop-diagram-btn:hover { background: #eef2f7; }
