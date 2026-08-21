@@ -11,6 +11,8 @@ import { heat, heat2 } from './heat'
 import { inlineItems, inlineItems2 } from './inline'
 import { controlHardware, controlHardware2 } from './control'
 import { annotations, annotations2 } from './annotation'
+import { solids } from './solids'
+import { utilities } from './utilities'
 
 registerSymbols([
   bubble,
@@ -34,4 +36,6 @@ registerSymbols([
   ...controlHardware2,
   ...annotations,
   ...annotations2,
+  ...solids,
+  ...utilities,
 ])

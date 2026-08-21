@@ -19,6 +19,18 @@ const PHASE2_IDS = [
   'logic.and', 'logic.or', 'logic.not', 'ctl.dcs', 'ctl.plc', 'ctl.sis', 'ctl.jb', 'ctl.panel',
 ]
 
+const PHASE3_IDS = [
+  'conveyor.belt', 'conveyor.screw', 'bucket-elevator', 'feeder.rotary', 'crusher',
+  'screen.vibrating', 'clarifier', 'filter.press', 'filter.rotary', 'dryer.rotary',
+  'dryer.spray', 'dryer.tray', 'evaporator', 'crystallizer', 'bagfilter',
+  'coalescer', 'hydrocyclone', 'mill.ball', 'extruder', 'blender.ribbon',
+  'deaerator', 'chiller', 'package-unit', 'boiler', 'stack', 'flare', 'air-dryer', 'filter-sep',
+  'elec.mcc', 'elec.ups', 'elec.barrier', 'elec.transformer',
+  'fit.union', 'fit.coupling', 'fit.exhaust-head', 'fit.mixing-tee', 'fit.hose-station',
+  'fit.rupture-pin', 'fit.trap-float', 'fit.trap-bucket', 'fit.trap-thermo', 'sample.cooler',
+  'ann.matchline', 'ann.detail-flag', 'ann.holds',
+]
+
 const PHASE1_IDS = [
   'fe.orifice', 'fe.venturi', 'fe.magmeter', 'fe.coriolis', 'fe.vortex', 'fe.turbine', 'fe.rotameter', 'fe.ro',
   'acc.thermowell', 'acc.pg', 'acc.lg',
@@ -30,6 +42,19 @@ const PHASE1_IDS = [
   'ctl.interlock',
   'ann.offpage', 'ann.arrow', 'ann.text', 'ann.noteflag', 'ann.cloud',
 ]
+
+describe('phase-3 catalog', () => {
+  it('registers every phase-3 id', () => {
+    for (const id of PHASE3_IDS) expect(() => getSymbol(id), id).not.toThrow()
+  })
+  it('spot checks', () => {
+    expect((getSymbol('conveyor.belt').render({}).match(/r="6"/g) ?? []).length).toBe(2)
+    expect(getSymbol('hydrocyclone').ports).toHaveLength(3)
+    expect(getSymbol('package-unit').render({})).toContain('stroke-dasharray')
+    expect(getSymbol('elec.barrier').render({})).toMatch(/l-?\d+/)
+    expect(getSymbol('flare').render({})).toContain('Q')
+  })
+})
 
 describe('phase-2 catalog (valves/safety)', () => {
   it('registers every phase-2 valve/safety id', () => {
@@ -57,8 +82,8 @@ describe('phase-1 catalog', () => {
   it('registers every phase-1 id', () => {
     for (const id of PHASE1_IDS) expect(() => getSymbol(id), id).not.toThrow()
   })
-  it('has at least 130 symbols', () => {
-    expect(SYMBOLS.size).toBeGreaterThanOrEqual(130)
+  it('has at least 175 symbols', () => {
+    expect(SYMBOLS.size).toBeGreaterThanOrEqual(175)
   })
   it('pump is a circle r14 with discharge duct', () => {
     const svg = getSymbol('pump.centrifugal').render({})
