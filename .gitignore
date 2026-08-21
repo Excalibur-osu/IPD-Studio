@@ -4,3 +4,5 @@ coverage/
 *.local
 .DS_Store
 .gstack/
+test-results/
+playwright-report/

@@ -24,7 +24,7 @@ const CATEGORY_ORDER: [SymbolCategory, string][] = [
   ['annotation', 'Annotation'],
 ]
 
-const INSTRUMENT_PRESETS = ['FT', 'FIC', 'PT', 'PIC', 'PDT', 'LT', 'LIC', 'TT', 'TIC', 'AT', 'HS', 'ZSC']
+const INSTRUMENT_PRESETS = ['FT', 'FIT', 'FIC', 'FE', 'PT', 'PIT', 'PIC', 'PDT', 'LT', 'LIT', 'LIC', 'TT', 'TIT', 'TIC', 'AT', 'AIT', 'SC', 'HS', 'ZSC', 'ZSO']
 
 function Preview({ def }: { def: SymbolDef }) {
   const w = def.gridSize.w * 8

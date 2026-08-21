@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Sample Plant — Feed Section",
+    "drawingNumber": "PID-001",
+    "revision": "A",
+    "author": "PID Studio",
+    "sheetSize": "A3",
+    "created": "2026-08-21T00:00:00.000Z",
+    "modified": "2026-08-21T00:00:00.000Z"
+  },
+  "settings": { "gridPx": 8, "tagSeparator": "-" },
+  "nodes": [
+    { "id": "tk1", "symbolId": "vessel.tank", "kind": "equipment", "x": 96, "y": 200, "rotation": 0, "label": "TK-101 Feed Tank" },
+    { "id": "p1", "symbolId": "pump.centrifugal", "kind": "equipment", "x": 264, "y": 432, "rotation": 0, "label": "P-101" },
+    { "id": "fe1", "symbolId": "fe.orifice", "kind": "instrument", "x": 424, "y": 440, "rotation": 0, "tag": { "letters": "FE", "loop": "101" } },
+    { "id": "ft1", "symbolId": "instr.bubble", "kind": "instrument", "x": 420, "y": 288, "rotation": 0, "config": { "display": "discrete", "location": "field" }, "tag": { "letters": "FT", "loop": "101" } },
+    { "id": "fic1", "symbolId": "instr.bubble", "kind": "instrument", "x": 420, "y": 160, "rotation": 0, "config": { "display": "shared", "location": "control-room" }, "tag": { "letters": "FIC", "loop": "101" } },
+    { "id": "fv1", "symbolId": "cv.globe", "kind": "valve", "x": 536, "y": 416, "rotation": 0, "config": { "actuator": "diaphragm", "fail": "fc" }, "tag": { "letters": "FV", "loop": "101" } },
+    { "id": "hx1", "symbolId": "hx.shell-tube", "kind": "equipment", "x": 664, "y": 432, "rotation": 0, "label": "E-101" },
+    { "id": "tt1", "symbolId": "instr.bubble", "kind": "instrument", "x": 668, "y": 288, "rotation": 0, "config": { "display": "discrete", "location": "field" }, "tag": { "letters": "TT", "loop": "102" } },
+    { "id": "tic1", "symbolId": "instr.bubble", "kind": "instrument", "x": 668, "y": 160, "rotation": 0, "config": { "display": "shared", "location": "control-room" }, "tag": { "letters": "TIC", "loop": "102" } },
+    { "id": "tv1", "symbolId": "cv.globe", "kind": "valve", "x": 816, "y": 416, "rotation": 0, "config": { "actuator": "diaphragm", "fail": "fo" }, "tag": { "letters": "TV", "loop": "102" } },
+    { "id": "c1", "symbolId": "vessel.column-tray", "kind": "equipment", "x": 1000, "y": 256, "rotation": 0, "label": "C-101" },
+    { "id": "lt1", "symbolId": "instr.bubble", "kind": "instrument", "x": 1120, "y": 384, "rotation": 0, "config": { "display": "discrete", "location": "field" }, "tag": { "letters": "LT", "loop": "103" } },
+    { "id": "lic1", "symbolId": "instr.bubble", "kind": "instrument", "x": 1248, "y": 384, "rotation": 0, "config": { "display": "shared", "location": "control-room" }, "tag": { "letters": "LIC", "loop": "103" } },
+    { "id": "lv1", "symbolId": "cv.globe", "kind": "valve", "x": 1120, "y": 600, "rotation": 0, "config": { "actuator": "diaphragm", "fail": "fc" }, "tag": { "letters": "LV", "loop": "103" } },
+    { "id": "psv1", "symbolId": "psv", "kind": "valve", "x": 1032, "y": 96, "rotation": 0, "tag": { "letters": "PSV", "loop": "104" } },
+    { "id": "op1", "symbolId": "ann.offpage", "kind": "annotation", "x": 1240, "y": 96, "rotation": 0, "label": "TO FLARE — PID-002" },
+    { "id": "op2", "symbolId": "ann.offpage", "kind": "annotation", "x": 1312, "y": 600, "rotation": 0, "label": "BOTTOMS — PID-003" }
+  ],
+  "edges": [
+    { "id": "l1", "lineClass": "process.major", "source": { "nodeId": "tk1", "portId": "s" }, "target": { "nodeId": "p1", "portId": "suction" } },
+    { "id": "l2", "lineClass": "process.major", "source": { "nodeId": "p1", "portId": "discharge" }, "target": { "nodeId": "fe1", "portId": "w" }, "arrow": "flow", "lineNumber": { "size": "2\"", "spec": "CS150", "service": "P", "seq": "001" } },
+    { "id": "l3", "lineClass": "process.major", "source": { "nodeId": "fe1", "portId": "e" }, "target": { "nodeId": "fv1", "portId": "w" } },
+    { "id": "l4", "lineClass": "process.major", "source": { "nodeId": "fv1", "portId": "e" }, "target": { "nodeId": "hx1", "portId": "w" } },
+    { "id": "l5", "lineClass": "process.major", "source": { "nodeId": "hx1", "portId": "e" }, "target": { "nodeId": "tv1", "portId": "w" }, "arrow": "flow", "lineNumber": { "size": "2\"", "spec": "CS150", "service": "P", "seq": "002" } },
+    { "id": "l6", "lineClass": "process.major", "source": { "nodeId": "tv1", "portId": "e" }, "target": { "nodeId": "c1", "portId": "w" } },
+    { "id": "l7", "lineClass": "process.major", "source": { "nodeId": "c1", "portId": "n" }, "target": { "nodeId": "psv1", "portId": "in" } },
+    { "id": "l8", "lineClass": "process.major", "source": { "nodeId": "psv1", "portId": "out" }, "target": { "nodeId": "op1", "portId": "w" } },
+    { "id": "l9", "lineClass": "process.major", "source": { "nodeId": "c1", "portId": "s" }, "target": { "nodeId": "lv1", "portId": "w" }, "lineNumber": { "size": "3\"", "spec": "CS150", "service": "P", "seq": "003" } },
+    { "id": "l10", "lineClass": "process.major", "source": { "nodeId": "lv1", "portId": "e" }, "target": { "nodeId": "op2", "portId": "w" }, "arrow": "flow" },
+    { "id": "s1", "lineClass": "process.impulse", "source": { "nodeId": "fe1", "portId": "tap" }, "target": { "nodeId": "ft1", "portId": "s" } },
+    { "id": "s2", "lineClass": "signal.electric", "source": { "nodeId": "ft1", "portId": "n" }, "target": { "nodeId": "fic1", "portId": "s" } },
+    { "id": "s3", "lineClass": "signal.pneumatic", "source": { "nodeId": "fic1", "portId": "e" }, "target": { "nodeId": "fv1", "portId": "sig" } },
+    { "id": "s4", "lineClass": "process.impulse", "source": { "nodeId": "hx1", "portId": "n" }, "target": { "nodeId": "tt1", "portId": "s" } },
+    { "id": "s5", "lineClass": "signal.electric", "source": { "nodeId": "tt1", "portId": "n" }, "target": { "nodeId": "tic1", "portId": "s" } },
+    { "id": "s6", "lineClass": "signal.pneumatic", "source": { "nodeId": "tic1", "portId": "e" }, "target": { "nodeId": "tv1", "portId": "sig" } },
+    { "id": "s7", "lineClass": "process.impulse", "source": { "nodeId": "c1", "portId": "e" }, "target": { "nodeId": "lt1", "portId": "w" } },
+    { "id": "s8", "lineClass": "signal.electric", "source": { "nodeId": "lt1", "portId": "e" }, "target": { "nodeId": "lic1", "portId": "w" } },
+    { "id": "s9", "lineClass": "signal.pneumatic", "source": { "nodeId": "lic1", "portId": "s" }, "target": { "nodeId": "lv1", "portId": "sig" } }
+  ]
+}

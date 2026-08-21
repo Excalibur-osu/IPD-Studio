@@ -8,6 +8,8 @@ import type { LineClass } from '../model/types'
 import { exportSvgFile } from '../export/svg'
 import { printPdf } from '../export/printPdf'
 import { downloadInstrumentIndex, downloadLineList } from '../export/csv'
+import { loadDoc } from '../model/migrate'
+import samplePlant from '../../examples/sample-plant.pnid.json'
 
 function zoomCenter(factor: number) {
   const paper = canvasRef.paper
@@ -48,6 +50,7 @@ export default function Toolbar() {
       <button onClick={newDoc}>New</button>
       <button onClick={() => void openFile()}>Open</button>
       <button onClick={() => void saveFile()}>Save</button>
+      <button onClick={() => { if (!dirty || window.confirm('Discard unsaved changes?')) useStore.getState().loadIntoStore(loadDoc(samplePlant)) }}>Sample</button>
       <span className="tb-sep" />
       <button onClick={undo} title="Ctrl+Z">↩</button>
       <button onClick={redo} title="Ctrl+Y">↪</button>
