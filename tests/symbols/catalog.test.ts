@@ -9,6 +9,9 @@ const PHASE2_IDS = [
   'acc.bulb', 'acc.bimetal', 'acc.seal', 'acc.floatcage', 'acc.radar', 'acc.loadcell',
   'pump.peristaltic', 'pump.plunger', 'pump.submersible', 'pump.vacuum',
   'comp.recip', 'comp.screw', 'turbine.steam', 'vfd',
+  'vessel.floating-roof', 'vessel.sphere', 'vessel.bullet', 'vessel.open', 'vessel.silo',
+  'vessel.column-packed', 'vessel.fixedbed', 'vessel.sep3', 'cyclone',
+  'hx.kettle', 'hx.doublepipe', 'heater.electric', 'heater.fired', 'hx.condenser', 'cooling-tower',
 ]
 
 const PHASE1_IDS = [

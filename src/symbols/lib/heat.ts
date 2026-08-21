@@ -57,3 +57,107 @@ export const heat: SymbolDef[] = [
     keywords: ['air cooler', 'fin fan', 'exchanger'],
   },
 ]
+
+const text2 = (x: number, y: number, t: string, size = 8) =>
+  `<text x="${x}" y="${y}" font-size="${size}" font-family="sans-serif" text-anchor="middle" fill="currentColor" stroke="none">${t}</text>`
+
+export const heat2: SymbolDef[] = [
+  {
+    id: 'hx.kettle',
+    name: 'Kettle Reboiler',
+    category: 'heat',
+    gridSize: { w: 10, h: 6 },
+    render: () =>
+      path('M12 8 H68 a10 14 0 0 1 0 28 H12 a10 14 0 0 1 0 -28 Z') +
+      path('M12 18 H44 a5 5 0 0 1 0 10 H12') +
+      path('M56 14 V36'),
+    ports: [
+      { id: 'w', x: 4, y: 24, kind: 'process' },
+      { id: 'n', x: 40, y: 8, kind: 'process' },
+      { id: 's', x: 40, y: 36, kind: 'process' },
+      { id: 'e', x: 76, y: 24, kind: 'process' },
+    ],
+    tagRule: 'equipment',
+    keywords: ['kettle', 'reboiler', 'u-tube', 'exchanger'],
+  },
+  {
+    id: 'hx.doublepipe',
+    name: 'Double-Pipe Exchanger',
+    category: 'heat',
+    gridSize: { w: 8, h: 3 },
+    render: () => path('M4 4 h56 v16 h-56 Z') + path('M0 12 H64') + path('M4 0 V4 M60 20 V24'),
+    ports: [
+      { id: 'w', x: 0, y: 12, kind: 'process' },
+      { id: 'e', x: 64, y: 12, kind: 'process' },
+      { id: 'n', x: 4, y: 0, kind: 'process' },
+      { id: 's', x: 60, y: 24, kind: 'process' },
+    ],
+    tagRule: 'equipment',
+    keywords: ['double pipe', 'hairpin', 'exchanger'],
+  },
+  {
+    id: 'heater.electric',
+    name: 'Electric Heater',
+    category: 'heat',
+    gridSize: { w: 5, h: 3 },
+    render: () => path('M0 0 h40 v24 h-40 Z') + path('M6 12 l4 -6 l6 12 l6 -12 l6 12 l4 -6 h2'),
+    ports: [
+      { id: 'w', x: 0, y: 12, kind: 'process' },
+      { id: 'e', x: 40, y: 12, kind: 'process' },
+    ],
+    tagRule: 'equipment',
+    keywords: ['electric', 'heater', 'immersion'],
+  },
+  {
+    id: 'heater.fired',
+    name: 'Fired Heater',
+    category: 'heat',
+    gridSize: { w: 7, h: 9 },
+    render: () =>
+      path('M0 16 h56 v48 h-56 Z') +
+      path('M20 16 V0 h16 V16') +
+      path('M22 56 L28 44 L34 56 Z') +
+      path('M8 24 h40 M8 32 h40 M8 40 h40'),
+    ports: [
+      { id: 'w', x: 0, y: 32, kind: 'process' },
+      { id: 'e', x: 56, y: 32, kind: 'process' },
+      { id: 's', x: 28, y: 64, kind: 'process' },
+    ],
+    tagRule: 'equipment',
+    keywords: ['fired heater', 'furnace', 'burner'],
+  },
+  {
+    id: 'hx.condenser',
+    name: 'Condenser',
+    category: 'heat',
+    gridSize: { w: 6, h: 6 },
+    render: () =>
+      `<circle cx="24" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="1.5"/>` +
+      path('M0 16 H48') + path('M24 30 V44') + text2(24, 20, 'C'),
+    ports: [
+      { id: 'w', x: 0, y: 16, kind: 'process' },
+      { id: 'e', x: 48, y: 16, kind: 'process' },
+      { id: 's', x: 24, y: 44, kind: 'process' },
+    ],
+    tagRule: 'equipment',
+    keywords: ['condenser', 'exchanger', 'overhead'],
+  },
+  {
+    id: 'cooling-tower',
+    name: 'Cooling Tower',
+    category: 'heat',
+    gridSize: { w: 8, h: 7 },
+    render: () =>
+      path('M8 0 L56 0 L48 48 L16 48 Z') +
+      `<circle cx="32" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>` +
+      path('M32 10 L37 5 M32 10 L27 5') +
+      path('M20 28 L44 36 M20 36 L44 28'),
+    ports: [
+      { id: 'w', x: 8, y: 40, kind: 'process' },
+      { id: 'e', x: 56, y: 40, kind: 'process' },
+      { id: 's', x: 32, y: 48, kind: 'process' },
+    ],
+    tagRule: 'equipment',
+    keywords: ['cooling tower', 'evaporative'],
+  },
+]

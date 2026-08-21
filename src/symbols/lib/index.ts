@@ -6,8 +6,8 @@ import { safetyDevices, safetyDevices2 } from './safety'
 import { flowElements, flowElements2 } from './flow-elements'
 import { accessories, accessories2 } from './accessories'
 import { rotating, rotating2 } from './rotating'
-import { vessels } from './vessels'
-import { heat } from './heat'
+import { vessels, vessels2 } from './vessels'
+import { heat, heat2 } from './heat'
 import { inlineItems } from './inline'
 import { controlHardware } from './control'
 import { annotations } from './annotation'
@@ -25,7 +25,9 @@ registerSymbols([
   ...rotating,
   ...rotating2,
   ...vessels,
+  ...vessels2,
   ...heat,
+  ...heat2,
   ...inlineItems,
   ...controlHardware,
   ...annotations,
