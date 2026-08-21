@@ -91,3 +91,10 @@ button { font: inherit; }
 .loop-row .drawer-item { flex: 1; }
 .loop-diagram-btn { border: 1px solid #ccc; border-radius: 4px; background: #fff; padding: 2px 8px; font-size: 11px; cursor: pointer; white-space: nowrap; }
 .loop-diagram-btn:hover { background: #eef2f7; }
+
+.datasheet-box { background: #fff; border-radius: 8px; box-shadow: 0 12px 40px rgba(0,0,0,.25); width: 520px; max-height: 80vh; display: flex; flex-direction: column; }
+.datasheet-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #e2e2e8; }
+.datasheet-sub { color: #666; font-size: 12px; }
+.datasheet-body { overflow-y: auto; padding: 8px 16px 16px; }
+.datasheet-field { display: grid; grid-template-columns: 160px 1fr; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; color: #444; }
+.datasheet-field input { font: inherit; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; }

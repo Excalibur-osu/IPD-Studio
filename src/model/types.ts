@@ -50,6 +50,8 @@ export interface PlantNode {
   attrs?: Record<string, string>
   /** Off-page connector pairing to a connector on another sheet. */
   link?: { sheetId: string; nodeId: string }
+  /** ISA-20-style datasheet values, keyed by datasheet field key. */
+  datasheet?: Record<string, string>
 }
 
 export type EdgeEnd = { nodeId: string; portId: string } | { x: number; y: number }

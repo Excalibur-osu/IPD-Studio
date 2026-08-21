@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { getSymbol } from '../symbols/registry'
 import { activeSheet, useStore } from '../store/store'
 import type { LineClass, PlantEdge, PlantNode, SheetSize } from '../model/types'
@@ -5,6 +6,7 @@ import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
 import TagEditor from './TagEditor'
 import { applyAlignment } from '../canvas/interactions'
 import { nextLineSeq } from '../isa/autonumber'
+import DatasheetEditor from './DatasheetEditor'
 
 const SHEETS: SheetSize[] = ['A4', 'A3', 'A2', 'A1', 'ANSI_B', 'ANSI_D']
 
@@ -81,6 +83,7 @@ function NodeProps({ node }: { node: PlantNode }) {
   const setNodeConfig = useStore((s) => s.setNodeConfig)
   const setLabel = useStore((s) => s.setLabel)
   const rotateNode = useStore((s) => s.rotateNode)
+  const [datasheetOpen, setDatasheetOpen] = useState(false)
   return (
     <>
       <div className="prop-title">{def.name}</div>
@@ -105,6 +108,12 @@ function NodeProps({ node }: { node: PlantNode }) {
         <button onClick={() => rotateNode(node.id)}>Rotate 90°</button>
         <span className="prop-hint">{node.rotation}°</span>
       </div>
+      {node.kind === 'instrument' && (
+        <div className="prop-row">
+          <button onClick={() => setDatasheetOpen(true)}>Datasheet…</button>
+        </div>
+      )}
+      {datasheetOpen && <DatasheetEditor node={node} onClose={() => setDatasheetOpen(false)} />}
     </>
   )
 }

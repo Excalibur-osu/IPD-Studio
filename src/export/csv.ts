@@ -73,6 +73,19 @@ export function lineListCsv(doc: ProjectDoc): string {
   return lines.join('\n') + '\n'
 }
 
+export function datasheetMatrixCsv(doc: ProjectDoc): string {
+  const instruments = doc.sheets.flatMap((sh) => sh.nodes.filter((n) => n.kind === 'instrument'))
+  const keys = [...new Set(instruments.flatMap((n) => Object.keys(n.datasheet ?? {})))].sort()
+  const lines = [row(['Tag', 'Description', ...keys])]
+  for (const node of instruments) {
+    const tagText = node.tag ? formatTag(node.tag, '-') : ''
+    lines.push(
+      row([tagText, node.tag ? expandLetters(node.tag.letters) : '', ...keys.map((k) => node.datasheet?.[k] ?? '')]),
+    )
+  }
+  return lines.join('\n') + '\n'
+}
+
 function download(filename: string, content: string, type: string) {
   const blob = new Blob([content], { type })
   const a = document.createElement('a')
@@ -85,6 +98,11 @@ function download(filename: string, content: string, type: string) {
 export function downloadInstrumentIndex(): void {
   const doc = useStore.getState().doc
   download(`${doc.meta.name || 'diagram'}-instrument-index.csv`, instrumentIndexCsv(doc), 'text/csv')
+}
+
+export function downloadDatasheetMatrix(): void {
+  const doc = useStore.getState().doc
+  download(`${doc.meta.name || 'diagram'}-datasheets.csv`, datasheetMatrixCsv(doc), 'text/csv')
 }
 
 export function downloadLineList(): void {

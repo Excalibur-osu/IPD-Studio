@@ -20,6 +20,7 @@ export interface StoreState {
   setTag(id: string, tag: Tag | undefined): void
   setLabel(id: string, label: string): void
   setNodeLink(id: string, link: PlantNode['link']): void
+  setDatasheet(id: string, patch: Record<string, string>): void
   setMeta(patch: Partial<ProjectDoc['meta']>): void
   setSheetMeta(patch: Partial<Pick<Sheet, 'name' | 'drawingNumber' | 'revision' | 'sheetSize'>>): void
   addSheet(): string
@@ -113,6 +114,13 @@ export const useStore = create<StoreState>()(
 
         setNodeLink(id, link) {
           patchSheet((sh) => ({ ...sh, nodes: sh.nodes.map((n) => (n.id === id ? { ...n, link } : n)) }))
+        },
+
+        setDatasheet(id, patch) {
+          patchSheet((sh) => ({
+            ...sh,
+            nodes: sh.nodes.map((n) => (n.id === id ? { ...n, datasheet: { ...n.datasheet, ...patch } } : n)),
+          }))
         },
 
         setMeta(patch) {

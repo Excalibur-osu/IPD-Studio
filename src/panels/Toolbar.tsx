@@ -8,7 +8,7 @@ import type { LineClass } from '../model/types'
 import { exportSvgFile } from '../export/svg'
 import { printPdf } from '../export/printPdf'
 import { printAllSheets } from '../export/printAll'
-import { downloadInstrumentIndex, downloadLineList } from '../export/csv'
+import { downloadDatasheetMatrix, downloadInstrumentIndex, downloadLineList } from '../export/csv'
 import { downloadDexpi } from '../export/dexpi'
 import { downloadDxf } from '../export/dxf'
 import { exportPng } from '../export/png'
@@ -97,6 +97,7 @@ export default function Toolbar() {
       <button onClick={() => downloadDxf()}>DXF</button>
       <button onClick={() => downloadInstrumentIndex()}>Index</button>
       <button onClick={() => downloadLineList()}>Lines</button>
+      <button onClick={() => downloadDatasheetMatrix()} title="Datasheet matrix CSV">Data</button>
     </header>
   )
 }
