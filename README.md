@@ -20,22 +20,31 @@ P&ID tool is a $2,600+/year desktop install. PID Studio is the missing thing:
 - The instrument index and line list are generated from the model, not typed
 - The document is versioned open JSON, designed to map onto DEXPI
 
-## Features (v0.1)
+## Features (v0.2)
 
-- **60+ parametric symbols, 80 palette entries** — instrument bubbles (all 16
-  ISA display/location variants from one parameterized symbol), control valves
-  with 5 actuator types and fail-action marks, manual valves, PSV/rupture disc,
-  flow elements (orifice to coriolis), pumps, compressors, vessels, columns,
-  reactors, heat exchangers, fittings, off-page connectors
-- **10 line classes** with correct ISA rendering: heavy/light process lines,
+- **135+ parametric symbols, 155+ palette entries** — instrument bubbles (all
+  16 ISA display/location variants from one parameterized symbol), control
+  valves with 7 actuator types and fail-action marks, 14 manual valve types,
+  safety/relief devices, 14 flow elements, level/temperature/pressure
+  accessories, pumps, compressors, turbines, spheres, silos, columns,
+  reactors, separators, heat exchangers, fired heaters, cooling towers,
+  ISA-5.2 logic gates (AND/OR/NOT), DCS/PLC/SIS system boxes, fittings
+- **16 line classes** with correct ISA rendering: heavy/light process,
   impulse, electric (dashed), pneumatic (double slash), hydraulic, capillary,
-  data/software (circles), internal links — decorations ride the routed path
+  data/software (circles), electromagnetic, jacketed (double line),
+  heat-traced, underground, existing, battery limit
+- **Multi-sheet projects** — sheet tabs, per-sheet title blocks, off-page
+  connectors linked across sheets with jump-to-target, project-wide tag
+  validation
+- **DEXPI-oriented export** — Proteus Schema 4.2-shaped XML with a documented
+  model mapping ([docs/DEXPI-MAPPING.md](docs/DEXPI-MAPPING.md))
 - **Obstacle-avoiding orthogonal routing** with draggable waypoints, ports
   with connection rules (a pneumatic signal won't connect to a pipe nozzle)
 - **Live validation**: duplicate tags, missing tags, illegal ISA letters,
   dangling lines, incompatible connections, duplicate line numbers
-- **Deliverables**: SVG export, print-to-PDF at true sheet scale (A4–A1,
-  ANSI B/D) with title block, instrument index CSV, line list CSV
+- **Deliverables**: SVG + PNG export, print-to-PDF at true sheet scale
+  (A4–A1, ANSI B/D) with title block, instrument index CSV, line list CSV,
+  DEXPI XML — plus starter templates
 - **Editor**: zoom-to-cursor, pan, marquee select, undo/redo, copy/paste,
   rotate, snap-to-grid, keyboard shortcuts, autosave with restore
 
@@ -44,7 +53,7 @@ P&ID tool is a $2,600+/year desktop install. PID Studio is the missing thing:
 ```bash
 npm install
 npm run dev     # open http://localhost:5173, press "Sample" for a demo plant
-npm test        # 186 unit tests
+npm test        # 211 unit tests
 npx playwright test   # e2e
 ```
 
@@ -56,11 +65,10 @@ Drawings save as `.pnid.json` — versioned, human-readable JSON
 
 ## Roadmap
 
-- **v0.2** — catalog completion (~75 more symbols), DEXPI/Proteus XML export,
-  PNG export, multi-sheet projects with linked off-page connectors, ISA-5.2
-  logic symbols, custom symbol import
-- **v0.3+** — real-time collaboration (Yjs, self-hosted), auto-generated loop
-  diagrams (ISA-5.4), instrument datasheets (ISA-20 style), DWG import spike
+- **v0.3** — custom symbol import (SVG upload + port editor), real-time
+  collaboration (Yjs, self-hosted), auto-generated loop diagrams (ISA-5.4),
+  instrument datasheets (ISA-20 style), DWG import spike, remaining long-tail
+  catalog (solids handling, packaged units), DEXPI import
 
 ## Symbols & standards
 
