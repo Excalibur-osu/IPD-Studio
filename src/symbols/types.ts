@@ -11,6 +11,7 @@ export type SymbolCategory =
   | 'inline'
   | 'control'
   | 'annotation'
+  | 'custom'
 
 export type PortKind = 'process' | 'signal' | 'both'
 

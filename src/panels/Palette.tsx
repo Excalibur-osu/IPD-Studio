@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { byCategory, searchSymbols } from '../symbols/registry'
 import { placeAtCenter } from '../canvas/dropHandling'
+import { useStore } from '../store/store'
+import SymbolImportDialog from './SymbolImportDialog'
 import type { SymbolCategory, SymbolDef } from '../symbols/types'
 
 export const DRAG_MIME = 'application/x-pid-symbol'
@@ -11,6 +13,7 @@ export interface DragPayload {
 }
 
 const CATEGORY_ORDER: [SymbolCategory, string][] = [
+  ['custom', 'Custom'],
   ['instruments', 'Instruments'],
   ['control-valves', 'Control Valves'],
   ['valves', 'Manual Valves'],
@@ -61,8 +64,10 @@ function Entry({ def, label, presetLetters }: { def: SymbolDef; label: string; p
 export default function Palette() {
   const [query, setQuery] = useState('')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-  const groups = useMemo(() => byCategory(), [])
-  const results = useMemo(() => (query ? searchSymbols(query) : null), [query])
+  const [importOpen, setImportOpen] = useState(false)
+  const customSymbols = useStore((s) => s.doc.customSymbols)
+  const groups = useMemo(() => byCategory(), [customSymbols])
+  const results = useMemo(() => (query ? searchSymbols(query) : null), [query, customSymbols])
 
   const toggle = (cat: string) => {
     setCollapsed((prev) => {
@@ -86,6 +91,8 @@ export default function Palette() {
           }
         }}
       />
+      <button className="palette-import" onClick={() => setImportOpen(true)}>＋ Import symbol…</button>
+      {importOpen && <SymbolImportDialog onClose={() => setImportOpen(false)} />}
       {results ? (
         <div className="palette-grid">
           {results.map((def) => (

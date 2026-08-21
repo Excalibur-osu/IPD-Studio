@@ -16,7 +16,7 @@ const V1_DOC = {
 describe('schema v2', () => {
   it('createEmptyDoc emits v2 with one sheet', () => {
     const doc = createEmptyDoc('Fresh')
-    expect(doc.schemaVersion).toBe(2)
+    expect(doc.schemaVersion).toBe(3)
     expect(doc.meta.name).toBe('Fresh')
     expect(doc.sheets).toHaveLength(1)
     expect(doc.sheets[0]!.sheetSize).toBe('A3')
@@ -27,7 +27,7 @@ describe('schema v2', () => {
   })
   it('migrates v1 docs into a single sheet', () => {
     const doc = loadDoc(JSON.parse(JSON.stringify(V1_DOC)))
-    expect(doc.schemaVersion).toBe(2)
+    expect(doc.schemaVersion).toBe(3)
     expect(doc.meta.name).toBe('Legacy Plant')
     expect(doc.sheets).toHaveLength(1)
     const sheet = doc.sheets[0]!
@@ -43,6 +43,7 @@ describe('schema v2', () => {
   })
   it('rejects docs with no sheets and unknown versions', () => {
     expect(() => loadDoc({ schemaVersion: 2, meta: { name: 'x' }, settings: {}, sheets: [] })).toThrow(DocError)
+    expect(() => loadDoc({ schemaVersion: 3, meta: { name: 'x' }, settings: {}, sheets: [] })).toThrow(DocError)
     expect(() => loadDoc({ schemaVersion: 99 })).toThrow(DocError)
   })
 })

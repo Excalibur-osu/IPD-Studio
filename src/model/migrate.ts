@@ -30,7 +30,7 @@ function migrateV1(v1: V1Doc): ProjectDoc {
     edges: v1.edges,
   }
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     meta: { name: v1.meta.name, author: v1.meta.author, created: v1.meta.created, modified: v1.meta.modified },
     settings: v1.settings,
     sheets: [sheet],
@@ -52,7 +52,7 @@ export function loadDoc(raw: unknown): ProjectDoc {
     if (typeof v1.settings !== 'object' || v1.settings === null) throw new DocError('Document is missing settings')
     return migrateV1(v1 as V1Doc)
   }
-  if (version === 2) {
+  if (version === 2 || version === 3) {
     const doc = raw as Partial<ProjectDoc>
     if (!Array.isArray(doc.sheets) || doc.sheets.length === 0) throw new DocError('Document has no sheets')
     for (const sheet of doc.sheets) {
@@ -64,7 +64,10 @@ export function loadDoc(raw: unknown): ProjectDoc {
       throw new DocError('Document is missing metadata')
     }
     if (typeof doc.settings !== 'object' || doc.settings === null) throw new DocError('Document is missing settings')
-    return doc as ProjectDoc
+    if (doc.customSymbols !== undefined && !Array.isArray(doc.customSymbols)) {
+      throw new DocError('customSymbols is malformed')
+    }
+    return { ...doc, schemaVersion: 3 } as ProjectDoc
   }
   throw new DocError(`Unsupported schema version: ${String(version)}`)
 }

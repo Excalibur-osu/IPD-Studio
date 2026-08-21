@@ -93,11 +93,23 @@ export interface SheetContent {
   edges: PlantEdge[]
 }
 
+export interface CustomSymbolDef {
+  id: string
+  name: string
+  /** Sanitized inner SVG markup (see src/import/svgSymbol.ts). */
+  svg: string
+  gridSize: { w: number; h: number }
+  ports: { id: string; x: number; y: number; kind: 'process' | 'signal' | 'both' }[]
+  tagRule: 'isa-instrument' | 'valve' | 'equipment' | 'none'
+  keywords: string[]
+}
+
 export interface ProjectDoc {
-  schemaVersion: 2
+  schemaVersion: 3
   meta: ProjectMeta
   settings: { gridPx: number; tagSeparator: '-' | '' }
   sheets: Sheet[]
+  customSymbols?: CustomSymbolDef[]
 }
 
 /** A validation finding surfaced in the validation panel. */

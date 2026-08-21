@@ -36,7 +36,7 @@ export function createSheet(number: number, sheetSize: SheetSize = 'A3'): Sheet 
 export function createEmptyDoc(name = 'Untitled P&ID'): ProjectDoc {
   const now = new Date().toISOString()
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     meta: { name, author: '', created: now, modified: now },
     settings: { gridPx: 8, tagSeparator: '-' },
     sheets: [createSheet(1)],

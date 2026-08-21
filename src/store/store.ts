@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
 import { ulid } from 'ulid'
-import type { PlantEdge, PlantNode, ProjectDoc, Sheet, Tag } from '../model/types'
+import type { CustomSymbolDef, PlantEdge, PlantNode, ProjectDoc, Sheet, Tag } from '../model/types'
+import { registerCustomSymbols } from '../symbols/custom'
 import { isPortEnd } from '../model/types'
 import { createEmptyDoc, createSheet } from '../model/doc'
 
@@ -21,6 +22,8 @@ export interface StoreState {
   setLabel(id: string, label: string): void
   setNodeLink(id: string, link: PlantNode['link']): void
   setDatasheet(id: string, patch: Record<string, string>): void
+  addCustomSymbol(def: CustomSymbolDef): void
+  removeCustomSymbol(id: string): void
   setMeta(patch: Partial<ProjectDoc['meta']>): void
   setSheetMeta(patch: Partial<Pick<Sheet, 'name' | 'drawingNumber' | 'revision' | 'sheetSize'>>): void
   addSheet(): string
@@ -227,7 +230,24 @@ export const useStore = create<StoreState>()(
           set({ selection: newNodes.map((n) => n.id) })
         },
 
+        addCustomSymbol(def) {
+          set((s) => {
+            const doc = touched({ ...s.doc, customSymbols: [...(s.doc.customSymbols ?? []), def] })
+            registerCustomSymbols(doc)
+            return { doc, dirty: true }
+          })
+        },
+
+        removeCustomSymbol(id) {
+          set((s) => {
+            const doc = touched({ ...s.doc, customSymbols: (s.doc.customSymbols ?? []).filter((d) => d.id !== id) })
+            registerCustomSymbols(doc)
+            return { doc, dirty: true }
+          })
+        },
+
         loadIntoStore(doc) {
+          registerCustomSymbols(doc)
           set({ doc, activeSheetId: doc.sheets[0]!.id, selection: [], dirty: false })
           useStore.temporal.getState().clear()
         },
