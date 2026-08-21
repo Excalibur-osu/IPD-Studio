@@ -3,6 +3,7 @@ import type { PlantEdge, PlantNode } from '../model/types'
 import { isPortEnd } from '../model/types'
 import type { PortKind } from '../symbols/types'
 import { canConnect } from './connectionRules'
+import { alignNodes, distributeNodes, snapGuides } from './alignment'
 import { makeLink } from './shapes'
 import { activeSheet, useStore } from '../store/store'
 
@@ -88,20 +89,61 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     if (store().selection.length) store().setSelection([])
   }
 
-  // --- movement commit ----------------------------------------------------
+  // --- movement commit + live alignment guides ---------------------------
   const dragStart = new Map<string, { x: number; y: number }>()
+  const guideEls: SVGLineElement[] = []
+  const guideLayer = () => paper.svg.querySelector('.joint-layers') as SVGGElement | null
+  const clearGuides = () => {
+    guideEls.forEach((g) => g.remove())
+    guideEls.length = 0
+  }
+  const drawGuide = (vertical: boolean, at: number) => {
+    const layer = guideLayer()
+    if (!layer) return
+    const size = paper.getComputedSize()
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+    if (vertical) {
+      line.setAttribute('x1', String(at)); line.setAttribute('x2', String(at))
+      line.setAttribute('y1', '0'); line.setAttribute('y2', String(size.height))
+    } else {
+      line.setAttribute('y1', String(at)); line.setAttribute('y2', String(at))
+      line.setAttribute('x1', '0'); line.setAttribute('x2', String(size.width))
+    }
+    line.setAttribute('stroke', '#2b6cb0')
+    line.setAttribute('stroke-width', '0.75')
+    line.setAttribute('stroke-dasharray', '4 3')
+    line.setAttribute('pointer-events', 'none')
+    layer.appendChild(line)
+    guideEls.push(line)
+  }
+  const onElementPointerMove = (view: dia.ElementView) => {
+    const id = String(view.model.id)
+    if (!dragStart.has(id)) return
+    clearGuides()
+    const sheet = activeSheet(store())
+    const node = sheet.nodes.find((n) => n.id === id)
+    if (!node) return
+    const p = view.model.position()
+    const hit = snapGuides({ ...node, x: p.x, y: p.y }, sheet.nodes)
+    if (hit.guideX !== undefined) drawGuide(true, hit.guideX)
+    if (hit.guideY !== undefined) drawGuide(false, hit.guideY)
+  }
   const onElementPointerDownPos = (view: dia.ElementView) => {
     const p = view.model.position()
     dragStart.set(String(view.model.id), { x: p.x, y: p.y })
   }
   const onElementPointerUp = (view: dia.ElementView) => {
+    clearGuides()
     const id = String(view.model.id)
     const start = dragStart.get(id)
     dragStart.delete(id)
     if (!start) return
     const p = view.model.position()
-    const nx = snap8(p.x)
-    const ny = snap8(p.y)
+    const sheet = activeSheet(store())
+    const node = sheet.nodes.find((n) => n.id === id)
+    const hit = node ? snapGuides({ ...node, x: p.x, y: p.y }, sheet.nodes) : {}
+    const nx = hit.x !== undefined ? Math.round(hit.x) : snap8(p.x)
+    const ny = hit.y !== undefined ? Math.round(hit.y) : snap8(p.y)
     if (nx === start.x && ny === start.y) return
     const dx = nx - start.x
     const dy = ny - start.y
@@ -189,6 +231,7 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
   }
 
   paper.on('element:pointerdown', (v: dia.ElementView, e: dia.Event) => { onElementPointerDown(v, e); onElementPointerDownPos(v) })
+  paper.on('element:pointermove', onElementPointerMove)
   paper.on('element:pointerup', onElementPointerUp)
   paper.on('link:pointerdown', onLinkPointerDown)
   paper.on('link:pointerup', onLinkPointerUp)
@@ -197,9 +240,11 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
   window.addEventListener('keydown', onKeyDown)
 
   return () => {
+    clearGuides()
     unsubSelection()
     window.removeEventListener('keydown', onKeyDown)
     paper.off('element:pointerdown')
+    paper.off('element:pointermove')
     paper.off('element:pointerup')
     paper.off('link:pointerdown')
     paper.off('link:pointerup')
@@ -209,6 +254,22 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
 }
 
 /** Marquee selection on blank-drag. */
+/** Apply an alignment or distribution to the current node selection. */
+export function applyAlignment(mode: Parameters<typeof alignNodes>[1] | 'distribute-h' | 'distribute-v'): void {
+  const s = useStore.getState()
+  const sheet = activeSheet(s)
+  const nodes = sheet.nodes.filter((n) => s.selection.includes(n.id))
+  if (nodes.length < 2) return
+  const moves =
+    mode === 'distribute-h' ? distributeNodes(nodes, 'h')
+    : mode === 'distribute-v' ? distributeNodes(nodes, 'v')
+    : alignNodes(nodes, mode)
+  for (const m of moves) {
+    const orig = nodes.find((n) => n.id === m.id)!
+    if (orig.x !== m.x || orig.y !== m.y) s.setNodePos(m.id, m.x, m.y)
+  }
+}
+
 export function attachMarquee(host: HTMLElement, paper: dia.Paper, graph: dia.Graph): () => void {
   let active = false
   let start = { x: 0, y: 0 }

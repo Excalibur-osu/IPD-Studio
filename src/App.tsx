@@ -5,6 +5,7 @@ import PropertyPanel from './panels/PropertyPanel'
 import Drawer from './panels/Drawer'
 import SheetTabs from './panels/SheetTabs'
 import StatusBar from './panels/StatusBar'
+import SearchOverlay from './panels/SearchOverlay'
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
       </div>
       <PropertyPanel />
       <StatusBar />
+      <SearchOverlay />
     </div>
   )
 }

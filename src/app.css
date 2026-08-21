@@ -74,3 +74,15 @@ button { font: inherit; }
 .sheet-add { border: none; background: none; cursor: pointer; padding: 2px 8px; font-size: 13px; color: #555; }
 
 .tb-template { font: inherit; padding: 3px 4px; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+
+.search-overlay { position: fixed; inset: 0; background: rgba(20,20,30,.25); display: flex; justify-content: center; align-items: flex-start; padding-top: 12vh; z-index: 40; }
+.search-box { background: #fff; border-radius: 8px; box-shadow: 0 12px 40px rgba(0,0,0,.25); width: 420px; overflow: hidden; }
+.search-box input { width: 100%; border: none; outline: none; padding: 12px 14px; font-size: 15px; }
+.search-box ul { list-style: none; max-height: 300px; overflow-y: auto; border-top: 1px solid #e5e5ea; }
+.search-box li { padding: 7px 14px; cursor: pointer; font-size: 13px; display: flex; justify-content: space-between; }
+.search-box li.active { background: #eef2f7; }
+.search-sheet { color: #888; font-size: 12px; }
+.search-empty { padding: 10px 14px; color: #888; font-size: 13px; border-top: 1px solid #e5e5ea; }
+.align-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-bottom: 10px; }
+.align-grid button { padding: 4px 2px; font-size: 11px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
+.align-grid button:hover { background: #eef2f7; }

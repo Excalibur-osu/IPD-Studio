@@ -3,6 +3,7 @@ import { activeSheet, useStore } from '../store/store'
 import type { LineClass, PlantEdge, PlantNode, SheetSize } from '../model/types'
 import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
 import TagEditor from './TagEditor'
+import { applyAlignment } from '../canvas/interactions'
 
 const SHEETS: SheetSize[] = ['A4', 'A3', 'A2', 'A1', 'ANSI_B', 'ANSI_D']
 
@@ -164,6 +165,17 @@ export default function PropertyPanel() {
     body = (
       <>
         <div className="prop-title">{selection.length} items selected</div>
+        <div className="prop-title">Align</div>
+        <div className="align-grid">
+          <button onClick={() => applyAlignment('left')}>⇤ Left</button>
+          <button onClick={() => applyAlignment('center-v')}>⇹ Centers</button>
+          <button onClick={() => applyAlignment('right')}>⇥ Right</button>
+          <button onClick={() => applyAlignment('top')}>⤒ Top</button>
+          <button onClick={() => applyAlignment('center-h')}>⇳ Middles</button>
+          <button onClick={() => applyAlignment('bottom')}>⤓ Bottom</button>
+          <button onClick={() => applyAlignment('distribute-h')}>↔ Distribute</button>
+          <button onClick={() => applyAlignment('distribute-v')}>↕ Distribute</button>
+        </div>
         <button onClick={deleteSelected}>Delete selection</button>
       </>
     )
