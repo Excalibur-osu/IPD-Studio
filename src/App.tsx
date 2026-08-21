@@ -1,15 +1,20 @@
 import Canvas from './canvas/Canvas'
 import Palette from './panels/Palette'
 import PropertyPanel from './panels/PropertyPanel'
+import Drawer from './panels/Drawer'
+import StatusBar from './panels/StatusBar'
 
 export default function App() {
   return (
     <div className="app">
       <header className="toolbar">PID Studio</header>
       <Palette />
-      <Canvas />
+      <div className="center">
+        <Canvas />
+        <Drawer />
+      </div>
       <PropertyPanel />
-      <footer className="status">Ready</footer>
+      <StatusBar />
     </div>
   )
 }
