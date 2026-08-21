@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { canvasRef, createPaper, zoomAt } from './paperSetup'
+import { reconcile } from './reconciler'
+import '../symbols/lib/index'
 import { sheetPx } from '../model/doc'
 import { useStore } from '../store/store'
 
@@ -16,6 +18,16 @@ export default function Canvas() {
     canvasRef.paper = paper
     canvasRef.graph = graph
     paper.translate(24, 24)
+
+    reconcile(graph, useStore.getState().doc, undefined)
+    let prevDoc = useStore.getState().doc
+    const unsubscribe = useStore.subscribe((s) => {
+      if (s.doc !== prevDoc) {
+        const before = prevDoc
+        prevDoc = s.doc
+        reconcile(graph, s.doc, before)
+      }
+    })
 
     let panning = false
     let spaceDown = false
@@ -64,6 +76,7 @@ export default function Canvas() {
     window.addEventListener('keyup', onKey)
 
     return () => {
+      unsubscribe()
       host.removeEventListener('wheel', onWheel)
       host.removeEventListener('pointerdown', onPointerDown, true)
       host.removeEventListener('pointermove', onPointerMove)
