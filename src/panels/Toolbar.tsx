@@ -9,6 +9,9 @@ import { exportSvgFile } from '../export/svg'
 import { printPdf } from '../export/printPdf'
 import { downloadInstrumentIndex, downloadLineList } from '../export/csv'
 import { downloadDexpi } from '../export/dexpi'
+import { exportPng } from '../export/png'
+import templateBlank from '../../examples/template-blank-a3.pnid.json'
+import templateUtility from '../../examples/template-utility-a1.pnid.json'
 import { loadDoc } from '../model/migrate'
 import samplePlant from '../../examples/sample-plant.pnid.json'
 
@@ -51,7 +54,22 @@ export default function Toolbar() {
       <button onClick={newDoc}>New</button>
       <button onClick={() => void openFile()}>Open</button>
       <button onClick={() => void saveFile()}>Save</button>
-      <button onClick={() => { if (!dirty || window.confirm('Discard unsaved changes?')) useStore.getState().loadIntoStore(loadDoc(samplePlant)) }}>Sample</button>
+      <select
+        className="tb-template"
+        value=""
+        onChange={(e) => {
+          const pick = e.target.value
+          if (!pick) return
+          if (dirty && !window.confirm('Discard unsaved changes?')) return
+          const source = pick === 'sample' ? samplePlant : pick === 'blank' ? templateBlank : templateUtility
+          useStore.getState().loadIntoStore(loadDoc(source))
+        }}
+      >
+        <option value="">Templates…</option>
+        <option value="sample">Sample plant</option>
+        <option value="blank">Blank A3 drawing</option>
+        <option value="utility">Utility headers (A1)</option>
+      </select>
       <span className="tb-sep" />
       <button onClick={undo} title="Ctrl+Z">↩</button>
       <button onClick={redo} title="Ctrl+Y">↪</button>
@@ -71,6 +89,7 @@ export default function Toolbar() {
       <span className="tb-grow" />
       <button onClick={() => exportSvgFile()}>SVG</button>
       <button onClick={() => printPdf()}>PDF</button>
+      <button onClick={() => exportPng()}>PNG</button>
       <button onClick={() => downloadDexpi()}>DEXPI</button>
       <button onClick={() => downloadInstrumentIndex()}>Index</button>
       <button onClick={() => downloadLineList()}>Lines</button>

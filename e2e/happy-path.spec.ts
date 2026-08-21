@@ -47,7 +47,7 @@ test('place, connect, tag, validate, export', async ({ page }) => {
   expect(csv).toContain('FIC-101,Flow Indicating Controller,101,Instrument,Sheet 1')
 
   // Sample plant loads clean (v1 file exercises schema migration)
-  await page.getByRole('button', { name: 'Sample' }).click()
+  await page.locator('.tb-template').selectOption('sample')
   await expect(page.locator('.status')).toContainText('No findings')
   await expect(page.locator('.doc-name')).toContainText('Sample Plant')
 

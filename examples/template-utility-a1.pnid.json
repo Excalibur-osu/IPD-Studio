@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 2,
+  "meta": {
+    "name": "Utility Distribution",
+    "author": "",
+    "created": "2026-08-21T00:00:00.000Z",
+    "modified": "2026-08-21T00:00:00.000Z"
+  },
+  "settings": {
+    "gridPx": 8,
+    "tagSeparator": "-"
+  },
+  "sheets": [
+    {
+      "id": "utilities",
+      "name": "Utilities",
+      "drawingNumber": "PID-U01",
+      "revision": "0",
+      "sheetSize": "A1",
+      "nodes": [
+        {
+          "id": "u-steam",
+          "symbolId": "ann.offpage",
+          "kind": "annotation",
+          "x": 96,
+          "y": 96,
+          "rotation": 0,
+          "label": "LP STEAM SUPPLY"
+        },
+        {
+          "id": "u-cw-s",
+          "symbolId": "ann.offpage",
+          "kind": "annotation",
+          "x": 96,
+          "y": 176,
+          "rotation": 0,
+          "label": "COOLING WATER SUPPLY"
+        },
+        {
+          "id": "u-cw-r",
+          "symbolId": "ann.offpage",
+          "kind": "annotation",
+          "x": 96,
+          "y": 256,
+          "rotation": 0,
+          "label": "COOLING WATER RETURN"
+        },
+        {
+          "id": "u-ia",
+          "symbolId": "ann.offpage",
+          "kind": "annotation",
+          "x": 96,
+          "y": 336,
+          "rotation": 0,
+          "label": "INSTRUMENT AIR"
+        },
+        {
+          "id": "u-n2",
+          "symbolId": "ann.offpage",
+          "kind": "annotation",
+          "x": 96,
+          "y": 416,
+          "rotation": 0,
+          "label": "NITROGEN"
+        }
+      ],
+      "edges": []
+    }
+  ]
+}

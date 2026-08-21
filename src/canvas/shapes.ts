@@ -34,7 +34,9 @@ function tagAttrs(node: PlantNode): Record<string, Record<string, unknown>> {
     fontSize: 11,
     textAnchor: 'middle',
     fill: '#111',
-    stroke: 'none',
+    stroke: '#fff',
+    strokeWidth: 3,
+    paintOrder: 'stroke',
     pointerEvents: 'none',
   }
   return {
@@ -98,6 +100,47 @@ function toEnd(end: PlantEdge['source']): dia.Link.EndJSON {
   return isPortEnd(end) ? { id: end.nodeId, port: end.portId } : { x: end.x, y: end.y }
 }
 
+type Direction = 'left' | 'right' | 'top' | 'bottom'
+
+/** Which way a link should leave a port, from the port's place on its symbol. */
+export function portDirection(symbolId: string, portId: string): Direction | null {
+  try {
+    const def = getSymbol(symbolId)
+    const port = def.ports.find((p) => p.id === portId)
+    if (!port) return null
+    const w = def.gridSize.w * 8
+    const h = def.gridSize.h * 8
+    const candidates: [Direction, number][] = [
+      ['left', port.x],
+      ['right', w - port.x],
+      ['top', port.y],
+      ['bottom', h - port.y],
+    ]
+    candidates.sort((a, b) => a[1] - b[1])
+    const [dir, distance] = candidates[0]!
+    return distance <= 8 ? dir : null
+  } catch {
+    return null
+  }
+}
+
+function routerFor(edge: PlantEdge, nodes?: Map<string, string>): Record<string, unknown> {
+  const args: Record<string, unknown> = { step: 8, padding: 16 }
+  if (nodes) {
+    if (isPortEnd(edge.source)) {
+      const symbolId = nodes.get(edge.source.nodeId)
+      const dir = symbolId ? portDirection(symbolId, edge.source.portId) : null
+      if (dir) args.startDirections = [dir]
+    }
+    if (isPortEnd(edge.target)) {
+      const symbolId = nodes.get(edge.target.nodeId)
+      const dir = symbolId ? portDirection(symbolId, edge.target.portId) : null
+      if (dir) args.endDirections = [dir]
+    }
+  }
+  return { name: 'manhattan', args }
+}
+
 const LINK_MARKUP = [
   { tagName: 'path', selector: 'wrapper', attributes: { fill: 'none', cursor: 'pointer', stroke: 'transparent' } },
   { tagName: 'path', selector: 'outline', attributes: { fill: 'none', 'pointer-events': 'none' } },
@@ -128,13 +171,13 @@ function lineAttrs(edge: PlantEdge): Record<string, Record<string, unknown>> {
   }
 }
 
-export function makeLink(edge: PlantEdge): dia.Link {
+export function makeLink(edge: PlantEdge, nodeSymbols?: Map<string, string>): dia.Link {
   const link = new shapes.standard.Link({
     id: edge.id,
     source: toEnd(edge.source),
     target: toEnd(edge.target),
     vertices: edge.vertices ?? [],
-    router: { name: 'manhattan', args: { step: 8, padding: 16 } },
+    router: routerFor(edge, nodeSymbols),
     connector: { name: 'normal' },
     markup: LINK_MARKUP,
     data: { lineClass: edge.lineClass },
@@ -143,9 +186,12 @@ export function makeLink(edge: PlantEdge): dia.Link {
   return link
 }
 
-export function updateLink(cell: dia.Link, edge: PlantEdge, prev: PlantEdge): void {
-  if (edge.source !== prev.source) cell.source(toEnd(edge.source))
-  if (edge.target !== prev.target) cell.target(toEnd(edge.target))
+export function updateLink(cell: dia.Link, edge: PlantEdge, prev: PlantEdge, nodeSymbols?: Map<string, string>): void {
+  if (edge.source !== prev.source || edge.target !== prev.target) {
+    cell.source(toEnd(edge.source))
+    cell.target(toEnd(edge.target))
+    cell.router(routerFor(edge, nodeSymbols) as never)
+  }
   if (edge.vertices !== prev.vertices) cell.vertices(edge.vertices ?? [])
   if (edge.lineClass !== prev.lineClass || edge.arrow !== prev.arrow) {
     cell.removeAttr('line/strokeDasharray')

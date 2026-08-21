@@ -10,6 +10,7 @@ export function reconcile(graph: dia.Graph, doc: SheetContent, prev: SheetConten
   if (doc === prev) return
   const prevNodes = new Map(prev?.nodes.map((n) => [n.id, n]))
   const prevEdges = new Map(prev?.edges.map((e) => [e.id, e]))
+  const nodeSymbols = new Map(doc.nodes.map((n) => [n.id, n.symbolId]))
   const keep = new Set<string>()
 
   for (const node of doc.nodes) {
@@ -27,10 +28,10 @@ export function reconcile(graph: dia.Graph, doc: SheetContent, prev: SheetConten
     keep.add(edge.id)
     const cell = graph.getCell(edge.id) as dia.Link | undefined
     if (!cell) {
-      graph.addCell(makeLink(edge))
+      graph.addCell(makeLink(edge, nodeSymbols))
     } else {
       const before = prevEdges.get(edge.id)
-      if (before && before !== edge) updateLink(cell, edge, before)
+      if (before && before !== edge) updateLink(cell, edge, before, nodeSymbols)
     }
   }
 

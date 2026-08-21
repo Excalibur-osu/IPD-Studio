@@ -29,3 +29,25 @@ describe('phase-2 line classes', () => {
     expect(GLYPHS['pipe.jacketed']).toBeNull()
   })
 })
+
+import '../../src/symbols/lib/index'
+import { makeLink, portDirection } from '../../src/canvas/shapes'
+
+describe('router directions from port side', () => {
+  it('derives directions from port geometry', () => {
+    expect(portDirection('pump.centrifugal', 'suction')).toBe('left')
+    expect(portDirection('pump.centrifugal', 'discharge')).toBe('right')
+    expect(portDirection('cv.globe', 'sig')).toBe('top')
+    expect(portDirection('vessel.tank', 's')).toBe('bottom')
+  })
+  it('link routers carry start/end directions for port ends', () => {
+    const symbols = new Map([['n1', 'pump.centrifugal'], ['n2', 'vessel.tank']])
+    const link = makeLink(
+      { id: 'e', lineClass: 'process.major', source: { nodeId: 'n1', portId: 'discharge' }, target: { nodeId: 'n2', portId: 'w' } },
+      symbols,
+    )
+    const router = link.get('router') as { args: { startDirections?: string[]; endDirections?: string[] } }
+    expect(router.args.startDirections).toEqual(['right'])
+    expect(router.args.endDirections).toEqual(['left'])
+  })
+})
