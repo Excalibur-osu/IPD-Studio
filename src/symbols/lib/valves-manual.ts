@@ -72,6 +72,53 @@ export const manualValves: SymbolDef[] = [
     path('M4 2 L28 8 L4 14 Z') + path('M28 0 L28 16'),
     ['check', 'non-return', 'nrv', 'one-way'],
   ),
+  inlineValve(
+    'valve.pinch',
+    'Pinch Valve',
+    path('M0 8 H32') + path('M4 0 Q16 8 28 0 M4 16 Q16 8 28 16'),
+    ['pinch', 'tube'],
+  ),
+  inlineValve(
+    'valve.stopcheck',
+    'Stop-Check Valve',
+    path('M4 2 L28 8 L4 14 Z') + path('M28 0 L28 16') + path('M16 0 V6 M10 0 H22'),
+    ['stop-check', 'check'],
+  ),
+  inlineValve(
+    'valve.knife',
+    'Knife Gate Valve',
+    path(BOWTIE) + path('M16 8 V0 M12 2 H20'),
+    ['knife', 'gate', 'slurry'],
+  ),
+  {
+    id: 'valve.fourway',
+    name: '4-Way Valve',
+    category: 'valves',
+    gridSize: { w: 4, h: 4 },
+    render: () =>
+      path('M0 8 L0 24 L16 16 Z M32 8 L32 24 L16 16 Z M8 0 L24 0 L16 16 Z M8 32 L24 32 L16 16 Z'),
+    ports: [
+      { id: 'w', x: 0, y: 16, kind: 'process' },
+      { id: 'e', x: 32, y: 16, kind: 'process' },
+      { id: 'n', x: 16, y: 0, kind: 'process' },
+      { id: 's', x: 16, y: 32, kind: 'process' },
+    ],
+    tagRule: 'valve',
+    keywords: ['valve', 'four-way', '4-way'],
+  },
+  {
+    id: 'valve.angle',
+    name: 'Angle Valve',
+    category: 'valves',
+    gridSize: { w: 3, h: 3 },
+    render: () => path('M0 4 L0 20 L16 12 Z M8 24 L24 24 L16 12 Z'),
+    ports: [
+      { id: 'w', x: 0, y: 12, kind: 'process' },
+      { id: 's', x: 16, y: 24, kind: 'process' },
+    ],
+    tagRule: 'valve',
+    keywords: ['valve', 'angle'],
+  },
   {
     id: 'valve.threeway',
     name: '3-Way Valve',

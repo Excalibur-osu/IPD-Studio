@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest'
 import '../../src/symbols/lib/index'
 import { getSymbol, SYMBOLS } from '../../src/symbols/registry'
 
+const PHASE2_IDS = [
+  'valve.pinch', 'valve.stopcheck', 'valve.fourway', 'valve.angle', 'valve.knife',
+  'psv.pilot', 'pvsv', 'vacuum-breaker', 'flame-arrestor', 'breather', 'bpcv', 'tcv.self',
+]
+
 const PHASE1_IDS = [
   'fe.orifice', 'fe.venturi', 'fe.magmeter', 'fe.coriolis', 'fe.vortex', 'fe.turbine', 'fe.rotameter', 'fe.ro',
   'acc.thermowell', 'acc.pg', 'acc.lg',
@@ -13,6 +18,20 @@ const PHASE1_IDS = [
   'ctl.interlock',
   'ann.offpage', 'ann.arrow', 'ann.text', 'ann.noteflag', 'ann.cloud',
 ]
+
+describe('phase-2 catalog (valves/safety)', () => {
+  it('registers every phase-2 valve/safety id', () => {
+    for (const id of PHASE2_IDS) expect(() => getSymbol(id), id).not.toThrow()
+  })
+  it('fourway has 4 ports; digital actuator renders D', () => {
+    expect(getSymbol('valve.fourway').ports).toHaveLength(4)
+    expect(getSymbol('cv.globe').render({ actuator: 'digital', fail: 'none' })).toContain('>D<')
+    expect(getSymbol('cv.globe').render({ actuator: 'electro-hydraulic', fail: 'none' })).toContain('>EH<')
+  })
+  it('pinch valve has two facing arcs', () => {
+    expect((getSymbol('valve.pinch').render({}).match(/Q16/g) ?? []).length).toBe(2)
+  })
+})
 
 describe('phase-1 catalog', () => {
   it('registers every phase-1 id', () => {

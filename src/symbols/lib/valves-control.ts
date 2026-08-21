@@ -22,6 +22,10 @@ function actuatorGlyph(actuator: string): string {
       return path('M10 0 h12 v12 h-12 Z') + text(16, 9.5, 'S')
     case 'manual':
       return path('M6 4 H26 M16 4 V12')
+    case 'digital':
+      return path('M10 0 h12 v12 h-12 Z') + text(16, 9.5, 'D')
+    case 'electro-hydraulic':
+      return path('M6 0 h20 v12 h-20 Z') + text(16, 9.5, 'EH')
     default: // spring diaphragm
       return path('M6 12 a10 8 0 0 1 20 0 Z')
   }
@@ -83,7 +87,7 @@ export const controlValves: SymbolDef[] = Object.entries(CV_BODIES).map(([id, bo
   tagRule: 'valve',
   defaultConfig: { actuator: 'diaphragm', fail: 'none' },
   configOptions: {
-    actuator: ['diaphragm', 'piston', 'motor', 'solenoid', 'manual'],
+    actuator: ['diaphragm', 'piston', 'motor', 'solenoid', 'manual', 'digital', 'electro-hydraulic'],
     fail: ['none', 'fc', 'fo', 'fl'],
   },
   keywords: body.keywords,

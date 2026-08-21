@@ -2,7 +2,7 @@ import { registerSymbols } from '../registry'
 import { bubble } from './bubble'
 import { manualValves } from './valves-manual'
 import { controlValves } from './valves-control'
-import { safetyDevices } from './safety'
+import { safetyDevices, safetyDevices2 } from './safety'
 import { flowElements } from './flow-elements'
 import { accessories } from './accessories'
 import { rotating } from './rotating'
@@ -17,6 +17,7 @@ registerSymbols([
   ...manualValves,
   ...controlValves,
   ...safetyDevices,
+  ...safetyDevices2,
   ...flowElements,
   ...accessories,
   ...rotating,
