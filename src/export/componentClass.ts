@@ -107,3 +107,13 @@ const MAP: Record<string, string> = {
 export function componentClassFor(symbolId: string): string {
   return MAP[symbolId] ?? 'PlantItem'
 }
+
+const REVERSE: Record<string, string> = {}
+for (const [symbolId, cls] of Object.entries(MAP)) {
+  if (!(cls in REVERSE)) REVERSE[cls] = symbolId
+}
+
+/** Best-effort reverse mapping for foreign DEXPI files; null when unknown. */
+export function symbolForComponentClass(componentClass: string): string | null {
+  return REVERSE[componentClass] ?? null
+}

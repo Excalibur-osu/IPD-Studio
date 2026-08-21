@@ -47,6 +47,9 @@ function nodeXml(node: PlantNode): string {
     if (node.tag.suffix) attrs.push(['TagSuffix', node.tag.suffix])
   }
   if (node.label) attrs.push(['Label', node.label])
+  for (const [key, value] of Object.entries(node.config ?? {})) {
+    attrs.push([`Config.${key}`, value])
+  }
   return el(
     isInstrument ? 'ProcessInstrument' : 'Equipment',
     { ID: node.id, TagName: tagName, ComponentClass: componentClassFor(node.symbolId) },

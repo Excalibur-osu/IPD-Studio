@@ -1,5 +1,7 @@
 import type { ProjectDoc } from '../model/types'
 import { loadDoc } from '../model/migrate'
+import { createEmptyDoc } from '../model/doc'
+import { importDexpi } from '../import/dexpi'
 import { useStore } from '../store/store'
 
 export function serializeDoc(doc: ProjectDoc): string {
@@ -15,7 +17,22 @@ interface FilePickerWindow extends Window {
   showOpenFilePicker?: (opts: unknown) => Promise<FileSystemFileHandle[]>
 }
 
-const PICKER_TYPES = [{ description: 'PID Studio drawing', accept: { 'application/json': ['.pnid.json'] } }]
+const PICKER_TYPES = [
+  { description: 'PID Studio drawing', accept: { 'application/json': ['.pnid.json'] } },
+  { description: 'DEXPI / Proteus XML', accept: { 'application/xml': ['.xml'] } },
+]
+
+function loadAnyText(name: string, text: string): void {
+  if (name.endsWith('.xml') || text.trimStart().startsWith('<?xml') || text.includes('<PlantModel')) {
+    const { sheet, warnings } = importDexpi(text)
+    const doc = createEmptyDoc(sheet.name || name.replace(/\.[^.]+$/, ''))
+    doc.sheets = [sheet]
+    useStore.getState().loadIntoStore(doc)
+    if (warnings.length) window.alert(`DEXPI import finished with warnings:\n${warnings.join('\n')}`)
+    return
+  }
+  useStore.getState().loadIntoStore(deserializeDoc(text))
+}
 
 export async function saveFile(): Promise<void> {
   const { doc, markSaved } = useStore.getState()
@@ -46,13 +63,12 @@ export async function saveFile(): Promise<void> {
 
 export async function openFile(): Promise<void> {
   const w = window as FilePickerWindow
-  const loadText = (text: string) => useStore.getState().loadIntoStore(deserializeDoc(text))
   if (w.showOpenFilePicker) {
     try {
       const [handle] = await w.showOpenFilePicker({ types: PICKER_TYPES })
       if (!handle) return
       const file = await handle.getFile()
-      loadText(await file.text())
+      loadAnyText(file.name, await file.text())
       return
     } catch (err) {
       if ((err as Error).name === 'AbortError') return
@@ -61,10 +77,10 @@ export async function openFile(): Promise<void> {
   }
   const input = document.createElement('input')
   input.type = 'file'
-  input.accept = '.json,application/json'
+  input.accept = '.json,.xml,application/json,application/xml'
   input.onchange = async () => {
     const file = input.files?.[0]
-    if (file) loadText(await file.text())
+    if (file) loadAnyText(file.name, await file.text())
   }
   input.click()
 }
