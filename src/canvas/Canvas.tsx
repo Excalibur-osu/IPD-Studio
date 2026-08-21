@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { canvasRef, createPaper, zoomAt } from './paperSetup'
 import { reconcile } from './reconciler'
 import { decorateLinks } from './decorations'
+import { attachDropHandling } from './dropHandling'
 import '../symbols/lib/index'
 import { sheetPx } from '../model/doc'
 import { useStore } from '../store/store'
@@ -21,6 +22,7 @@ export default function Canvas() {
     paper.translate(24, 24)
 
     paper.on('render:done', () => decorateLinks(paper))
+    const detachDrop = attachDropHandling(host, paper)
 
     reconcile(graph, useStore.getState().doc, undefined)
     let prevDoc = useStore.getState().doc
@@ -79,6 +81,7 @@ export default function Canvas() {
     window.addEventListener('keyup', onKey)
 
     return () => {
+      detachDrop()
       unsubscribe()
       host.removeEventListener('wheel', onWheel)
       host.removeEventListener('pointerdown', onPointerDown, true)
