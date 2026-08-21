@@ -3,6 +3,7 @@ import { canvasRef, createPaper, zoomAt } from './paperSetup'
 import { reconcile } from './reconciler'
 import { decorateLinks } from './decorations'
 import { attachDropHandling } from './dropHandling'
+import { attachInteractions, attachMarquee } from './interactions'
 import '../symbols/lib/index'
 import { sheetPx } from '../model/doc'
 import { useStore } from '../store/store'
@@ -23,6 +24,8 @@ export default function Canvas() {
 
     paper.on('render:done', () => decorateLinks(paper))
     const detachDrop = attachDropHandling(host, paper)
+    const detachInteractions = attachInteractions(paper, graph)
+    const detachMarquee = attachMarquee(host, paper, graph)
 
     reconcile(graph, useStore.getState().doc, undefined)
     let prevDoc = useStore.getState().doc
@@ -81,6 +84,8 @@ export default function Canvas() {
     window.addEventListener('keyup', onKey)
 
     return () => {
+      detachMarquee()
+      detachInteractions()
       detachDrop()
       unsubscribe()
       host.removeEventListener('wheel', onWheel)
