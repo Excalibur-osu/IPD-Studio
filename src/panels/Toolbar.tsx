@@ -8,6 +8,7 @@ import type { LineClass } from '../model/types'
 import { exportSvgFile } from '../export/svg'
 import { printPdf } from '../export/printPdf'
 import { downloadInstrumentIndex, downloadLineList } from '../export/csv'
+import { downloadDexpi } from '../export/dexpi'
 import { loadDoc } from '../model/migrate'
 import samplePlant from '../../examples/sample-plant.pnid.json'
 
@@ -70,6 +71,7 @@ export default function Toolbar() {
       <span className="tb-grow" />
       <button onClick={() => exportSvgFile()}>SVG</button>
       <button onClick={() => printPdf()}>PDF</button>
+      <button onClick={() => downloadDexpi()}>DEXPI</button>
       <button onClick={() => downloadInstrumentIndex()}>Index</button>
       <button onClick={() => downloadLineList()}>Lines</button>
     </header>
