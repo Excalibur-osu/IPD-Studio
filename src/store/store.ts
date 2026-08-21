@@ -22,6 +22,7 @@ export interface StoreState {
   setLabel(id: string, label: string): void
   setNodeLink(id: string, link: PlantNode['link']): void
   setDatasheet(id: string, patch: Record<string, string>): void
+  setUnderlay(underlay: Sheet['underlay']): void
   addCustomSymbol(def: CustomSymbolDef): void
   removeCustomSymbol(id: string): void
   setMeta(patch: Partial<ProjectDoc['meta']>): void
@@ -228,6 +229,15 @@ export const useStore = create<StoreState>()(
           }
           patchSheet((sh) => ({ ...sh, nodes: [...sh.nodes, ...newNodes], edges: [...sh.edges, ...newEdges] }))
           set({ selection: newNodes.map((n) => n.id) })
+        },
+
+        setUnderlay(underlay) {
+          patchSheet((sh) => {
+            const next = { ...sh }
+            if (underlay) next.underlay = underlay
+            else delete next.underlay
+            return next
+          })
         },
 
         addCustomSymbol(def) {

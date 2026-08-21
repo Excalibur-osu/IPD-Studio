@@ -85,6 +85,8 @@ export interface Sheet {
   sheetSize: SheetSize
   nodes: PlantNode[]
   edges: PlantEdge[]
+  /** Locked background trace-over underlay imported from DXF. */
+  underlay?: { name: string; polylines: { x: number; y: number }[][] }
 }
 
 /** The node/edge slice reconcilers and exports operate on. */

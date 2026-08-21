@@ -4,6 +4,7 @@ import { reconcile } from './reconciler'
 import { decorateLinks } from './decorations'
 import { attachDropHandling } from './dropHandling'
 import { attachInteractions, attachMarquee } from './interactions'
+import { renderUnderlay } from './underlay'
 import '../symbols/lib/index'
 import { sheetPx } from '../model/doc'
 import { activeSheet, useStore } from '../store/store'
@@ -30,6 +31,7 @@ export default function Canvas() {
     let prevSheetId = useStore.getState().activeSheetId
     let prevSheet = activeSheet(useStore.getState())
     reconcile(graph, prevSheet, undefined)
+    renderUnderlay(paper, prevSheet)
     const unsubscribe = useStore.subscribe((s) => {
       const sheet = activeSheet(s)
       if (s.activeSheetId !== prevSheetId) {
@@ -37,10 +39,12 @@ export default function Canvas() {
         prevSheet = sheet
         graph.clear()
         reconcile(graph, sheet, undefined)
+        renderUnderlay(paper, sheet)
       } else if (sheet !== prevSheet) {
         const before = prevSheet
         prevSheet = sheet
         reconcile(graph, sheet, before)
+        if (sheet.underlay !== before.underlay) renderUnderlay(paper, sheet)
       }
     })
 

@@ -15,6 +15,9 @@ import { exportPng } from '../export/png'
 import templateBlank from '../../examples/template-blank-a3.pnid.json'
 import templateUtility from '../../examples/template-utility-a1.pnid.json'
 import { loadDoc } from '../model/migrate'
+import { parseDxfUnderlay } from '../import/dxfUnderlay'
+import { sheetPx } from '../model/doc'
+import { activeSheet } from '../store/store'
 import samplePlant from '../../examples/sample-plant.pnid.json'
 
 function zoomCenter(factor: number) {
@@ -72,6 +75,36 @@ export default function Toolbar() {
         <option value="blank">Blank A3 drawing</option>
         <option value="utility">Utility headers (A1)</option>
       </select>
+      <span className="tb-sep" />
+      <button
+        onClick={() => {
+          const state = useStore.getState()
+          const sheet = activeSheet(state)
+          if (sheet.underlay) {
+            if (window.confirm('Remove the DXF underlay from this sheet?')) state.setUnderlay(undefined)
+            return
+          }
+          const input = document.createElement('input')
+          input.type = 'file'
+          input.accept = '.dxf'
+          input.onchange = async () => {
+            const file = input.files?.[0]
+            if (!file) return
+            try {
+              const px = sheetPx(sheet.sheetSize)
+              const { polylines, warnings } = parseDxfUnderlay(await file.text(), px)
+              state.setUnderlay({ name: file.name, polylines })
+              if (warnings.length) window.alert(`Underlay loaded with notes:\n${warnings.join('\n')}`)
+            } catch (err) {
+              window.alert(`Could not read DXF: ${(err as Error).message}`)
+            }
+          }
+          input.click()
+        }}
+        title="Load a DXF as a locked trace-over background"
+      >
+        Underlay
+      </button>
       <span className="tb-sep" />
       <button onClick={undo} title="Ctrl+Z">↩</button>
       <button onClick={redo} title="Ctrl+Y">↪</button>
