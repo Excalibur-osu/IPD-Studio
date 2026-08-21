@@ -43,6 +43,8 @@ export interface PlantNode {
   x: number
   y: number
   rotation: 0 | 90 | 180 | 270
+  /** Uniform display scale (1 = catalog size). Ports and glyph scale with it. */
+  scale?: number
   flipH?: boolean
   config?: Record<string, string>
   tag?: Tag

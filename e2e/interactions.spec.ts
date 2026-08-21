@@ -77,6 +77,14 @@ test('move, connect, ghost-stub guard, quick line editor, panel collapse', async
   expect(edges1[0].source.portId).toBe('s')
   expect(edges1[0].target.portId).toBe('sig')
 
+  // The bubble s port (x=340) was 4px off the valve sig port (x=336); the
+  // connect must auto-nudge the instrument so the line runs dead straight.
+  const ficX = await page.evaluate(
+    (id) => window.__pid.useStore.getState().doc.sheets[0].nodes.find((n: any) => n.id === id).x,
+    ids.fic,
+  )
+  expect(ficX).toBe(316)
+
   // --- short drag from a port into blank leaves no ghost stub ------------
   await drag(page, await clientPoint(page, 232, 152), await clientPoint(page, 244, 158))
   const edges2 = await page.evaluate(() => window.__pid.useStore.getState().doc.sheets[0].edges)
@@ -104,4 +112,45 @@ test('move, connect, ghost-stub guard, quick line editor, panel collapse', async
   // --- converter is searchable ------------------------------------------
   await page.locator('.palette-search').fill('i/p')
   await expect(page.locator('.palette-entry', { hasText: 'Signal Converter' })).toBeVisible()
+})
+
+test('port dots show only on hover or while linking; nodes resize from the panel', async ({ page }) => {
+  await page.goto('/')
+  await page.waitForFunction(() => Boolean(window.__pid))
+  const tank = await page.evaluate(() => {
+    const s = window.__pid.useStore.getState()
+    const id = s.addNode({ symbolId: 'vessel.tank', kind: 'equipment', x: 96, y: 96, rotation: 0 })
+    s.setSelection([])
+    return id
+  })
+  await expect(page.locator('[model-id]')).toHaveCount(1)
+  const dot = page.locator(`[model-id="${tank}"] .pid-port-dot`).first()
+
+  // hidden at rest, shown on hover
+  await expect(dot).toHaveCSS('opacity', '0')
+  await page.mouse.move(...Object.values(await clientPoint(page, 128, 124)) as [number, number])
+  await expect(dot).toHaveCSS('opacity', '1')
+
+  // while dragging from a port the paper enters linking mode
+  const from = await clientPoint(page, 128, 96) // tank n port
+  await page.mouse.move(from.x, from.y)
+  await page.mouse.down()
+  await page.mouse.move(from.x + 60, from.y - 40, { steps: 8 })
+  await expect(page.locator('.joint-paper.pid-linking')).toHaveCount(1)
+  await page.mouse.move(from.x + 8, from.y + 2, { steps: 4 })
+  await page.mouse.up() // short stub -> discarded
+  await expect(page.locator('.joint-paper.pid-linking')).toHaveCount(0)
+  const edges = await page.evaluate(() => window.__pid.useStore.getState().doc.sheets[0].edges.length)
+  expect(edges).toBe(0)
+
+  // resize from the property panel
+  await page.mouse.click(...Object.values(await clientPoint(page, 128, 124)) as [number, number])
+  await page.locator('.props button[title="Larger"]').click()
+  const scale = await page.evaluate(
+    (id) => window.__pid.useStore.getState().doc.sheets[0].nodes.find((n: any) => n.id === id).scale,
+    tank,
+  )
+  expect(scale).toBe(1.25)
+  const box = await page.locator(`[model-id="${tank}"] [joint-selector="hit"]`).boundingBox()
+  expect(Math.round(box!.width)).toBe(80) // 64 * 1.25
 })

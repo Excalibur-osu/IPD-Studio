@@ -56,6 +56,8 @@ body { font: 13px/1.4 system-ui, sans-serif; color: #1a1a1a; }
 .prop-group { margin: 10px 0; }
 .prop-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .prop-hint { color: #888; font-size: 11px; }
+.scale-value { min-width: 36px; text-align: center; font-size: 12px; color: #333; }
+.prop-row button:disabled { opacity: 0.4; cursor: default; }
 .tag-row { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
 .tag-row input { min-width: 0; font: inherit; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; }
 .tag-letters { width: 56px; text-transform: uppercase; }
@@ -133,10 +135,13 @@ button { font: inherit; }
 .update-chip { border: 1px solid #2b6cb0; color: #2b6cb0; background: #eef2f7; border-radius: 10px; padding: 1px 10px; font-size: 11px; cursor: pointer; }
 
 /* --- connection points ---------------------------------------------------- */
-/* Always-visible dots mark where lines can start/end; the invisible halo
-   (.pid-port-hit) is the actual grab target. Exports strip both. */
-.pid-port-dot { fill: #fff; stroke: #93a4bd; stroke-width: 1.2; }
-.joint-element:hover .pid-port-dot { stroke: #2b6cb0; fill: #dbeafe; r: 4px; }
+/* Dots mark where lines can start/end; they stay hidden until you hover a
+   symbol or are mid-drag on a line ('pid-linking' on the paper root). The
+   invisible halo (.pid-port-hit) is the actual grab target. Exports strip
+   both. */
+.pid-port-dot { fill: #fff; stroke: #93a4bd; stroke-width: 1.2; opacity: 0; transition: opacity 0.12s; }
+.joint-element:hover .pid-port-dot { opacity: 1; stroke: #2b6cb0; fill: #dbeafe; r: 4px; }
+.pid-linking .pid-port-dot { opacity: 1; }
 .pid-port-hit:hover { fill: rgba(43, 108, 176, 0.22); stroke: #2b6cb0; }
 /* While dragging a link, every legal target port shows a slim ring. */
 .pid-port-hit.available-magnet { fill: rgba(43, 108, 176, 0.12); stroke: #2b6cb0; stroke-width: 1.25; r: 5px; }

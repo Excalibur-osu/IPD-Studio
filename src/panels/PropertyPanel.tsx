@@ -83,7 +83,9 @@ function NodeProps({ node }: { node: PlantNode }) {
   const setNodeConfig = useStore((s) => s.setNodeConfig)
   const setLabel = useStore((s) => s.setLabel)
   const rotateNode = useStore((s) => s.rotateNode)
+  const setNodeScale = useStore((s) => s.setNodeScale)
   const [datasheetOpen, setDatasheetOpen] = useState(false)
+  const scale = node.scale ?? 1
   return (
     <>
       <div className="prop-title">{def.name}</div>
@@ -107,6 +109,13 @@ function NodeProps({ node }: { node: PlantNode }) {
       <div className="prop-row">
         <button onClick={() => rotateNode(node.id)}>Rotate 90°</button>
         <span className="prop-hint">{node.rotation}°</span>
+      </div>
+      <div className="prop-row">
+        <span className="prop-hint">Size</span>
+        <button title="Smaller" disabled={scale <= 0.5} onClick={() => setNodeScale(node.id, scale - 0.25)}>−</button>
+        <span className="scale-value">{scale}×</span>
+        <button title="Larger" disabled={scale >= 3} onClick={() => setNodeScale(node.id, scale + 0.25)}>＋</button>
+        {scale !== 1 && <button title="Reset size" onClick={() => setNodeScale(node.id, 1)}>reset</button>}
       </div>
       {node.kind === 'instrument' && (
         <div className="prop-row">

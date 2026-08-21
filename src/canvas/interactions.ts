@@ -3,7 +3,7 @@ import type { PlantEdge, PlantNode } from '../model/types'
 import { isPortEnd } from '../model/types'
 import type { PortKind } from '../symbols/types'
 import { compatibleKinds, pickLineClass } from './connectionRules'
-import { alignNodes, distributeNodes, snapGuides } from './alignment'
+import { alignNodes, distributeNodes, portWorld, snapGuides } from './alignment'
 import { makeLink } from './shapes'
 import { activeSheet, useStore } from '../store/store'
 
@@ -89,10 +89,43 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
       source,
       target,
     })
+    straightenNewEdge(source, target)
     store().setSelection([id])
   }
 
+  /**
+   * If a freshly drawn port-to-port line is a few px off collinear, nudge the
+   * lighter node (instrument/valve over equipment) into exact alignment so
+   * the line renders straight instead of with a one-grid jog. Symbols of
+   * different widths can never both center on the 8px grid, so this nudge —
+   * not grid discipline — is what makes in-line hookups come out straight.
+   */
+  const straightenNewEdge = (source: PlantEdge['source'], target: PlantEdge['target']) => {
+    if (!isPortEnd(source) || !isPortEnd(target)) return
+    const sheet = activeSheet(store())
+    const na = sheet.nodes.find((n) => n.id === source.nodeId)
+    const nb = sheet.nodes.find((n) => n.id === target.nodeId)
+    if (!na || !nb) return
+    const pa = portWorld(na, source.portId)
+    const pb = portWorld(nb, target.portId)
+    if (!pa || !pb) return
+    const dx = pb.x - pa.x
+    const dy = pb.y - pa.y
+    const mover = na.kind !== 'equipment' ? na : nb.kind !== 'equipment' ? nb : na
+    const sign = mover === na ? 1 : -1
+    if (dx !== 0 && Math.abs(dx) <= 6 && Math.abs(dy) > 24) {
+      store().setNodePos(mover.id, mover.x + sign * dx, mover.y)
+    } else if (dy !== 0 && Math.abs(dy) <= 6 && Math.abs(dx) > 24) {
+      store().setNodePos(mover.id, mover.x, mover.y + sign * dy)
+    }
+  }
+
   const onLinkPointerUp = (view: dia.LinkView) => commitDraft(view.model)
+
+  // Port dots are hidden until they matter: hovering a symbol shows its own,
+  // and holding a link drag ('pid-linking' on the paper root) shows them all.
+  const onMagnetDown = () => paper.el.classList.add('pid-linking')
+  const onGlobalPointerUp = () => paper.el.classList.remove('pid-linking')
 
   // --- selection ----------------------------------------------------------
   const onElementPointerDown = (view: dia.ElementView, evt: dia.Event) => {
@@ -155,7 +188,7 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     const node = sheet.nodes.find((n) => n.id === id)
     if (!node) return
     const p = view.model.position()
-    const hit = snapGuides({ ...node, x: p.x, y: p.y }, sheet.nodes)
+    const hit = snapGuides({ ...node, x: p.x, y: p.y }, sheet.nodes, 4, sheet.edges)
     if (hit.guideX !== undefined) drawGuide(true, hit.guideX)
     if (hit.guideY !== undefined) drawGuide(false, hit.guideY)
   }
@@ -172,7 +205,7 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     const p = view.model.position()
     const sheet = activeSheet(store())
     const node = sheet.nodes.find((n) => n.id === id)
-    const hit = node ? snapGuides({ ...node, x: p.x, y: p.y }, sheet.nodes) : {}
+    const hit = node ? snapGuides({ ...node, x: p.x, y: p.y }, sheet.nodes, 4, sheet.edges) : {}
     const nx = hit.x !== undefined ? Math.round(hit.x) : snap8(p.x)
     const ny = hit.y !== undefined ? Math.round(hit.y) : snap8(p.y)
     if (nx === start.x && ny === start.y) return
@@ -264,16 +297,20 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
   paper.on('element:pointerdown', (v: dia.ElementView, e: dia.Event) => { onElementPointerDown(v, e); onElementPointerDownPos(v) })
   paper.on('element:pointermove', onElementPointerMove)
   paper.on('element:pointerup', onElementPointerUp)
+  paper.on('element:magnet:pointerdown', onMagnetDown)
   paper.on('link:pointerdown', onLinkPointerDown)
   paper.on('link:pointerup', onLinkPointerUp)
   paper.on('blank:pointerdown', onBlankPointerDown)
   graph.on('change:vertices', onLinkChangeVertices)
   window.addEventListener('keydown', onKeyDown)
+  window.addEventListener('pointerup', onGlobalPointerUp)
 
   return () => {
     clearGuides()
     unsubSelection()
     window.removeEventListener('keydown', onKeyDown)
+    window.removeEventListener('pointerup', onGlobalPointerUp)
+    paper.off('element:magnet:pointerdown')
     paper.off('element:pointerdown')
     paper.off('element:pointermove')
     paper.off('element:pointerup')

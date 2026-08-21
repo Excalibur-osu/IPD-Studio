@@ -26,9 +26,22 @@ const PORT_MARKUP = [
   },
 ]
 
+/** Divide stroke widths by the node scale so drawn line weight stays constant. */
+function normalizeStrokes(nodes: (MarkupNode | string)[], s: number): void {
+  for (const mk of nodes) {
+    if (typeof mk === 'string') continue
+    const sw = mk.attributes?.['stroke-width']
+    if (sw && !Number.isNaN(Number(sw))) mk.attributes!['stroke-width'] = String(Number(sw) / s)
+    if (mk.children) normalizeStrokes(mk.children, s)
+  }
+}
+
 function markupFor(node: PlantNode): (MarkupNode | string)[] {
   const def = getSymbol(node.symbolId)
   const svg = def.render(node.config ?? def.defaultConfig ?? {})
+  const sym = parseSvgToMarkup(svg)
+  const s = node.scale ?? 1
+  if (s !== 1) normalizeStrokes(sym, s)
   return [
     // Transparent body so the whole symbol (not just its hairline strokes)
     // accepts clicks and drags.
@@ -43,17 +56,23 @@ function markupFor(node: PlantNode): (MarkupNode | string)[] {
         cursor: 'move',
       },
     },
-    { tagName: 'g', selector: 'sym', children: parseSvgToMarkup(svg) },
+    { tagName: 'g', selector: 'sym', children: sym },
     { tagName: 'text', selector: 'tagL' },
     { tagName: 'text', selector: 'tagN' },
     { tagName: 'text', selector: 'lbl' },
   ]
 }
 
+/** Scaled pixel dims for a node (scale defaults to 1). */
+function dimsFor(node: PlantNode): { w: number; h: number; s: number } {
+  const def = getSymbol(node.symbolId)
+  const s = node.scale ?? 1
+  return { w: def.gridSize.w * 8 * s, h: def.gridSize.h * 8 * s, s }
+}
+
 function tagAttrs(node: PlantNode): Record<string, Record<string, unknown>> {
   const def = getSymbol(node.symbolId)
-  const w = def.gridSize.w * 8
-  const h = def.gridSize.h * 8
+  const { w, h } = dimsFor(node)
   const inside = def.tagRule === 'isa-instrument' && node.symbolId === 'instr.bubble'
   const base = {
     fontFamily: 'sans-serif',
@@ -88,25 +107,42 @@ function tagAttrs(node: PlantNode): Record<string, Record<string, unknown>> {
   }
 }
 
+/** Full attrs bundle: symbol color/scale transform, hit body size, tag texts. */
+function baseAttrs(node: PlantNode): Record<string, Record<string, unknown>> {
+  const { w, h, s } = dimsFor(node)
+  return {
+    sym: { color: '#111', transform: `scale(${s})` },
+    hit: { width: w, height: h },
+    ...tagAttrs(node),
+  }
+}
+
+function portItems(node: PlantNode) {
+  const def = getSymbol(node.symbolId)
+  const s = node.scale ?? 1
+  return def.ports.map((p) => ({
+    id: p.id,
+    group: 'p',
+    args: { x: p.x * s, y: p.y * s },
+  }))
+}
+
 export function makeElement(node: PlantNode): dia.Element {
   const def = getSymbol(node.symbolId)
+  const { w, h } = dimsFor(node)
   const el = new dia.Element(<dia.Element.Attributes>{
     id: node.id,
     type: 'pid.Symbol',
     position: { x: node.x, y: node.y },
-    size: { width: def.gridSize.w * 8, height: def.gridSize.h * 8 },
+    size: { width: w, height: h },
     angle: node.rotation,
     markup: markupFor(node) as unknown as dia.MarkupJSON,
-    attrs: { sym: { color: '#111' }, ...tagAttrs(node) },
+    attrs: baseAttrs(node),
     ports: {
       groups: {
         p: { position: { name: 'absolute' }, markup: PORT_MARKUP },
       },
-      items: def.ports.map((p) => ({
-        id: p.id,
-        group: 'p',
-        args: { x: p.x, y: p.y },
-      })),
+      items: portItems(node),
     },
     data: { symbolId: node.symbolId, kind: node.kind, portKinds: Object.fromEntries(def.ports.map((p) => [p.id, p.kind])) },
   })
@@ -117,8 +153,16 @@ export function updateElement(cell: dia.Element, node: PlantNode, prev: PlantNod
   if (node.x !== prev.x || node.y !== prev.y) cell.set('position', { x: node.x, y: node.y })
   if (node.rotation !== prev.rotation) cell.set('angle', node.rotation)
   if (node.config !== prev.config) cell.set('markup', markupFor(node) as unknown as dia.MarkupJSON)
-  if (node.tag !== prev.tag || node.label !== prev.label || node.config !== prev.config) {
-    cell.set('attrs', { sym: { color: '#111' }, ...tagAttrs(node) })
+  const rescaled = (node.scale ?? 1) !== (prev.scale ?? 1)
+  if (rescaled) {
+    const { w, h } = dimsFor(node)
+    cell.resize(w, h)
+    cell.prop('ports/items', portItems(node))
+    // markup carries scale-normalized stroke widths, so rebuild it too
+    if (node.config === prev.config) cell.set('markup', markupFor(node) as unknown as dia.MarkupJSON)
+  }
+  if (node.tag !== prev.tag || node.label !== prev.label || node.config !== prev.config || rescaled) {
+    cell.set('attrs', baseAttrs(node))
   }
 }
 

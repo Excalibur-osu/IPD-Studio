@@ -56,15 +56,16 @@ interface Xform {
   rotation: number
   w: number
   h: number
+  scale: number
   flipY: (y: number) => number
 }
 
-/** Local symbol point -> sheet DXF point (rotation about symbol center, then y-flip). */
+/** Local symbol point -> sheet DXF point (scale, rotation about center, y-flip). */
 function tx(p: { x: number; y: number }, t: Xform): { x: number; y: number } {
-  const cx = t.w / 2
-  const cy = t.h / 2
-  let dx = p.x - cx
-  let dy = p.y - cy
+  const cx = (t.w * t.scale) / 2
+  const cy = (t.h * t.scale) / 2
+  let dx = p.x * t.scale - cx
+  let dy = p.y * t.scale - cy
   const turns = ((t.rotation % 360) + 360) % 360
   for (let i = 0; i < turns / 90; i++) {
     const nd = { x: -dy, y: dx }
@@ -134,7 +135,10 @@ function nodeEntities(node: PlantNode, flipY: (y: number) => number): string {
   } catch {
     return ''
   }
-  const t: Xform = { nx: node.x, ny: node.y, rotation: node.rotation, w: def.gridSize.w * 8, h: def.gridSize.h * 8, flipY }
+  const t: Xform = {
+    nx: node.x, ny: node.y, rotation: node.rotation,
+    w: def.gridSize.w * 8, h: def.gridSize.h * 8, scale: node.scale ?? 1, flipY,
+  }
   const walk = (nodes: (MarkupNode | string)[]) => {
     for (const mk of nodes) {
       if (typeof mk === 'string') continue
@@ -145,7 +149,7 @@ function nodeEntities(node: PlantNode, flipY: (y: number) => number): string {
           break
         case 'circle': {
           const c = tx({ x: Number(a.cx), y: Number(a.cy) }, t)
-          out += circleEnt('SYMBOLS', c.x, c.y, Number(a.r))
+          out += circleEnt('SYMBOLS', c.x, c.y, Number(a.r) * t.scale)
           break
         }
         case 'rect': {
@@ -183,12 +187,12 @@ function nodeEntities(node: PlantNode, flipY: (y: number) => number): string {
   const cfg = node.config ?? def.defaultConfig ?? {}
   walk(parseSvgToMarkup(def.render(cfg)))
 
-  const w = def.gridSize.w * 8
+  const w = def.gridSize.w * 8 * t.scale
   if (node.tag) {
     out += textEnt('TEXT', node.x + w / 2 - 12, flipY(node.y - 8), 8, formatTag(node.tag, '-'))
   }
   if (node.label) {
-    out += textEnt('TEXT', node.x, flipY(node.y + def.gridSize.h * 8 + 14), 8, node.label)
+    out += textEnt('TEXT', node.x, flipY(node.y + def.gridSize.h * 8 * t.scale + 14), 8, node.label)
   }
   return out
 }
@@ -202,7 +206,10 @@ function edgeEntities(edge: PlantEdge, nodes: Map<string, PlantNode>, flipY: (y:
       const def = getSymbol(node.symbolId)
       const port = def.ports.find((p) => p.id === end.portId)
       if (!port) return { x: node.x, y: node.y }
-      const t: Xform = { nx: node.x, ny: node.y, rotation: node.rotation, w: def.gridSize.w * 8, h: def.gridSize.h * 8, flipY: (y) => y }
+      const t: Xform = {
+        nx: node.x, ny: node.y, rotation: node.rotation,
+        w: def.gridSize.w * 8, h: def.gridSize.h * 8, scale: node.scale ?? 1, flipY: (y) => y,
+      }
       return tx({ x: port.x, y: port.y }, t)
     } catch {
       return { x: node.x, y: node.y }

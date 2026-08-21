@@ -17,6 +17,7 @@ export interface StoreState {
   setNodePos(id: string, x: number, y: number): void
   moveNodes(ids: string[], dx: number, dy: number): void
   rotateNode(id: string): void
+  setNodeScale(id: string, scale: number): void
   setNodeConfig(id: string, config: Record<string, string>): void
   setTag(id: string, tag: Tag | undefined): void
   setLabel(id: string, label: string): void
@@ -101,6 +102,18 @@ export const useStore = create<StoreState>()(
             nodes: sh.nodes.map((n) =>
               n.id === id ? { ...n, rotation: (((n.rotation + 90) % 360) as 0 | 90 | 180 | 270) } : n,
             ),
+          }))
+        },
+
+        setNodeScale(id, scale) {
+          const clamped = Math.min(3, Math.max(0.5, Math.round(scale * 4) / 4))
+          patchSheet((sh) => ({
+            ...sh,
+            nodes: sh.nodes.map((n) => {
+              if (n.id !== id) return n
+              const { scale: _drop, ...rest } = n
+              return clamped === 1 ? rest : { ...rest, scale: clamped }
+            }),
           }))
         },
 
