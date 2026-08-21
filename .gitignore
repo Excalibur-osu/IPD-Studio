@@ -6,3 +6,4 @@ coverage/
 .gstack/
 test-results/
 playwright-report/
+.firebase/
