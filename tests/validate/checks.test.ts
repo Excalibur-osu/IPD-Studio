@@ -10,11 +10,26 @@ function mk(partial: Partial<PlantNode>): PlantNode {
 }
 function doc(nodes: PlantNode[], edges: PlantEdge[] = []): ProjectDoc {
   const d = createEmptyDoc('t')
-  d.nodes = nodes
-  d.edges = edges
+  d.sheets[0]!.nodes = nodes
+  d.sheets[0]!.edges = edges
   return d
 }
 const ids = (findings: { checkId: string }[]) => findings.map((f) => f.checkId)
+
+describe('off-page link checks', () => {
+  it('unlinked off-page is fine on single-sheet docs, flagged on multi-sheet', () => {
+    const op = mk({ symbolId: 'ann.offpage', kind: 'annotation' })
+    const single = doc([op])
+    expect(runChecks(single).map((f) => f.checkId)).not.toContain('unlinked-offpage')
+    const multi = doc([op])
+    multi.sheets.push({ ...multi.sheets[0]!, id: 'sheet2', name: 'Sheet 2', nodes: [], edges: [] })
+    expect(runChecks(multi).map((f) => f.checkId)).toContain('unlinked-offpage')
+  })
+  it('flags broken links', () => {
+    const op = mk({ symbolId: 'ann.offpage', kind: 'annotation', link: { sheetId: 'nope', nodeId: 'gone' } })
+    expect(runChecks(doc([op])).map((f) => f.checkId)).toContain('broken-link')
+  })
+})
 
 describe('runChecks', () => {
   it('clean doc has no findings', () => {

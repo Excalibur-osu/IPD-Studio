@@ -4,7 +4,7 @@ import { isPortEnd } from '../model/types'
 import type { PortKind } from '../symbols/types'
 import { canConnect } from './connectionRules'
 import { makeLink } from './shapes'
-import { useStore } from '../store/store'
+import { activeSheet, useStore } from '../store/store'
 
 const snap8 = (v: number) => Math.round(v / 8) * 8
 
@@ -107,7 +107,7 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     const dy = ny - start.y
     const sel = store().selection
     if (sel.includes(id) && sel.length > 1) {
-      const nodeIds = sel.filter((s) => store().doc.nodes.some((n) => n.id === s))
+      const nodeIds = sel.filter((s) => activeSheet(store()).nodes.some((n) => n.id === s))
       store().moveNodes(nodeIds, dx, dy)
     } else {
       store().setNodePos(id, nx, ny)
@@ -159,9 +159,10 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); window.dispatchEvent(new CustomEvent('pid:save')); return }
     if (mod && e.key.toLowerCase() === 'c') {
       const selSet = new Set(s.selection)
+      const sheet = activeSheet(s)
       clipboard = {
-        nodes: s.doc.nodes.filter((n) => selSet.has(n.id)),
-        edges: s.doc.edges.filter((ed) => selSet.has(ed.id)),
+        nodes: sheet.nodes.filter((n) => selSet.has(n.id)),
+        edges: sheet.edges.filter((ed) => selSet.has(ed.id)),
       }
       return
     }
@@ -172,7 +173,7 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); s.deleteSelected(); return }
     if (e.key === 'Escape') { s.setSelection([]); return }
     if (e.key.toLowerCase() === 'r' && s.selection.length) {
-      for (const id of s.selection) if (s.doc.nodes.some((n) => n.id === id)) s.rotateNode(id)
+      for (const id of s.selection) if (activeSheet(s).nodes.some((n) => n.id === id)) s.rotateNode(id)
       return
     }
     const nudge = e.shiftKey ? 1 : 8
@@ -182,7 +183,7 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     const mv = moves[e.key]
     if (mv && s.selection.length) {
       e.preventDefault()
-      const nodeIds = s.selection.filter((id) => s.doc.nodes.some((n) => n.id === id))
+      const nodeIds = s.selection.filter((id) => activeSheet(s).nodes.some((n) => n.id === id))
       if (nodeIds.length) s.moveNodes(nodeIds, mv[0], mv[1])
     }
   }

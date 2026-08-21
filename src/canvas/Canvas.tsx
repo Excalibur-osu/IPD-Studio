@@ -6,18 +6,18 @@ import { attachDropHandling } from './dropHandling'
 import { attachInteractions, attachMarquee } from './interactions'
 import '../symbols/lib/index'
 import { sheetPx } from '../model/doc'
-import { useStore } from '../store/store'
+import { activeSheet, useStore } from '../store/store'
 
 export default function Canvas() {
   const hostRef = useRef<HTMLDivElement>(null)
-  const sheetSize = useStore((s) => s.doc.meta.sheetSize)
+  const sheetSize = useStore((s) => activeSheet(s).sheetSize)
 
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
     const paperEl = document.createElement('div')
     host.appendChild(paperEl)
-    const { paper, graph } = createPaper(paperEl, useStore.getState().doc.meta.sheetSize)
+    const { paper, graph } = createPaper(paperEl, activeSheet(useStore.getState()).sheetSize)
     canvasRef.paper = paper
     canvasRef.graph = graph
     paper.translate(24, 24)
@@ -27,13 +27,20 @@ export default function Canvas() {
     const detachInteractions = attachInteractions(paper, graph)
     const detachMarquee = attachMarquee(host, paper, graph)
 
-    reconcile(graph, useStore.getState().doc, undefined)
-    let prevDoc = useStore.getState().doc
+    let prevSheetId = useStore.getState().activeSheetId
+    let prevSheet = activeSheet(useStore.getState())
+    reconcile(graph, prevSheet, undefined)
     const unsubscribe = useStore.subscribe((s) => {
-      if (s.doc !== prevDoc) {
-        const before = prevDoc
-        prevDoc = s.doc
-        reconcile(graph, s.doc, before)
+      const sheet = activeSheet(s)
+      if (s.activeSheetId !== prevSheetId) {
+        prevSheetId = s.activeSheetId
+        prevSheet = sheet
+        graph.clear()
+        reconcile(graph, sheet, undefined)
+      } else if (sheet !== prevSheet) {
+        const before = prevSheet
+        prevSheet = sheet
+        reconcile(graph, sheet, before)
       }
     })
 

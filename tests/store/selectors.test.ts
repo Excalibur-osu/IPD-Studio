@@ -8,7 +8,7 @@ const node = (tag: Tag): PlantNode => ({ id: `n${n++}`, symbolId: 'instr.bubble'
 
 function docWith(...tags: Tag[]) {
   const d = createEmptyDoc('t')
-  d.nodes = tags.map(node)
+  d.sheets[0]!.nodes = tags.map(node)
   return d
 }
 

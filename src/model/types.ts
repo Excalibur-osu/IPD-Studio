@@ -48,6 +48,8 @@ export interface PlantNode {
   tag?: Tag
   label?: string
   attrs?: Record<string, string>
+  /** Off-page connector pairing to a connector on another sheet. */
+  link?: { sheetId: string; nodeId: string }
 }
 
 export type EdgeEnd = { nodeId: string; portId: string } | { x: number; y: number }
@@ -68,20 +70,32 @@ export interface PlantEdge {
 
 export interface ProjectMeta {
   name: string
-  drawingNumber: string
-  revision: string
   author: string
-  sheetSize: SheetSize
   created: string
   modified: string
 }
 
-export interface ProjectDoc {
-  schemaVersion: 1
-  meta: ProjectMeta
-  settings: { gridPx: number; tagSeparator: '-' | '' }
+export interface Sheet {
+  id: string
+  name: string
+  drawingNumber: string
+  revision: string
+  sheetSize: SheetSize
   nodes: PlantNode[]
   edges: PlantEdge[]
+}
+
+/** The node/edge slice reconcilers and exports operate on. */
+export interface SheetContent {
+  nodes: PlantNode[]
+  edges: PlantEdge[]
+}
+
+export interface ProjectDoc {
+  schemaVersion: 2
+  meta: ProjectMeta
+  settings: { gridPx: number; tagSeparator: '-' | '' }
+  sheets: Sheet[]
 }
 
 /** A validation finding surfaced in the validation panel. */
@@ -90,4 +104,5 @@ export interface Finding {
   checkId: string
   message: string
   targetId?: string
+  sheetId?: string
 }

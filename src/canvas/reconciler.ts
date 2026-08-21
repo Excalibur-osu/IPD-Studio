@@ -1,12 +1,12 @@
 import type { dia } from '@joint/core'
-import type { ProjectDoc } from '../model/types'
+import type { SheetContent } from '../model/types'
 import { makeElement, makeLink, updateElement, updateLink } from './shapes'
 
 /**
  * Make the JointJS graph mirror the document. The store is immutable, so
  * object identity is the change signal; identical references are skipped.
  */
-export function reconcile(graph: dia.Graph, doc: ProjectDoc, prev: ProjectDoc | undefined): void {
+export function reconcile(graph: dia.Graph, doc: SheetContent, prev: SheetContent | undefined): void {
   if (doc === prev) return
   const prevNodes = new Map(prev?.nodes.map((n) => [n.id, n]))
   const prevEdges = new Map(prev?.edges.map((e) => [e.id, e]))

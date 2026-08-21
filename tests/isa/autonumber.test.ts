@@ -9,7 +9,7 @@ function nodeWithTag(tag: Tag): PlantNode {
 }
 function docWith(...tags: Tag[]): ProjectDoc {
   const doc = createEmptyDoc('t')
-  doc.nodes = tags.map(nodeWithTag)
+  doc.sheets[0]!.nodes = tags.map(nodeWithTag)
   return doc
 }
 
@@ -42,7 +42,7 @@ describe('isDuplicateTag', () => {
   })
   it('can exclude the node being edited', () => {
     const doc = docWith({ letters: 'FT', loop: '101' })
-    const id = doc.nodes[0]!.id
+    const id = doc.sheets[0]!.nodes[0]!.id
     expect(isDuplicateTag(doc, { letters: 'FT', loop: '101' }, id)).toBe(false)
   })
 })

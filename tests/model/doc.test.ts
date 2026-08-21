@@ -3,14 +3,14 @@ import { createEmptyDoc, mmToPx, SHEET_SIZES_MM } from '../../src/model/doc'
 import { DocError, loadDoc } from '../../src/model/migrate'
 
 describe('createEmptyDoc', () => {
-  it('creates a v1 doc with A3 default and ISO timestamps', () => {
+  it('creates a v2 doc with one A3 sheet and ISO timestamps', () => {
     const doc = createEmptyDoc('Test Plant')
-    expect(doc.schemaVersion).toBe(1)
+    expect(doc.schemaVersion).toBe(2)
     expect(doc.meta.name).toBe('Test Plant')
-    expect(doc.meta.sheetSize).toBe('A3')
+    expect(doc.sheets[0]!.sheetSize).toBe('A3')
     expect(new Date(doc.meta.created).toISOString()).toBe(doc.meta.created)
-    expect(doc.nodes).toEqual([])
-    expect(doc.edges).toEqual([])
+    expect(doc.sheets[0]!.nodes).toEqual([])
+    expect(doc.sheets[0]!.edges).toEqual([])
     expect(doc.settings.gridPx).toBe(8)
   })
 })
@@ -34,8 +34,8 @@ describe('loadDoc', () => {
   it('rejects unknown schema versions', () => {
     expect(() => loadDoc({ schemaVersion: 99 })).toThrow(DocError)
   })
-  it('rejects docs missing nodes', () => {
-    const bad = { ...createEmptyDoc('X'), nodes: undefined }
+  it('rejects docs with malformed sheets', () => {
+    const bad = { ...createEmptyDoc('X'), sheets: [{ id: 's1' }] }
     expect(() => loadDoc(bad)).toThrow(DocError)
   })
   it('rejects non-objects', () => {

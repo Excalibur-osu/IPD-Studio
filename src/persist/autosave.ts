@@ -27,7 +27,7 @@ export async function restoreAutosave(): Promise<ProjectDoc | null> {
     const raw = await get(KEY)
     if (!raw) return null
     const doc = loadDoc(raw)
-    return doc.nodes.length || doc.edges.length ? doc : null
+    return doc.sheets.some((sh) => sh.nodes.length || sh.edges.length) ? doc : null
   } catch {
     return null
   }

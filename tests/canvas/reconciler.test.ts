@@ -2,8 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { dia } from '@joint/core'
 import '../../src/symbols/lib/index'
 import { reconcile } from '../../src/canvas/reconciler'
-import { createEmptyDoc } from '../../src/model/doc'
-import type { PlantEdge, PlantNode, ProjectDoc } from '../../src/model/types'
+import type { PlantEdge, PlantNode, SheetContent } from '../../src/model/types'
 
 let n = 0
 function node(partial: Partial<PlantNode> = {}): PlantNode {
@@ -12,11 +11,8 @@ function node(partial: Partial<PlantNode> = {}): PlantNode {
     x: 40, y: 40, rotation: 0, ...partial,
   }
 }
-function docWith(nodes: PlantNode[], edges: PlantEdge[] = []): ProjectDoc {
-  const doc = createEmptyDoc('t')
-  doc.nodes = nodes
-  doc.edges = edges
-  return doc
+function docWith(nodes: PlantNode[], edges: PlantEdge[] = []): SheetContent {
+  return { nodes, edges }
 }
 
 describe('reconcile', () => {

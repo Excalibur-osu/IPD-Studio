@@ -10,7 +10,7 @@ function csvField(v: string): string {
 const row = (cells: string[]) => cells.map(csvField).join(',')
 
 function nodeName(doc: ProjectDoc, nodeId: string): string {
-  const node = doc.nodes.find((n) => n.id === nodeId)
+  const node = doc.sheets.flatMap((sh) => sh.nodes).find((n) => n.id === nodeId)
   if (!node) return '?'
   if (node.tag) return formatTag(node.tag, '-')
   if (node.label) return node.label
@@ -22,47 +22,53 @@ function endName(doc: ProjectDoc, end: PlantEdge['source']): string {
 }
 
 export function instrumentIndexCsv(doc: ProjectDoc): string {
-  const lines = [row(['Tag', 'Description', 'Loop', 'Symbol', 'Connected To', 'Notes'])]
-  for (const node of doc.nodes) {
-    if (!node.tag?.letters) continue
-    const connected = doc.edges
-      .flatMap((e) => {
-        if (isPortEnd(e.source) && e.source.nodeId === node.id) return [endName(doc, e.target)]
-        if (isPortEnd(e.target) && e.target.nodeId === node.id) return [endName(doc, e.source)]
-        return []
-      })
-      .join('; ')
-    lines.push(
-      row([
-        formatTag(node.tag, '-'),
-        expandLetters(node.tag.letters),
-        node.tag.loop,
-        getSymbol(node.symbolId).name,
-        connected,
-        node.label ?? '',
-      ]),
-    )
+  const lines = [row(['Tag', 'Description', 'Loop', 'Symbol', 'Sheet', 'Connected To', 'Notes'])]
+  for (const sheet of doc.sheets) {
+    for (const node of sheet.nodes) {
+      if (!node.tag?.letters) continue
+      const connected = sheet.edges
+        .flatMap((e) => {
+          if (isPortEnd(e.source) && e.source.nodeId === node.id) return [endName(doc, e.target)]
+          if (isPortEnd(e.target) && e.target.nodeId === node.id) return [endName(doc, e.source)]
+          return []
+        })
+        .join('; ')
+      lines.push(
+        row([
+          formatTag(node.tag, '-'),
+          expandLetters(node.tag.letters),
+          node.tag.loop,
+          getSymbol(node.symbolId).name,
+          sheet.name,
+          connected,
+          node.label ?? '',
+        ]),
+      )
+    }
   }
   return lines.join('\n') + '\n'
 }
 
 export function lineListCsv(doc: ProjectDoc): string {
-  const lines = [row(['Line Number', 'Class', 'Size', 'Spec', 'Service', 'Seq', 'From', 'To'])]
-  for (const edge of doc.edges) {
-    const ln = edge.lineNumber
-    if (!ln || !(ln.size || ln.spec || ln.service || ln.seq)) continue
-    lines.push(
-      row([
-        [ln.size, ln.spec, ln.service, ln.seq].filter(Boolean).join('-'),
-        edge.lineClass,
-        ln.size,
-        ln.spec,
-        ln.service,
-        ln.seq,
-        endName(doc, edge.source),
-        endName(doc, edge.target),
-      ]),
-    )
+  const lines = [row(['Line Number', 'Class', 'Size', 'Spec', 'Service', 'Seq', 'Sheet', 'From', 'To'])]
+  for (const sheet of doc.sheets) {
+    for (const edge of sheet.edges) {
+      const ln = edge.lineNumber
+      if (!ln || !(ln.size || ln.spec || ln.service || ln.seq)) continue
+      lines.push(
+        row([
+          [ln.size, ln.spec, ln.service, ln.seq].filter(Boolean).join('-'),
+          edge.lineClass,
+          ln.size,
+          ln.spec,
+          ln.service,
+          ln.seq,
+          sheet.name,
+          endName(doc, edge.source),
+          endName(doc, edge.target),
+        ]),
+      )
+    }
   }
   return lines.join('\n') + '\n'
 }

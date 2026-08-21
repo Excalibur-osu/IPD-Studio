@@ -7,10 +7,10 @@ export interface Loop {
   hint?: string
 }
 
-/** Group tagged nodes into control loops by first letter + loop number. */
+/** Group tagged nodes into control loops by first letter + loop number (all sheets). */
 export function deriveLoops(doc: ProjectDoc): Loop[] {
   const map = new Map<string, Loop>()
-  for (const node of doc.nodes) {
+  for (const node of doc.sheets.flatMap((sh) => sh.nodes)) {
     if (!node.tag?.letters || !node.tag.loop) continue
     const family = node.tag.letters[0]!
     const key = `${family}-${node.tag.loop}`

@@ -1,10 +1,10 @@
-import { useStore } from '../store/store'
+import { activeSheet, useStore } from '../store/store'
 import { useFindings } from './ValidationPanel'
 
 export default function StatusBar() {
   const dirty = useStore((s) => s.dirty)
   const selection = useStore((s) => s.selection)
-  const nodes = useStore((s) => s.doc.nodes.length)
+  const nodes = useStore((s) => activeSheet(s).nodes.length)
   const findings = useFindings()
   return (
     <footer className="status">

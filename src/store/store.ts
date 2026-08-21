@@ -1,12 +1,13 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
 import { ulid } from 'ulid'
-import type { PlantEdge, PlantNode, ProjectDoc, Tag } from '../model/types'
+import type { PlantEdge, PlantNode, ProjectDoc, Sheet, Tag } from '../model/types'
 import { isPortEnd } from '../model/types'
-import { createEmptyDoc } from '../model/doc'
+import { createEmptyDoc, createSheet } from '../model/doc'
 
 export interface StoreState {
   doc: ProjectDoc
+  activeSheetId: string
   selection: string[]
   dirty: boolean
   activeLineClass: PlantEdge['lineClass']
@@ -18,7 +19,13 @@ export interface StoreState {
   setNodeConfig(id: string, config: Record<string, string>): void
   setTag(id: string, tag: Tag | undefined): void
   setLabel(id: string, label: string): void
+  setNodeLink(id: string, link: PlantNode['link']): void
   setMeta(patch: Partial<ProjectDoc['meta']>): void
+  setSheetMeta(patch: Partial<Pick<Sheet, 'name' | 'drawingNumber' | 'revision' | 'sheetSize'>>): void
+  addSheet(): string
+  renameSheet(id: string, name: string): void
+  deleteSheet(id: string): void
+  setActiveSheet(id: string): void
   addEdge(partial: Omit<PlantEdge, 'id'>): string
   setEdge(id: string, patch: Partial<Omit<PlantEdge, 'id'>>): void
   setEdgeVertices(id: string, vertices: { x: number; y: number }[]): void
@@ -33,198 +40,203 @@ export interface StoreState {
   redo(): void
 }
 
+/** The sheet all node/edge actions and the canvas operate on. */
+export function activeSheet(s: Pick<StoreState, 'doc' | 'activeSheetId'>): Sheet {
+  return s.doc.sheets.find((sh) => sh.id === s.activeSheetId) ?? s.doc.sheets[0]!
+}
+
 function touched(doc: ProjectDoc): ProjectDoc {
   return { ...doc, meta: { ...doc.meta, modified: new Date().toISOString() } }
 }
 
+const initialDoc = createEmptyDoc()
+
 export const useStore = create<StoreState>()(
   temporal(
-    (set, get) => ({
-      doc: createEmptyDoc(),
-      selection: [],
-      dirty: false,
-      activeLineClass: 'process.major',
-
-      addNode(partial) {
-        const id = ulid()
-        set((s) => ({
-          doc: touched({ ...s.doc, nodes: [...s.doc.nodes, { ...partial, id }] }),
-          dirty: true,
-        }))
-        return id
-      },
-
-      setNodePos(id, x, y) {
+    (set, get) => {
+      /** Immutably replace the active sheet via an updater. */
+      const patchSheet = (updater: (sheet: Sheet) => Sheet) => {
         set((s) => ({
           doc: touched({
             ...s.doc,
-            nodes: s.doc.nodes.map((n) => (n.id === id ? { ...n, x, y } : n)),
+            sheets: s.doc.sheets.map((sh) => (sh.id === activeSheet(s).id ? updater(sh) : sh)),
           }),
           dirty: true,
         }))
-      },
+      }
 
-      moveNodes(ids, dx, dy) {
-        const idSet = new Set(ids)
-        set((s) => ({
-          doc: touched({
-            ...s.doc,
-            nodes: s.doc.nodes.map((n) =>
-              idSet.has(n.id) ? { ...n, x: n.x + dx, y: n.y + dy } : n,
-            ),
-          }),
-          dirty: true,
-        }))
-      },
+      return {
+        doc: initialDoc,
+        activeSheetId: initialDoc.sheets[0]!.id,
+        selection: [],
+        dirty: false,
+        activeLineClass: 'process.major',
 
-      rotateNode(id) {
-        set((s) => ({
-          doc: touched({
-            ...s.doc,
-            nodes: s.doc.nodes.map((n) =>
+        addNode(partial) {
+          const id = ulid()
+          patchSheet((sh) => ({ ...sh, nodes: [...sh.nodes, { ...partial, id }] }))
+          return id
+        },
+
+        setNodePos(id, x, y) {
+          patchSheet((sh) => ({ ...sh, nodes: sh.nodes.map((n) => (n.id === id ? { ...n, x, y } : n)) }))
+        },
+
+        moveNodes(ids, dx, dy) {
+          const idSet = new Set(ids)
+          patchSheet((sh) => ({
+            ...sh,
+            nodes: sh.nodes.map((n) => (idSet.has(n.id) ? { ...n, x: n.x + dx, y: n.y + dy } : n)),
+          }))
+        },
+
+        rotateNode(id) {
+          patchSheet((sh) => ({
+            ...sh,
+            nodes: sh.nodes.map((n) =>
               n.id === id ? { ...n, rotation: (((n.rotation + 90) % 360) as 0 | 90 | 180 | 270) } : n,
             ),
-          }),
-          dirty: true,
-        }))
-      },
+          }))
+        },
 
-      setNodeConfig(id, config) {
-        set((s) => ({
-          doc: touched({
-            ...s.doc,
-            nodes: s.doc.nodes.map((n) => (n.id === id ? { ...n, config } : n)),
-          }),
-          dirty: true,
-        }))
-      },
+        setNodeConfig(id, config) {
+          patchSheet((sh) => ({ ...sh, nodes: sh.nodes.map((n) => (n.id === id ? { ...n, config } : n)) }))
+        },
 
-      setTag(id, tag) {
-        set((s) => ({
-          doc: touched({
-            ...s.doc,
-            nodes: s.doc.nodes.map((n) => (n.id === id ? { ...n, tag } : n)),
-          }),
-          dirty: true,
-        }))
-      },
+        setTag(id, tag) {
+          patchSheet((sh) => ({ ...sh, nodes: sh.nodes.map((n) => (n.id === id ? { ...n, tag } : n)) }))
+        },
 
-      setLabel(id, label) {
-        set((s) => ({
-          doc: touched({
-            ...s.doc,
-            nodes: s.doc.nodes.map((n) => (n.id === id ? { ...n, label } : n)),
-          }),
-          dirty: true,
-        }))
-      },
+        setLabel(id, label) {
+          patchSheet((sh) => ({ ...sh, nodes: sh.nodes.map((n) => (n.id === id ? { ...n, label } : n)) }))
+        },
 
-      setMeta(patch) {
-        set((s) => ({ doc: touched({ ...s.doc, meta: { ...s.doc.meta, ...patch } }), dirty: true }))
-      },
+        setNodeLink(id, link) {
+          patchSheet((sh) => ({ ...sh, nodes: sh.nodes.map((n) => (n.id === id ? { ...n, link } : n)) }))
+        },
 
-      addEdge(partial) {
-        const id = ulid()
-        set((s) => ({
-          doc: touched({ ...s.doc, edges: [...s.doc.edges, { ...partial, id }] }),
-          dirty: true,
-        }))
-        return id
-      },
+        setMeta(patch) {
+          set((s) => ({ doc: touched({ ...s.doc, meta: { ...s.doc.meta, ...patch } }), dirty: true }))
+        },
 
-      setEdge(id, patch) {
-        set((s) => ({
-          doc: touched({
-            ...s.doc,
-            edges: s.doc.edges.map((e) => (e.id === id ? { ...e, ...patch } : e)),
-          }),
-          dirty: true,
-        }))
-      },
+        setSheetMeta(patch) {
+          patchSheet((sh) => ({ ...sh, ...patch }))
+        },
 
-      setEdgeVertices(id, vertices) {
-        get().setEdge(id, { vertices })
-      },
+        addSheet() {
+          const sheet = createSheet(get().doc.sheets.length + 1)
+          set((s) => ({ doc: touched({ ...s.doc, sheets: [...s.doc.sheets, sheet] }), dirty: true }))
+          set({ activeSheetId: sheet.id, selection: [] })
+          return sheet.id
+        },
 
-      deleteIds(ids) {
-        const idSet = new Set(ids)
-        set((s) => ({
-          doc: touched({
-            ...s.doc,
-            nodes: s.doc.nodes.filter((n) => !idSet.has(n.id)),
-            edges: s.doc.edges.filter(
+        renameSheet(id, name) {
+          set((s) => ({
+            doc: touched({ ...s.doc, sheets: s.doc.sheets.map((sh) => (sh.id === id ? { ...sh, name } : sh)) }),
+            dirty: true,
+          }))
+        },
+
+        deleteSheet(id) {
+          const s = get()
+          if (s.doc.sheets.length <= 1) return
+          const remaining = s.doc.sheets.filter((sh) => sh.id !== id)
+          set({
+            doc: touched({ ...s.doc, sheets: remaining }),
+            dirty: true,
+            activeSheetId: s.activeSheetId === id ? remaining[0]!.id : s.activeSheetId,
+            selection: [],
+          })
+        },
+
+        setActiveSheet(id) {
+          if (get().doc.sheets.some((sh) => sh.id === id)) set({ activeSheetId: id, selection: [] })
+        },
+
+        addEdge(partial) {
+          const id = ulid()
+          patchSheet((sh) => ({ ...sh, edges: [...sh.edges, { ...partial, id }] }))
+          return id
+        },
+
+        setEdge(id, patch) {
+          patchSheet((sh) => ({ ...sh, edges: sh.edges.map((e) => (e.id === id ? { ...e, ...patch } : e)) }))
+        },
+
+        setEdgeVertices(id, vertices) {
+          get().setEdge(id, { vertices })
+        },
+
+        deleteIds(ids) {
+          const idSet = new Set(ids)
+          patchSheet((sh) => ({
+            ...sh,
+            nodes: sh.nodes.filter((n) => !idSet.has(n.id)),
+            edges: sh.edges.filter(
               (e) =>
                 !idSet.has(e.id) &&
                 !(isPortEnd(e.source) && idSet.has(e.source.nodeId)) &&
                 !(isPortEnd(e.target) && idSet.has(e.target.nodeId)),
             ),
-          }),
-          selection: s.selection.filter((sel) => !idSet.has(sel)),
-          dirty: true,
-        }))
-      },
+          }))
+          set((s) => ({ selection: s.selection.filter((sel) => !idSet.has(sel)) }))
+        },
 
-      deleteSelected() {
-        get().deleteIds(get().selection)
-      },
+        deleteSelected() {
+          get().deleteIds(get().selection)
+        },
 
-      setSelection(ids) {
-        set({ selection: ids })
-      },
+        setSelection(ids) {
+          set({ selection: ids })
+        },
 
-      setActiveLineClass(lineClass) {
-        set({ activeLineClass: lineClass })
-      },
+        setActiveLineClass(lineClass) {
+          set({ activeLineClass: lineClass })
+        },
 
-      pasteNodes(nodes, edges) {
-        const idMap = new Map<string, string>()
-        const newNodes: PlantNode[] = nodes.map((n) => {
-          const id = ulid()
-          idMap.set(n.id, id)
-          const { tag: _tag, ...rest } = n
-          return { ...rest, id, x: n.x + 16, y: n.y + 16 }
-        })
-        const newEdges: PlantEdge[] = []
-        for (const e of edges) {
-          const src = isPortEnd(e.source) ? idMap.get(e.source.nodeId) : 'free'
-          const tgt = isPortEnd(e.target) ? idMap.get(e.target.nodeId) : 'free'
-          if (!src || !tgt) continue // endpoint outside pasted set — drop
-          newEdges.push({
-            ...e,
-            id: ulid(),
-            source: isPortEnd(e.source) ? { nodeId: src, portId: e.source.portId } : { x: e.source.x + 16, y: e.source.y + 16 },
-            target: isPortEnd(e.target) ? { nodeId: tgt, portId: e.target.portId } : { x: e.target.x + 16, y: e.target.y + 16 },
-            vertices: e.vertices?.map((v) => ({ x: v.x + 16, y: v.y + 16 })),
+        pasteNodes(nodes, edges) {
+          const idMap = new Map<string, string>()
+          const newNodes: PlantNode[] = nodes.map((n) => {
+            const id = ulid()
+            idMap.set(n.id, id)
+            const { tag: _tag, link: _link, ...rest } = n
+            return { ...rest, id, x: n.x + 16, y: n.y + 16 }
           })
-        }
-        set((s) => ({
-          doc: touched({
-            ...s.doc,
-            nodes: [...s.doc.nodes, ...newNodes],
-            edges: [...s.doc.edges, ...newEdges],
-          }),
-          selection: newNodes.map((n) => n.id),
-          dirty: true,
-        }))
-      },
+          const newEdges: PlantEdge[] = []
+          for (const e of edges) {
+            const src = isPortEnd(e.source) ? idMap.get(e.source.nodeId) : 'free'
+            const tgt = isPortEnd(e.target) ? idMap.get(e.target.nodeId) : 'free'
+            if (!src || !tgt) continue
+            newEdges.push({
+              ...e,
+              id: ulid(),
+              source: isPortEnd(e.source) ? { nodeId: src, portId: e.source.portId } : { x: e.source.x + 16, y: e.source.y + 16 },
+              target: isPortEnd(e.target) ? { nodeId: tgt, portId: e.target.portId } : { x: e.target.x + 16, y: e.target.y + 16 },
+              vertices: e.vertices?.map((v) => ({ x: v.x + 16, y: v.y + 16 })),
+            })
+          }
+          patchSheet((sh) => ({ ...sh, nodes: [...sh.nodes, ...newNodes], edges: [...sh.edges, ...newEdges] }))
+          set({ selection: newNodes.map((n) => n.id) })
+        },
 
-      loadIntoStore(doc) {
-        set({ doc, selection: [], dirty: false })
-        useStore.temporal.getState().clear()
-      },
+        loadIntoStore(doc) {
+          set({ doc, activeSheetId: doc.sheets[0]!.id, selection: [], dirty: false })
+          useStore.temporal.getState().clear()
+        },
 
-      markSaved() {
-        set({ dirty: false })
-      },
+        markSaved() {
+          set({ dirty: false })
+        },
 
-      undo() {
-        useStore.temporal.getState().undo()
-      },
+        undo() {
+          useStore.temporal.getState().undo()
+        },
 
-      redo() {
-        useStore.temporal.getState().redo()
-      },
-    }),
+        redo() {
+          useStore.temporal.getState().redo()
+        },
+      }
+    },
     {
       partialize: (state) => ({ doc: state.doc }),
       limit: 200,

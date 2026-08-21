@@ -43,11 +43,24 @@ test('place, connect, tag, validate, export', async ({ page }) => {
   const chunks: Buffer[] = []
   for await (const chunk of stream) chunks.push(chunk as Buffer)
   const csv = Buffer.concat(chunks).toString()
-  expect(csv).toContain('Tag,Description,Loop,Symbol,Connected To,Notes')
-  expect(csv).toContain('FIC-101,Flow Indicating Controller,101,Instrument')
+  expect(csv).toContain('Tag,Description,Loop,Symbol,Sheet,Connected To,Notes')
+  expect(csv).toContain('FIC-101,Flow Indicating Controller,101,Instrument,Sheet 1')
 
-  // Sample plant loads clean
+  // Sample plant loads clean (v1 file exercises schema migration)
   await page.getByRole('button', { name: 'Sample' }).click()
   await expect(page.locator('.status')).toContainText('No findings')
   await expect(page.locator('.doc-name')).toContainText('Sample Plant')
+
+  // Multi-sheet: add a sheet, place a symbol there, verify isolation
+  const cellsOnSheet1 = await page.locator('[model-id]').count()
+  await page.locator('.sheet-add').click()
+  await expect(page.locator('.sheet-tab')).toHaveCount(2)
+  await expect(page.locator('[model-id]')).toHaveCount(0)
+  await page.evaluate(() => {
+    const { useStore } = (window as never as { __pid: { useStore: { getState(): any } } }).__pid
+    useStore.getState().addNode({ symbolId: 'vessel.sphere', kind: 'equipment', x: 200, y: 200, rotation: 0 })
+  })
+  await expect(page.locator('[model-id]')).toHaveCount(1)
+  await page.locator('.sheet-tab').first().click()
+  await expect(page.locator('[model-id]')).toHaveCount(cellsOnSheet1)
 })

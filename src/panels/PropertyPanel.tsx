@@ -1,5 +1,5 @@
 import { getSymbol } from '../symbols/registry'
-import { useStore } from '../store/store'
+import { activeSheet, useStore } from '../store/store'
 import type { LineClass, PlantEdge, PlantNode, SheetSize } from '../model/types'
 import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
 import TagEditor from './TagEditor'
@@ -8,20 +8,69 @@ const SHEETS: SheetSize[] = ['A4', 'A3', 'A2', 'A1', 'ANSI_B', 'ANSI_D']
 
 function SheetProps() {
   const meta = useStore((s) => s.doc.meta)
+  const sheet = useStore((s) => activeSheet(s))
   const setMeta = useStore((s) => s.setMeta)
+  const setSheetMeta = useStore((s) => s.setSheetMeta)
   return (
     <>
-      <div className="prop-title">Drawing</div>
+      <div className="prop-title">Project</div>
       <label className="prop-field">Name<input value={meta.name} onChange={(e) => setMeta({ name: e.target.value })} /></label>
-      <label className="prop-field">Drawing №<input value={meta.drawingNumber} onChange={(e) => setMeta({ drawingNumber: e.target.value })} /></label>
-      <label className="prop-field">Revision<input value={meta.revision} onChange={(e) => setMeta({ revision: e.target.value })} /></label>
       <label className="prop-field">Author<input value={meta.author} onChange={(e) => setMeta({ author: e.target.value })} /></label>
-      <label className="prop-field">Sheet
-        <select value={meta.sheetSize} onChange={(e) => setMeta({ sheetSize: e.target.value as SheetSize })}>
+      <div className="prop-title">{sheet.name}</div>
+      <label className="prop-field">Drawing №<input value={sheet.drawingNumber} onChange={(e) => setSheetMeta({ drawingNumber: e.target.value })} /></label>
+      <label className="prop-field">Revision<input value={sheet.revision} onChange={(e) => setSheetMeta({ revision: e.target.value })} /></label>
+      <label className="prop-field">Sheet size
+        <select value={sheet.sheetSize} onChange={(e) => setSheetMeta({ sheetSize: e.target.value as SheetSize })}>
           {SHEETS.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
         </select>
       </label>
     </>
+  )
+}
+
+function OffPageLink({ node }: { node: PlantNode }) {
+  const doc = useStore((s) => s.doc)
+  const currentSheetId = useStore((s) => s.activeSheetId)
+  const setNodeLink = useStore((s) => s.setNodeLink)
+  const setActiveSheet = useStore((s) => s.setActiveSheet)
+  const setSelection = useStore((s) => s.setSelection)
+  const targetSheets = doc.sheets.filter((sh) => sh.id !== currentSheetId)
+  const linkedSheet = node.link ? doc.sheets.find((sh) => sh.id === node.link!.sheetId) : undefined
+  return (
+    <div className="prop-group">
+      <div className="prop-title">Linked To</div>
+      <label className="prop-field">Sheet
+        <select
+          value={node.link?.sheetId ?? ''}
+          onChange={(e) => {
+            const sheetId = e.target.value
+            if (!sheetId) setNodeLink(node.id, undefined)
+            else setNodeLink(node.id, { sheetId, nodeId: '' })
+          }}
+        >
+          <option value="">— not linked —</option>
+          {targetSheets.map((sh) => <option key={sh.id} value={sh.id}>{sh.name}</option>)}
+        </select>
+      </label>
+      {linkedSheet && (
+        <label className="prop-field">Connector
+          <select
+            value={node.link?.nodeId ?? ''}
+            onChange={(e) => setNodeLink(node.id, { sheetId: linkedSheet.id, nodeId: e.target.value })}
+          >
+            <option value="">— pick —</option>
+            {linkedSheet.nodes.filter((n) => n.symbolId === 'ann.offpage').map((n) => (
+              <option key={n.id} value={n.id}>{n.label || n.id.slice(0, 8)}</option>
+            ))}
+          </select>
+        </label>
+      )}
+      {node.link?.nodeId && (
+        <button onClick={() => { setActiveSheet(node.link!.sheetId); setSelection([node.link!.nodeId]) }}>
+          Go to linked connector
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -46,6 +95,7 @@ function NodeProps({ node }: { node: PlantNode }) {
           </label>
         ))}
       {def.tagRule !== 'none' && <TagEditor node={node} />}
+      {node.symbolId === 'ann.offpage' && <OffPageLink node={node} />}
       <label className="prop-field">Label
         <input value={node.label ?? ''} onChange={(e) => setLabel(node.id, e.target.value)} placeholder="Service / name" />
       </label>
@@ -98,6 +148,7 @@ function EdgeProps({ edge }: { edge: PlantEdge }) {
 export default function PropertyPanel() {
   const selection = useStore((s) => s.selection)
   const doc = useStore((s) => s.doc)
+  const activeSheetId = useStore((s) => s.activeSheetId)
   const deleteSelected = useStore((s) => s.deleteSelected)
 
   let body
@@ -105,8 +156,9 @@ export default function PropertyPanel() {
     body = <SheetProps />
   } else if (selection.length === 1) {
     const id = selection[0]!
-    const node = doc.nodes.find((n) => n.id === id)
-    const edge = doc.edges.find((e) => e.id === id)
+    const sheet = activeSheet({ doc, activeSheetId })
+    const node = sheet.nodes.find((n) => n.id === id)
+    const edge = sheet.edges.find((e) => e.id === id)
     body = node ? <NodeProps key={id} node={node} /> : edge ? <EdgeProps key={id} edge={edge} /> : <SheetProps />
   } else {
     body = (

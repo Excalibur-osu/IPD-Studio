@@ -1,4 +1,5 @@
-import type { ProjectDoc, SheetSize } from './types'
+import { ulid } from 'ulid'
+import type { ProjectDoc, Sheet, SheetSize } from './types'
 
 export const SHEET_SIZES_MM: Record<SheetSize, { w: number; h: number }> = {
   A4: { w: 297, h: 210 },
@@ -20,22 +21,25 @@ export function sheetPx(size: SheetSize): { w: number; h: number } {
   return { w: mmToPx(w), h: mmToPx(h) }
 }
 
+export function createSheet(number: number, sheetSize: SheetSize = 'A3'): Sheet {
+  return {
+    id: ulid(),
+    name: `Sheet ${number}`,
+    drawingNumber: '',
+    revision: '0',
+    sheetSize,
+    nodes: [],
+    edges: [],
+  }
+}
+
 export function createEmptyDoc(name = 'Untitled P&ID'): ProjectDoc {
   const now = new Date().toISOString()
   return {
-    schemaVersion: 1,
-    meta: {
-      name,
-      drawingNumber: '',
-      revision: '0',
-      author: '',
-      sheetSize: 'A3',
-      created: now,
-      modified: now,
-    },
+    schemaVersion: 2,
+    meta: { name, author: '', created: now, modified: now },
     settings: { gridPx: 8, tagSeparator: '-' },
-    nodes: [],
-    edges: [],
+    sheets: [createSheet(1)],
   }
 }
 
