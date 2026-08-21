@@ -1,0 +1,45 @@
+import { describe, expect, it } from 'vitest'
+import '../../src/symbols/lib/index'
+import { getSymbol, SYMBOLS } from '../../src/symbols/registry'
+
+const PHASE1_IDS = [
+  'fe.orifice', 'fe.venturi', 'fe.magmeter', 'fe.coriolis', 'fe.vortex', 'fe.turbine', 'fe.rotameter', 'fe.ro',
+  'acc.thermowell', 'acc.pg', 'acc.lg',
+  'pump.centrifugal', 'pump.gear', 'pump.diaphragm', 'ejector', 'comp.centrifugal', 'blower', 'motor', 'agitator',
+  'vessel.vertical', 'vessel.horizontal', 'vessel.tank', 'vessel.column-tray', 'vessel.cstr', 'vessel.ko-drum',
+  'hx.shell-tube', 'hx.plate', 'hx.air-cooler',
+  'strainer.y', 'filter.cartridge',
+  'fit.reducer', 'fit.flanges', 'fit.spectacle', 'fit.steam-trap', 'fit.sample', 'fit.drain', 'fit.vent', 'fit.specbreak',
+  'ctl.interlock',
+  'ann.offpage', 'ann.arrow', 'ann.text', 'ann.noteflag', 'ann.cloud',
+]
+
+describe('phase-1 catalog', () => {
+  it('registers every phase-1 id', () => {
+    for (const id of PHASE1_IDS) expect(() => getSymbol(id), id).not.toThrow()
+  })
+  it('has at least 60 symbols', () => {
+    expect(SYMBOLS.size).toBeGreaterThanOrEqual(60)
+  })
+  it('pump is a circle r14 with discharge duct', () => {
+    const svg = getSymbol('pump.centrifugal').render({})
+    expect(svg).toContain('r="14"')
+    expect(svg).toContain('H44')
+  })
+  it('tray column has at least 3 trays', () => {
+    const svg = getSymbol('vessel.column-tray').render({})
+    expect((svg.match(/H36/g) ?? []).length).toBeGreaterThanOrEqual(3)
+  })
+  it('orifice is line plus two flange bars', () => {
+    const svg = getSymbol('fe.orifice').render({})
+    expect(svg).toContain('M0 8 H32')
+    expect(svg).toContain('M14 0')
+    expect(svg).toContain('M18 0')
+  })
+  it('off-page connector pentagon closes', () => {
+    expect(getSymbol('ann.offpage').render({})).toMatch(/Z/)
+  })
+  it('interlock ports are signal-kind', () => {
+    expect(getSymbol('ctl.interlock').ports.every((p) => p.kind === 'signal')).toBe(true)
+  })
+})
