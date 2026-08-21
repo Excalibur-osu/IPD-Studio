@@ -16,6 +16,7 @@ const PHASE2_IDS = [
   'fit.reducer-ecc', 'fit.blind', 'fit.spade', 'fit.hose', 'fit.expansion', 'fit.sightglass',
   'fit.silencer', 'fit.quill',
   'ann.insulation', 'ann.slope', 'ann.tiein', 'ann.bl-flag', 'ann.onpage', 'ann.revtriangle', 'ann.equipstrip',
+  'logic.and', 'logic.or', 'logic.not', 'ctl.dcs', 'ctl.plc', 'ctl.sis', 'ctl.jb', 'ctl.panel',
 ]
 
 const PHASE1_IDS = [
@@ -34,6 +35,14 @@ describe('phase-2 catalog (valves/safety)', () => {
   it('registers every phase-2 valve/safety id', () => {
     for (const id of PHASE2_IDS) expect(() => getSymbol(id), id).not.toThrow()
   })
+  it('logic gates have 3 signal ports; NOT has an output dot', () => {
+    for (const id of ['logic.and', 'logic.or', 'logic.not']) {
+      const def = getSymbol(id)
+      expect(def.ports).toHaveLength(3)
+      expect(def.ports.every((p) => p.kind === 'signal')).toBe(true)
+    }
+    expect(getSymbol('logic.not').render({})).toContain('circle')
+  })
   it('fourway has 4 ports; digital actuator renders D', () => {
     expect(getSymbol('valve.fourway').ports).toHaveLength(4)
     expect(getSymbol('cv.globe').render({ actuator: 'digital', fail: 'none' })).toContain('>D<')
@@ -48,8 +57,8 @@ describe('phase-1 catalog', () => {
   it('registers every phase-1 id', () => {
     for (const id of PHASE1_IDS) expect(() => getSymbol(id), id).not.toThrow()
   })
-  it('has at least 60 symbols', () => {
-    expect(SYMBOLS.size).toBeGreaterThanOrEqual(60)
+  it('has at least 130 symbols', () => {
+    expect(SYMBOLS.size).toBeGreaterThanOrEqual(130)
   })
   it('pump is a circle r14 with discharge duct', () => {
     const svg = getSymbol('pump.centrifugal').render({})

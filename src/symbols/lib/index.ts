@@ -9,7 +9,7 @@ import { rotating, rotating2 } from './rotating'
 import { vessels, vessels2 } from './vessels'
 import { heat, heat2 } from './heat'
 import { inlineItems, inlineItems2 } from './inline'
-import { controlHardware } from './control'
+import { controlHardware, controlHardware2 } from './control'
 import { annotations, annotations2 } from './annotation'
 
 registerSymbols([
@@ -31,6 +31,7 @@ registerSymbols([
   ...inlineItems,
   ...inlineItems2,
   ...controlHardware,
+  ...controlHardware2,
   ...annotations,
   ...annotations2,
 ])
