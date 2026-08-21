@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { byCategory, searchSymbols } from '../symbols/registry'
+import { placeAtCenter } from '../canvas/dropHandling'
 import type { SymbolCategory, SymbolDef } from '../symbols/types'
 
 export const DRAG_MIME = 'application/x-pid-symbol'
@@ -76,9 +77,14 @@ export default function Palette() {
     <aside className="palette">
       <input
         className="palette-search"
-        placeholder="Search symbols…"
+        placeholder="Search symbols…  (Enter places)"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && results && results[0]) {
+            placeAtCenter(results[0].id)
+          }
+        }}
       />
       {results ? (
         <div className="palette-grid">

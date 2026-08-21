@@ -29,3 +29,15 @@ export function isDuplicateTag(doc: ProjectDoc, tag: Tag, excludeNodeId?: string
     ),
   )
 }
+
+/** Next line-number sequence: max numeric seq across all sheets + 1, zero-padded to 3. */
+export function nextLineSeq(doc: ProjectDoc): string {
+  let max = 0
+  for (const sheet of doc.sheets) {
+    for (const edge of sheet.edges) {
+      const num = Number(edge.lineNumber?.seq)
+      if (Number.isFinite(num) && num > max) max = num
+    }
+  }
+  return String(max + 1).padStart(3, '0')
+}

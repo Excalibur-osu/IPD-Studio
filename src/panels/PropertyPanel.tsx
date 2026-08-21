@@ -4,6 +4,7 @@ import type { LineClass, PlantEdge, PlantNode, SheetSize } from '../model/types'
 import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
 import TagEditor from './TagEditor'
 import { applyAlignment } from '../canvas/interactions'
+import { nextLineSeq } from '../isa/autonumber'
 
 const SHEETS: SheetSize[] = ['A4', 'A3', 'A2', 'A1', 'ANSI_B', 'ANSI_D']
 
@@ -110,6 +111,7 @@ function NodeProps({ node }: { node: PlantNode }) {
 
 function EdgeProps({ edge }: { edge: PlantEdge }) {
   const setEdge = useStore((s) => s.setEdge)
+  const doc = useStore((s) => s.doc)
   const isProcess = edge.lineClass.startsWith('process')
   const ln = edge.lineNumber ?? { size: '', spec: '', service: '', seq: '' }
   const setLn = (patch: Partial<typeof ln>) => setEdge(edge.id, { lineNumber: { ...ln, ...patch } })
@@ -139,6 +141,7 @@ function EdgeProps({ edge }: { edge: PlantEdge }) {
           <div className="tag-row">
             <input placeholder="service" value={ln.service} onChange={(e) => setLn({ service: e.target.value })} />
             <input placeholder="seq" value={ln.seq} onChange={(e) => setLn({ seq: e.target.value })} />
+            <button className="tag-auto" title="Next free sequence" onClick={() => setLn({ seq: nextLineSeq(doc) })}>№</button>
           </div>
         </div>
       )}

@@ -5,6 +5,7 @@ import type { NodeKind } from '../model/types'
 import type { SymbolDef } from '../symbols/types'
 import { nextLoopNumber } from '../isa/autonumber'
 import { useStore } from '../store/store'
+import { canvasRef } from './paperSetup'
 
 export function kindForSymbol(def: Pick<SymbolDef, 'tagRule' | 'category'>): NodeKind {
   switch (def.tagRule) {
@@ -20,6 +21,29 @@ export function kindForSymbol(def: Pick<SymbolDef, 'tagRule' | 'category'>): Nod
 }
 
 const snap8 = (v: number) => Math.round(v / 8) * 8
+
+/** Place a symbol snapped at the visible canvas center (palette Enter quick-add). */
+export function placeAtCenter(symbolId: string): void {
+  const paper = canvasRef.paper
+  if (!paper) return
+  const def = getSymbol(symbolId)
+  const el = paper.el as HTMLElement
+  const rect = el.getBoundingClientRect()
+  const local = paper.clientToLocalPoint({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
+  const store = useStore.getState()
+  const w = def.gridSize.w * 8
+  const h = def.gridSize.h * 8
+  const node: Parameters<typeof store.addNode>[0] = {
+    symbolId: def.id,
+    kind: kindForSymbol(def),
+    x: snap8(local.x - w / 2),
+    y: snap8(local.y - h / 2),
+    rotation: 0,
+  }
+  if (def.defaultConfig) node.config = { ...def.defaultConfig }
+  const id = store.addNode(node)
+  store.setSelection([id])
+}
 
 export function attachDropHandling(host: HTMLElement, paper: dia.Paper): () => void {
   const onDragOver = (e: DragEvent) => {

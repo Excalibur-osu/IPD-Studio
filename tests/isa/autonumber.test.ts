@@ -46,3 +46,17 @@ describe('isDuplicateTag', () => {
     expect(isDuplicateTag(doc, { letters: 'FT', loop: '101' }, id)).toBe(false)
   })
 })
+
+import { nextLineSeq } from '../../src/isa/autonumber'
+
+describe('nextLineSeq', () => {
+  it('starts at 001 and continues max+1 without gap filling', () => {
+    const doc = createEmptyDoc('t')
+    expect(nextLineSeq(doc)).toBe('001')
+    doc.sheets[0]!.edges = [
+      { id: 'e1', lineClass: 'process.major', source: { x: 0, y: 0 }, target: { x: 8, y: 0 }, lineNumber: { size: '2"', spec: 'CS', service: 'P', seq: '001' } },
+      { id: 'e2', lineClass: 'process.major', source: { x: 0, y: 8 }, target: { x: 8, y: 8 }, lineNumber: { size: '2"', spec: 'CS', service: 'P', seq: '003' } },
+    ]
+    expect(nextLineSeq(doc)).toBe('004')
+  })
+})

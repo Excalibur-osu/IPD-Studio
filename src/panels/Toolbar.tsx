@@ -7,6 +7,7 @@ import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
 import type { LineClass } from '../model/types'
 import { exportSvgFile } from '../export/svg'
 import { printPdf } from '../export/printPdf'
+import { printAllSheets } from '../export/printAll'
 import { downloadInstrumentIndex, downloadLineList } from '../export/csv'
 import { downloadDexpi } from '../export/dexpi'
 import { exportPng } from '../export/png'
@@ -89,6 +90,7 @@ export default function Toolbar() {
       <span className="tb-grow" />
       <button onClick={() => exportSvgFile()}>SVG</button>
       <button onClick={() => printPdf()}>PDF</button>
+      <button onClick={() => void printAllSheets()} title="Print every sheet">PDF all</button>
       <button onClick={() => exportPng()}>PNG</button>
       <button onClick={() => downloadDexpi()}>DEXPI</button>
       <button onClick={() => downloadInstrumentIndex()}>Index</button>
