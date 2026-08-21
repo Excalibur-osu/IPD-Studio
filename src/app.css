@@ -25,3 +25,20 @@ body { font: 13px/1.4 system-ui, sans-serif; color: #1a1a1a; }
 .palette-entry:hover { border-color: #b5b5c5; background: #fff; }
 .palette-preview { width: 36px; height: 32px; }
 .palette-label { font-size: 9.5px; color: #555; text-align: center; line-height: 1.1; max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.prop-title { font-weight: 600; margin: 10px 0 6px; color: #333; }
+.prop-field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; font-size: 12px; color: #555; text-transform: capitalize; }
+.prop-field input, .prop-field select { font: inherit; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; text-transform: none; }
+.prop-check { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
+.prop-group { margin: 10px 0; }
+.prop-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.prop-hint { color: #888; font-size: 11px; }
+.tag-row { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.tag-row input { min-width: 0; font: inherit; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; }
+.tag-letters { width: 56px; text-transform: uppercase; }
+.tag-loop { width: 52px; }
+.tag-suffix { width: 28px; text-transform: uppercase; }
+.tag-auto { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
+.tag-expansion { font-size: 11.5px; color: #2b6cb0; margin: 2px 0 4px; }
+.tag-error { font-size: 11.5px; color: #c53030; margin: 2px 0 4px; }
+button { font: inherit; }

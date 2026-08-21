@@ -1,5 +1,6 @@
 import Canvas from './canvas/Canvas'
 import Palette from './panels/Palette'
+import PropertyPanel from './panels/PropertyPanel'
 
 export default function App() {
   return (
@@ -7,7 +8,7 @@ export default function App() {
       <header className="toolbar">PID Studio</header>
       <Palette />
       <Canvas />
-      <aside className="props">Properties</aside>
+      <PropertyPanel />
       <footer className="status">Ready</footer>
     </div>
   )
