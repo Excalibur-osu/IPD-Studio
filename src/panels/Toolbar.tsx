@@ -10,6 +10,7 @@ import { printPdf } from '../export/printPdf'
 import { printAllSheets } from '../export/printAll'
 import { downloadInstrumentIndex, downloadLineList } from '../export/csv'
 import { downloadDexpi } from '../export/dexpi'
+import { downloadDxf } from '../export/dxf'
 import { exportPng } from '../export/png'
 import templateBlank from '../../examples/template-blank-a3.pnid.json'
 import templateUtility from '../../examples/template-utility-a1.pnid.json'
@@ -93,6 +94,7 @@ export default function Toolbar() {
       <button onClick={() => void printAllSheets()} title="Print every sheet">PDF all</button>
       <button onClick={() => exportPng()}>PNG</button>
       <button onClick={() => downloadDexpi()}>DEXPI</button>
+      <button onClick={() => downloadDxf()}>DXF</button>
       <button onClick={() => downloadInstrumentIndex()}>Index</button>
       <button onClick={() => downloadLineList()}>Lines</button>
     </header>
