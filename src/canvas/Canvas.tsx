@@ -1,0 +1,86 @@
+import { useEffect, useRef } from 'react'
+import { canvasRef, createPaper, zoomAt } from './paperSetup'
+import { sheetPx } from '../model/doc'
+import { useStore } from '../store/store'
+
+export default function Canvas() {
+  const hostRef = useRef<HTMLDivElement>(null)
+  const sheetSize = useStore((s) => s.doc.meta.sheetSize)
+
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host) return
+    const paperEl = document.createElement('div')
+    host.appendChild(paperEl)
+    const { paper, graph } = createPaper(paperEl, useStore.getState().doc.meta.sheetSize)
+    canvasRef.paper = paper
+    canvasRef.graph = graph
+    paper.translate(24, 24)
+
+    let panning = false
+    let spaceDown = false
+    let last = { x: 0, y: 0 }
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      zoomAt(paper, e.clientX, e.clientY, e.deltaY < 0 ? 1.1 : 1 / 1.1)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+        spaceDown = e.type === 'keydown'
+        host.style.cursor = spaceDown ? 'grab' : ''
+        if (e.type === 'keydown') e.preventDefault()
+      }
+    }
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button === 1 || (e.button === 0 && spaceDown)) {
+        panning = true
+        last = { x: e.clientX, y: e.clientY }
+        host.setPointerCapture(e.pointerId)
+        host.style.cursor = 'grabbing'
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+    const onPointerMove = (e: PointerEvent) => {
+      if (!panning) return
+      const t = paper.translate()
+      paper.translate(t.tx + e.clientX - last.x, t.ty + e.clientY - last.y)
+      last = { x: e.clientX, y: e.clientY }
+    }
+    const onPointerUp = (e: PointerEvent) => {
+      if (panning) {
+        panning = false
+        host.releasePointerCapture(e.pointerId)
+        host.style.cursor = spaceDown ? 'grab' : ''
+      }
+    }
+
+    host.addEventListener('wheel', onWheel, { passive: false })
+    host.addEventListener('pointerdown', onPointerDown, true)
+    host.addEventListener('pointermove', onPointerMove)
+    host.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('keyup', onKey)
+
+    return () => {
+      host.removeEventListener('wheel', onWheel)
+      host.removeEventListener('pointerdown', onPointerDown, true)
+      host.removeEventListener('pointermove', onPointerMove)
+      host.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keyup', onKey)
+      paper.remove()
+      canvasRef.paper = undefined
+      canvasRef.graph = undefined
+      host.innerHTML = ''
+    }
+  }, [])
+
+  useEffect(() => {
+    const { w, h } = sheetPx(sheetSize)
+    canvasRef.paper?.setDimensions(w, h)
+  }, [sheetSize])
+
+  return <div ref={hostRef} className="canvas-host" data-testid="canvas" />
+}
