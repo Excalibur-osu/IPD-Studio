@@ -5,6 +5,8 @@ import { getSymbol, SYMBOLS } from '../../src/symbols/registry'
 const PHASE2_IDS = [
   'valve.pinch', 'valve.stopcheck', 'valve.fourway', 'valve.angle', 'valve.knife',
   'psv.pilot', 'pvsv', 'vacuum-breaker', 'flame-arrestor', 'breather', 'bpcv', 'tcv.self',
+  'fe.nozzle', 'fe.pitot', 'fe.avgpitot', 'fe.ultrasonic', 'fe.thermal', 'fe.pd',
+  'acc.bulb', 'acc.bimetal', 'acc.seal', 'acc.floatcage', 'acc.radar', 'acc.loadcell',
 ]
 
 const PHASE1_IDS = [

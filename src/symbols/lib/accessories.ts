@@ -42,3 +42,83 @@ export const accessories: SymbolDef[] = [
     keywords: ['gauge glass', 'level', 'sight', 'lg'],
   },
 ]
+
+const circle2 = (cx: number, cy: number, r: number) =>
+  `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="currentColor" stroke-width="1.5"/>`
+const path2 = (d: string) =>
+  `<path d="${d}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>`
+const text2 = (x: number, y: number, t: string) =>
+  `<text x="${x}" y="${y}" font-size="8" font-family="sans-serif" text-anchor="middle" fill="currentColor" stroke="none">${t}</text>`
+
+export const accessories2: SymbolDef[] = [
+  {
+    id: 'acc.bulb',
+    name: 'Filled Bulb + Capillary',
+    category: 'accessories',
+    gridSize: { w: 4, h: 3 },
+    render: () => circle2(6, 16, 6) + path2('M12 14 q4 4 8 0 q4 -4 8 0 q2 2 4 0'),
+    ports: [{ id: 'e', x: 32, y: 12, kind: 'both' }],
+    tagRule: 'isa-instrument',
+    keywords: ['bulb', 'capillary', 'filled system'],
+  },
+  {
+    id: 'acc.bimetal',
+    name: 'Bimetal Thermometer',
+    category: 'accessories',
+    gridSize: { w: 2, h: 3 },
+    render: () =>
+      circle2(8, 8, 7) + path2('M8 8 L11 4') +
+      path2('M8 15 V20') + path2('M5 20 a3 3 0 1 0 6 0 a2 2 0 1 0 -4 0'),
+    ports: [{ id: 's', x: 8, y: 24, kind: 'process' }],
+    tagRule: 'isa-instrument',
+    keywords: ['bimetal', 'thermometer', 'dial'],
+  },
+  {
+    id: 'acc.seal',
+    name: 'Diaphragm Seal',
+    category: 'accessories',
+    gridSize: { w: 2, h: 2 },
+    render: () => path2('M2 0 V16 M14 0 V16') + path2('M2 8 Q8 4 14 8'),
+    ports: [
+      { id: 'w', x: 0, y: 8, kind: 'process' },
+      { id: 'e', x: 16, y: 8, kind: 'both' },
+    ],
+    tagRule: 'none',
+    keywords: ['diaphragm', 'seal', 'chemical seal'],
+  },
+  {
+    id: 'acc.floatcage',
+    name: 'External Float Cage',
+    category: 'accessories',
+    gridSize: { w: 3, h: 5 },
+    render: () =>
+      path2('M4 4 h16 v32 h-16 Z') + circle2(12, 20, 4) +
+      path2('M0 8 H4 M0 32 H4'),
+    ports: [
+      { id: 'w1', x: 0, y: 8, kind: 'process' },
+      { id: 'w2', x: 0, y: 32, kind: 'process' },
+    ],
+    tagRule: 'isa-instrument',
+    keywords: ['float', 'displacer', 'cage', 'level'],
+  },
+  {
+    id: 'acc.radar',
+    name: 'Radar Level Horn',
+    category: 'accessories',
+    gridSize: { w: 4, h: 3 },
+    render: () => path2('M16 0 V6') + path2('M8 6 h16 l-4 12 h-8 Z') + path2('M12 22 M10 20 Q16 26 22 20'),
+    ports: [{ id: 'n', x: 16, y: 0, kind: 'both' }],
+    tagRule: 'isa-instrument',
+    keywords: ['radar', 'level', 'horn', 'non-contact'],
+  },
+  {
+    id: 'acc.loadcell',
+    name: 'Load Cell',
+    category: 'accessories',
+    gridSize: { w: 3, h: 2 },
+    render: () => path2('M12 0 V4') + path2('M0 4 h24 v10 h-24 Z') + text2(12, 12, 'LC'),
+    ports: [{ id: 'n', x: 12, y: 0, kind: 'both' }],
+    tagRule: 'isa-instrument',
+    keywords: ['load cell', 'weight', 'weigh'],
+  },
+]

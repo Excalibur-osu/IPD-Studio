@@ -83,3 +83,34 @@ export const flowElements: SymbolDef[] = [
     () => path('M0 8 H32') + path('M16 0 V16') + text(25, 5, 'RO'),
     ['restriction', 'ro']),
 ]
+
+export const flowElements2: SymbolDef[] = [
+  inline('fe.nozzle', 'Flow Nozzle', 32, 16, 8,
+    () => path('M0 8 H32') + path('M14 0 Q18 8 14 16') + path('M14 0 V4 M14 12 V16'),
+    ['nozzle', 'dp']),
+  inline('fe.pitot', 'Pitot Tube', 32, 16, 8,
+    () => path('M0 8 H32') + path('M16 8 V0 H24'),
+    ['pitot', 'velocity']),
+  inline('fe.avgpitot', 'Averaging Pitot', 32, 16, 8,
+    () =>
+      path('M0 8 H32') + path('M16 12 V0 H24') +
+      `<circle cx="16" cy="4" r="1" fill="currentColor" stroke="none"/>` +
+      `<circle cx="16" cy="8" r="1" fill="currentColor" stroke="none"/>` +
+      `<circle cx="16" cy="11" r="1" fill="currentColor" stroke="none"/>`,
+    ['annubar', 'averaging', 'pitot']),
+  inline('fe.ultrasonic', 'Ultrasonic Flowmeter', 32, 24, 12,
+    () =>
+      path('M0 12 H32') +
+      path('M4 0 L12 0 L9 6 L1 6 Z') +
+      path('M20 18 L28 18 L31 24 L23 24 Z') +
+      path('M8 6 L24 18'),
+    ['ultrasonic', 'clamp-on', 'transit']),
+  inline('fe.thermal', 'Thermal Mass Flowmeter', 32, 16, 8,
+    () => path('M0 8 H8 M24 8 H32') + circle(16, 8, 8) + text(16, 11, 'T'),
+    ['thermal', 'mass']),
+  inline('fe.pd', 'PD Meter', 32, 16, 8,
+    () =>
+      path('M0 8 H8 M24 8 H32') + circle(16, 8, 8) +
+      circle(13, 8, 3) + circle(19, 8, 3),
+    ['positive displacement', 'oval gear']),
+]
