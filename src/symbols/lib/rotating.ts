@@ -121,3 +121,118 @@ export const rotating: SymbolDef[] = [
     keywords: ['agitator', 'mixer', 'stirrer', 'impeller'],
   },
 ]
+
+export const rotating2: SymbolDef[] = [
+  {
+    id: 'pump.peristaltic',
+    name: 'Peristaltic Pump',
+    category: 'rotating',
+    gridSize: { w: 4, h: 4 },
+    render: () =>
+      circle(16, 16, 14) + circle(16, 8, 3) + circle(9, 21, 3) + circle(23, 21, 3) +
+      path('M0 16 H2 M30 16 H32'),
+    ports: [
+      { id: 'w', x: 0, y: 16, kind: 'process' },
+      { id: 'e', x: 32, y: 16, kind: 'process' },
+    ],
+    tagRule: 'equipment',
+    keywords: ['pump', 'peristaltic', 'hose', 'dosing'],
+  },
+  {
+    id: 'pump.plunger',
+    name: 'Plunger Pump',
+    category: 'rotating',
+    gridSize: { w: 6, h: 3 },
+    render: () => path('M0 4 h32 v16 h-32 Z') + path('M32 12 H40') + circle(42, 12, 6) + path('M0 12 H0'),
+    ports: [
+      { id: 'w', x: 0, y: 12, kind: 'process' },
+      { id: 'n', x: 16, y: 4, kind: 'process' },
+    ],
+    tagRule: 'equipment',
+    keywords: ['pump', 'plunger', 'piston', 'reciprocating'],
+  },
+  {
+    id: 'pump.submersible',
+    name: 'Submersible Pump',
+    category: 'rotating',
+    gridSize: { w: 3, h: 5 },
+    render: () =>
+      path('M4 8 a8 6 0 0 1 16 0 V34 a8 6 0 0 1 -16 0 Z') +
+      circle(12, 24, 7) + path('M12 0 V4'),
+    ports: [
+      { id: 'n', x: 12, y: 0, kind: 'process' },
+    ],
+    tagRule: 'equipment',
+    keywords: ['pump', 'submersible', 'sump', 'well'],
+  },
+  {
+    id: 'pump.vacuum',
+    name: 'Vacuum Pump',
+    category: 'rotating',
+    gridSize: { w: 4, h: 4 },
+    render: () =>
+      circle(16, 16, 14) +
+      path('M4 16 H12 M9 13 L12 16 L9 19') +
+      path('M28 16 H20 M23 13 L20 16 L23 19') +
+      path('M0 16 H2 M30 16 H32'),
+    ports: [
+      { id: 'w', x: 0, y: 16, kind: 'process' },
+      { id: 'e', x: 32, y: 16, kind: 'process' },
+    ],
+    tagRule: 'equipment',
+    keywords: ['vacuum', 'pump'],
+  },
+  {
+    id: 'comp.recip',
+    name: 'Reciprocating Compressor',
+    category: 'rotating',
+    gridSize: { w: 6, h: 3 },
+    render: () =>
+      path('M0 4 h28 v16 h-28 Z') + path('M8 12 H20 M14 8 V16') + path('M28 12 H36') + circle(40, 12, 6),
+    ports: [
+      { id: 'w', x: 0, y: 12, kind: 'process' },
+      { id: 'n', x: 12, y: 4, kind: 'process' },
+    ],
+    tagRule: 'equipment',
+    keywords: ['compressor', 'reciprocating', 'piston'],
+  },
+  {
+    id: 'comp.screw',
+    name: 'Screw Compressor',
+    category: 'rotating',
+    gridSize: { w: 5, h: 3 },
+    render: () => path('M0 0 h40 v24 h-40 Z') + circle(15, 12, 7) + circle(25, 12, 7),
+    ports: [
+      { id: 'w', x: 0, y: 12, kind: 'process' },
+      { id: 'e', x: 40, y: 12, kind: 'process' },
+    ],
+    tagRule: 'equipment',
+    keywords: ['compressor', 'screw', 'rotary'],
+  },
+  {
+    id: 'turbine.steam',
+    name: 'Turbine Driver',
+    category: 'rotating',
+    gridSize: { w: 6, h: 4 },
+    render: () => path('M4 12 L44 4 V28 L4 20 Z'),
+    ports: [
+      { id: 'w', x: 4, y: 16, kind: 'process' },
+      { id: 'e', x: 44, y: 16, kind: 'process' },
+    ],
+    tagRule: 'equipment',
+    keywords: ['turbine', 'steam', 'driver', 'expander'],
+  },
+  {
+    id: 'vfd',
+    name: 'VFD',
+    category: 'rotating',
+    gridSize: { w: 3, h: 3 },
+    render: () => path('M0 0 h24 v24 h-24 Z') + text(12, 15, 'VFD', 7),
+    ports: [
+      { id: 'n', x: 12, y: 0, kind: 'signal' },
+      { id: 's', x: 12, y: 24, kind: 'signal' },
+    ],
+    tagRule: 'isa-instrument',
+    keywords: ['vfd', 'drive', 'variable frequency', 'sc'],
+  },
+]

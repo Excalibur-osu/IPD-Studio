@@ -7,6 +7,8 @@ const PHASE2_IDS = [
   'psv.pilot', 'pvsv', 'vacuum-breaker', 'flame-arrestor', 'breather', 'bpcv', 'tcv.self',
   'fe.nozzle', 'fe.pitot', 'fe.avgpitot', 'fe.ultrasonic', 'fe.thermal', 'fe.pd',
   'acc.bulb', 'acc.bimetal', 'acc.seal', 'acc.floatcage', 'acc.radar', 'acc.loadcell',
+  'pump.peristaltic', 'pump.plunger', 'pump.submersible', 'pump.vacuum',
+  'comp.recip', 'comp.screw', 'turbine.steam', 'vfd',
 ]
 
 const PHASE1_IDS = [
