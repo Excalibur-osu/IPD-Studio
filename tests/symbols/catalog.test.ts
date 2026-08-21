@@ -12,6 +12,10 @@ const PHASE2_IDS = [
   'vessel.floating-roof', 'vessel.sphere', 'vessel.bullet', 'vessel.open', 'vessel.silo',
   'vessel.column-packed', 'vessel.fixedbed', 'vessel.sep3', 'cyclone',
   'hx.kettle', 'hx.doublepipe', 'heater.electric', 'heater.fired', 'hx.condenser', 'cooling-tower',
+  'strainer.basket', 'strainer.cone', 'centrifuge', 'scrubber', 'demister', 'mixer.static',
+  'fit.reducer-ecc', 'fit.blind', 'fit.spade', 'fit.hose', 'fit.expansion', 'fit.sightglass',
+  'fit.silencer', 'fit.quill',
+  'ann.insulation', 'ann.slope', 'ann.tiein', 'ann.bl-flag', 'ann.onpage', 'ann.revtriangle', 'ann.equipstrip',
 ]
 
 const PHASE1_IDS = [

@@ -62,3 +62,82 @@ export const annotations: SymbolDef[] = [
     keywords: ['revision', 'cloud', 'markup', 'change'],
   },
 ]
+
+const text4 = (x: number, y: number, t: string, size = 8) =>
+  `<text x="${x}" y="${y}" font-size="${size}" font-family="sans-serif" text-anchor="middle" fill="currentColor" stroke="none">${t}</text>`
+
+export const annotations2: SymbolDef[] = [
+  {
+    id: 'ann.insulation',
+    name: 'Insulation Mark',
+    category: 'annotation',
+    gridSize: { w: 3, h: 3 },
+    render: () => path('M4 8 a8 8 0 0 1 16 0 M4 14 a8 8 0 0 1 16 0') + text4(12, 23, 'INS'),
+    ports: [],
+    tagRule: 'none',
+    keywords: ['insulation', 'lagging'],
+  },
+  {
+    id: 'ann.slope',
+    name: 'Slope Mark',
+    category: 'annotation',
+    gridSize: { w: 4, h: 2 },
+    render: () => path('M0 12 H32 M0 12 L32 4'),
+    ports: [],
+    tagRule: 'none',
+    keywords: ['slope', 'fall', 'gradient'],
+  },
+  {
+    id: 'ann.tiein',
+    name: 'Tie-In Flag',
+    category: 'annotation',
+    gridSize: { w: 3, h: 3 },
+    render: () => path('M0 16 L8 0 L16 16 Z') + text4(8, 13, 'T'),
+    ports: [{ id: 's', x: 8, y: 16, kind: 'both' }],
+    tagRule: 'none',
+    keywords: ['tie-in', 'tp', 'connection point'],
+  },
+  {
+    id: 'ann.bl-flag',
+    name: 'Battery Limit Flag',
+    category: 'annotation',
+    gridSize: { w: 3, h: 3 },
+    render: () => `<polygon points="12,0 24,12 12,24 0,12" fill="none" stroke="currentColor" stroke-width="1.5"/>` + text4(12, 15, 'BL'),
+    ports: [
+      { id: 'w', x: 0, y: 12, kind: 'both' },
+      { id: 'e', x: 24, y: 12, kind: 'both' },
+    ],
+    tagRule: 'none',
+    keywords: ['battery limit', 'bl', 'boundary'],
+  },
+  {
+    id: 'ann.onpage',
+    name: 'On-Page Reference',
+    category: 'annotation',
+    gridSize: { w: 3, h: 3 },
+    render: () => `<circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" stroke-width="1.5"/>` + path('M1 12 H23'),
+    ports: [{ id: 'w', x: 0, y: 12, kind: 'both' }],
+    tagRule: 'none',
+    keywords: ['on-page', 'reference', 'continuation'],
+  },
+  {
+    id: 'ann.revtriangle',
+    name: 'Revision Triangle',
+    category: 'annotation',
+    gridSize: { w: 3, h: 3 },
+    render: () => path('M12 2 L22 20 H2 Z'),
+    ports: [],
+    tagRule: 'none',
+    keywords: ['revision', 'rev', 'triangle', 'delta'],
+  },
+  {
+    id: 'ann.equipstrip',
+    name: 'Equipment Title Strip',
+    category: 'annotation',
+    gridSize: { w: 8, h: 3 },
+    render: () => path('M0 0 h64 v24 h-64 Z M0 12 H64'),
+    ports: [],
+    tagRule: 'equipment',
+    keywords: ['equipment', 'title', 'strip', 'header'],
+  },
+]
