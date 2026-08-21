@@ -1,0 +1,878 @@
+{
+  "schemaVersion": 3,
+  "meta": {
+    "name": "Refinery Stabilizer Unit",
+    "author": "PID Studio",
+    "created": "2026-08-21T00:00:00.000Z",
+    "modified": "2026-08-21T00:00:00.000Z"
+  },
+  "settings": {
+    "gridPx": 8,
+    "tagSeparator": "-"
+  },
+  "sheets": [
+    {
+      "id": "sheet-process",
+      "name": "Process",
+      "drawingNumber": "PID-201",
+      "revision": "B",
+      "sheetSize": "A2",
+      "nodes": [
+        {
+          "id": "tk1",
+          "symbolId": "vessel.tank",
+          "kind": "equipment",
+          "x": 88,
+          "y": 208,
+          "rotation": 0,
+          "label": "TK-201 Crude Feed"
+        },
+        {
+          "id": "p1",
+          "symbolId": "pump.centrifugal",
+          "kind": "equipment",
+          "x": 264,
+          "y": 432,
+          "rotation": 0,
+          "label": "P-201"
+        },
+        {
+          "id": "fe1",
+          "symbolId": "fe.orifice",
+          "kind": "instrument",
+          "x": 424,
+          "y": 440,
+          "rotation": 0,
+          "tag": {
+            "letters": "FE",
+            "loop": "201"
+          }
+        },
+        {
+          "id": "ft1",
+          "symbolId": "instr.bubble",
+          "kind": "instrument",
+          "x": 420,
+          "y": 296,
+          "rotation": 0,
+          "config": {
+            "display": "discrete",
+            "location": "field"
+          },
+          "tag": {
+            "letters": "FT",
+            "loop": "201"
+          },
+          "datasheet": {
+            "general.service": "Crude feed to E-201",
+            "process.fluid": "Crude oil",
+            "process.flow.norm": "85 m3/h",
+            "process.pressure": "6.5 barg",
+            "process.temperature": "38 C",
+            "signal.output": "4-20 mA HART",
+            "signal.range": "0-120 m3/h"
+          }
+        },
+        {
+          "id": "fic1",
+          "symbolId": "instr.bubble",
+          "kind": "instrument",
+          "x": 420,
+          "y": 160,
+          "rotation": 0,
+          "config": {
+            "display": "shared",
+            "location": "control-room"
+          },
+          "tag": {
+            "letters": "FIC",
+            "loop": "201"
+          }
+        },
+        {
+          "id": "fv1",
+          "symbolId": "cv.globe",
+          "kind": "valve",
+          "x": 536,
+          "y": 416,
+          "rotation": 0,
+          "config": {
+            "actuator": "diaphragm",
+            "fail": "fc"
+          },
+          "tag": {
+            "letters": "FV",
+            "loop": "201"
+          }
+        },
+        {
+          "id": "hx1",
+          "symbolId": "hx.shell-tube",
+          "kind": "equipment",
+          "x": 664,
+          "y": 432,
+          "rotation": 0,
+          "label": "E-201"
+        },
+        {
+          "id": "tt1",
+          "symbolId": "instr.bubble",
+          "kind": "instrument",
+          "x": 668,
+          "y": 296,
+          "rotation": 0,
+          "config": {
+            "display": "discrete",
+            "location": "field"
+          },
+          "tag": {
+            "letters": "TT",
+            "loop": "202"
+          },
+          "datasheet": {
+            "general.service": "E-201 outlet",
+            "process.fluid": "Crude oil",
+            "process.temperature": "140 C",
+            "element.type": "Pt100 duplex",
+            "signal.output": "4-20 mA"
+          }
+        },
+        {
+          "id": "tic1",
+          "symbolId": "instr.bubble",
+          "kind": "instrument",
+          "x": 668,
+          "y": 160,
+          "rotation": 0,
+          "config": {
+            "display": "shared",
+            "location": "control-room"
+          },
+          "tag": {
+            "letters": "TIC",
+            "loop": "202"
+          }
+        },
+        {
+          "id": "tv1",
+          "symbolId": "cv.globe",
+          "kind": "valve",
+          "x": 816,
+          "y": 416,
+          "rotation": 0,
+          "config": {
+            "actuator": "diaphragm",
+            "fail": "fo"
+          },
+          "tag": {
+            "letters": "TV",
+            "loop": "202"
+          }
+        },
+        {
+          "id": "c1",
+          "symbolId": "vessel.column-tray",
+          "kind": "equipment",
+          "x": 1000,
+          "y": 272,
+          "rotation": 0,
+          "label": "C-201 Stabilizer"
+        },
+        {
+          "id": "lt1",
+          "symbolId": "instr.bubble",
+          "kind": "instrument",
+          "x": 1120,
+          "y": 400,
+          "rotation": 0,
+          "config": {
+            "display": "discrete",
+            "location": "field"
+          },
+          "tag": {
+            "letters": "LT",
+            "loop": "203"
+          },
+          "datasheet": {
+            "general.service": "C-201 bottoms level",
+            "process.fluid": "Stabilized crude",
+            "element.type": "Guided-wave radar",
+            "signal.output": "4-20 mA HART",
+            "signal.range": "0-1800 mm"
+          }
+        },
+        {
+          "id": "lic1",
+          "symbolId": "instr.bubble",
+          "kind": "instrument",
+          "x": 1248,
+          "y": 400,
+          "rotation": 0,
+          "config": {
+            "display": "shared",
+            "location": "control-room"
+          },
+          "tag": {
+            "letters": "LIC",
+            "loop": "203"
+          }
+        },
+        {
+          "id": "lv1",
+          "symbolId": "cv.globe",
+          "kind": "valve",
+          "x": 1120,
+          "y": 616,
+          "rotation": 0,
+          "config": {
+            "actuator": "diaphragm",
+            "fail": "fc"
+          },
+          "tag": {
+            "letters": "LV",
+            "loop": "203"
+          }
+        },
+        {
+          "id": "psv1",
+          "symbolId": "psv",
+          "kind": "valve",
+          "x": 1032,
+          "y": 104,
+          "rotation": 0,
+          "tag": {
+            "letters": "PSV",
+            "loop": "204"
+          }
+        },
+        {
+          "id": "opsteam",
+          "symbolId": "ann.offpage",
+          "kind": "annotation",
+          "x": 600,
+          "y": 616,
+          "rotation": 0,
+          "label": "LP STEAM",
+          "link": {
+            "sheetId": "sheet-utilities",
+            "nodeId": "u-steam-out"
+          }
+        },
+        {
+          "id": "opflare",
+          "symbolId": "ann.offpage",
+          "kind": "annotation",
+          "x": 1240,
+          "y": 104,
+          "rotation": 0,
+          "label": "TO FLARE",
+          "link": {
+            "sheetId": "sheet-utilities",
+            "nodeId": "u-flare-in"
+          }
+        },
+        {
+          "id": "opbtm",
+          "symbolId": "ann.arrow",
+          "kind": "annotation",
+          "x": 1312,
+          "y": 616,
+          "rotation": 0,
+          "label": "BOTTOMS TO STORAGE"
+        }
+      ],
+      "edges": [
+        {
+          "id": "l1",
+          "lineClass": "process.major",
+          "source": {
+            "nodeId": "tk1",
+            "portId": "s"
+          },
+          "target": {
+            "nodeId": "p1",
+            "portId": "suction"
+          }
+        },
+        {
+          "id": "l2",
+          "lineClass": "process.major",
+          "source": {
+            "nodeId": "p1",
+            "portId": "discharge"
+          },
+          "target": {
+            "nodeId": "fe1",
+            "portId": "w"
+          },
+          "arrow": "flow",
+          "lineNumber": {
+            "size": "3\"",
+            "spec": "CS150",
+            "service": "P",
+            "seq": "001"
+          }
+        },
+        {
+          "id": "l3",
+          "lineClass": "process.major",
+          "source": {
+            "nodeId": "fe1",
+            "portId": "e"
+          },
+          "target": {
+            "nodeId": "fv1",
+            "portId": "w"
+          }
+        },
+        {
+          "id": "l4",
+          "lineClass": "process.major",
+          "source": {
+            "nodeId": "fv1",
+            "portId": "e"
+          },
+          "target": {
+            "nodeId": "hx1",
+            "portId": "w"
+          }
+        },
+        {
+          "id": "l5",
+          "lineClass": "process.major",
+          "source": {
+            "nodeId": "hx1",
+            "portId": "e"
+          },
+          "target": {
+            "nodeId": "tv1",
+            "portId": "w"
+          },
+          "arrow": "flow",
+          "lineNumber": {
+            "size": "3\"",
+            "spec": "CS150",
+            "service": "P",
+            "seq": "002"
+          }
+        },
+        {
+          "id": "l6",
+          "lineClass": "process.major",
+          "source": {
+            "nodeId": "tv1",
+            "portId": "e"
+          },
+          "target": {
+            "nodeId": "c1",
+            "portId": "w"
+          }
+        },
+        {
+          "id": "l7",
+          "lineClass": "process.major",
+          "source": {
+            "nodeId": "c1",
+            "portId": "n"
+          },
+          "target": {
+            "nodeId": "psv1",
+            "portId": "in"
+          }
+        },
+        {
+          "id": "l8",
+          "lineClass": "process.major",
+          "source": {
+            "nodeId": "psv1",
+            "portId": "out"
+          },
+          "target": {
+            "nodeId": "opflare",
+            "portId": "w"
+          }
+        },
+        {
+          "id": "l9",
+          "lineClass": "process.major",
+          "source": {
+            "nodeId": "c1",
+            "portId": "s"
+          },
+          "target": {
+            "nodeId": "lv1",
+            "portId": "w"
+          },
+          "lineNumber": {
+            "size": "4\"",
+            "spec": "CS150",
+            "service": "P",
+            "seq": "003"
+          }
+        },
+        {
+          "id": "l10",
+          "lineClass": "process.major",
+          "source": {
+            "nodeId": "lv1",
+            "portId": "e"
+          },
+          "target": {
+            "nodeId": "opbtm",
+            "portId": "w"
+          },
+          "arrow": "flow"
+        },
+        {
+          "id": "l11",
+          "lineClass": "process.minor",
+          "source": {
+            "nodeId": "opsteam",
+            "portId": "w"
+          },
+          "target": {
+            "nodeId": "hx1",
+            "portId": "s"
+          }
+        },
+        {
+          "id": "s1",
+          "lineClass": "process.impulse",
+          "source": {
+            "nodeId": "fe1",
+            "portId": "tap"
+          },
+          "target": {
+            "nodeId": "ft1",
+            "portId": "s"
+          }
+        },
+        {
+          "id": "s2",
+          "lineClass": "signal.electric",
+          "source": {
+            "nodeId": "ft1",
+            "portId": "n"
+          },
+          "target": {
+            "nodeId": "fic1",
+            "portId": "s"
+          }
+        },
+        {
+          "id": "s3",
+          "lineClass": "signal.pneumatic",
+          "source": {
+            "nodeId": "fic1",
+            "portId": "e"
+          },
+          "target": {
+            "nodeId": "fv1",
+            "portId": "sig"
+          }
+        },
+        {
+          "id": "s4",
+          "lineClass": "process.impulse",
+          "source": {
+            "nodeId": "hx1",
+            "portId": "n"
+          },
+          "target": {
+            "nodeId": "tt1",
+            "portId": "s"
+          }
+        },
+        {
+          "id": "s5",
+          "lineClass": "signal.electric",
+          "source": {
+            "nodeId": "tt1",
+            "portId": "n"
+          },
+          "target": {
+            "nodeId": "tic1",
+            "portId": "s"
+          }
+        },
+        {
+          "id": "s6",
+          "lineClass": "signal.pneumatic",
+          "source": {
+            "nodeId": "tic1",
+            "portId": "e"
+          },
+          "target": {
+            "nodeId": "tv1",
+            "portId": "sig"
+          }
+        },
+        {
+          "id": "s7",
+          "lineClass": "process.impulse",
+          "source": {
+            "nodeId": "c1",
+            "portId": "e"
+          },
+          "target": {
+            "nodeId": "lt1",
+            "portId": "w"
+          }
+        },
+        {
+          "id": "s8",
+          "lineClass": "signal.electric",
+          "source": {
+            "nodeId": "lt1",
+            "portId": "e"
+          },
+          "target": {
+            "nodeId": "lic1",
+            "portId": "w"
+          }
+        },
+        {
+          "id": "s9",
+          "lineClass": "signal.pneumatic",
+          "source": {
+            "nodeId": "lic1",
+            "portId": "s"
+          },
+          "target": {
+            "nodeId": "lv1",
+            "portId": "sig"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sheet-utilities",
+      "name": "Utilities",
+      "drawingNumber": "PID-301",
+      "revision": "A",
+      "sheetSize": "A3",
+      "nodes": [
+        {
+          "id": "b1",
+          "symbolId": "boiler",
+          "kind": "equipment",
+          "x": 120,
+          "y": 160,
+          "rotation": 0,
+          "label": "B-301"
+        },
+        {
+          "id": "pcv1",
+          "symbolId": "pcv.self",
+          "kind": "valve",
+          "x": 320,
+          "y": 192,
+          "rotation": 0,
+          "tag": {
+            "letters": "PCV",
+            "loop": "301"
+          }
+        },
+        {
+          "id": "u-steam-out",
+          "symbolId": "ann.offpage",
+          "kind": "annotation",
+          "x": 520,
+          "y": 200,
+          "rotation": 0,
+          "label": "LP STEAM TO PROCESS",
+          "link": {
+            "sheetId": "sheet-process",
+            "nodeId": "opsteam"
+          }
+        },
+        {
+          "id": "ct1",
+          "symbolId": "cooling-tower",
+          "kind": "equipment",
+          "x": 120,
+          "y": 420,
+          "rotation": 0,
+          "label": "CT-301"
+        },
+        {
+          "id": "p2",
+          "symbolId": "pump.centrifugal",
+          "kind": "equipment",
+          "x": 320,
+          "y": 464,
+          "rotation": 0,
+          "label": "P-301"
+        },
+        {
+          "id": "flare1",
+          "symbolId": "flare",
+          "kind": "equipment",
+          "x": 760,
+          "y": 120,
+          "rotation": 0,
+          "label": "FLARE"
+        },
+        {
+          "id": "u-flare-in",
+          "symbolId": "ann.offpage",
+          "kind": "annotation",
+          "x": 560,
+          "y": 136,
+          "rotation": 0,
+          "label": "RELIEF FROM PROCESS",
+          "link": {
+            "sheetId": "sheet-process",
+            "nodeId": "opflare"
+          }
+        },
+        {
+          "id": "ko1",
+          "symbolId": "vessel.ko-drum",
+          "kind": "equipment",
+          "x": 640,
+          "y": 240,
+          "rotation": 0,
+          "label": "V-302 Flare KO"
+        }
+      ],
+      "edges": [
+        {
+          "id": "u1",
+          "lineClass": "process.major",
+          "source": {
+            "nodeId": "b1",
+            "portId": "n"
+          },
+          "target": {
+            "nodeId": "pcv1",
+            "portId": "w"
+          },
+          "lineNumber": {
+            "size": "6\"",
+            "spec": "CS300",
+            "service": "S",
+            "seq": "010"
+          }
+        },
+        {
+          "id": "u2",
+          "lineClass": "process.major",
+          "source": {
+            "nodeId": "pcv1",
+            "portId": "e"
+          },
+          "target": {
+            "nodeId": "u-steam-out",
+            "portId": "w"
+          },
+          "arrow": "flow"
+        },
+        {
+          "id": "u3",
+          "lineClass": "process.major",
+          "source": {
+            "nodeId": "ct1",
+            "portId": "w"
+          },
+          "target": {
+            "nodeId": "p2",
+            "portId": "suction"
+          }
+        },
+        {
+          "id": "u4",
+          "lineClass": "process.major",
+          "source": {
+            "nodeId": "u-flare-in",
+            "portId": "w"
+          },
+          "target": {
+            "nodeId": "ko1",
+            "portId": "w"
+          }
+        },
+        {
+          "id": "u5",
+          "lineClass": "process.major",
+          "source": {
+            "nodeId": "ko1",
+            "portId": "n"
+          },
+          "target": {
+            "nodeId": "flare1",
+            "portId": "s"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sheet-logic",
+      "name": "SIS Logic",
+      "drawingNumber": "PID-401",
+      "revision": "A",
+      "sheetSize": "A3",
+      "nodes": [
+        {
+          "id": "lsh",
+          "symbolId": "instr.bubble",
+          "kind": "instrument",
+          "x": 120,
+          "y": 120,
+          "rotation": 0,
+          "config": {
+            "display": "discrete",
+            "location": "field"
+          },
+          "tag": {
+            "letters": "LSHH",
+            "loop": "203"
+          }
+        },
+        {
+          "id": "psh",
+          "symbolId": "instr.bubble",
+          "kind": "instrument",
+          "x": 120,
+          "y": 260,
+          "rotation": 0,
+          "config": {
+            "display": "discrete",
+            "location": "field"
+          },
+          "tag": {
+            "letters": "PSHH",
+            "loop": "204"
+          }
+        },
+        {
+          "id": "and1",
+          "symbolId": "logic.and",
+          "kind": "fitting",
+          "x": 360,
+          "y": 190,
+          "rotation": 0
+        },
+        {
+          "id": "sis1",
+          "symbolId": "ctl.sis",
+          "kind": "fitting",
+          "x": 540,
+          "y": 184,
+          "rotation": 0
+        },
+        {
+          "id": "xv1",
+          "symbolId": "cv.ball",
+          "kind": "valve",
+          "x": 760,
+          "y": 168,
+          "rotation": 0,
+          "config": {
+            "actuator": "solenoid",
+            "fail": "fc"
+          },
+          "tag": {
+            "letters": "XV",
+            "loop": "205"
+          }
+        },
+        {
+          "id": "il1",
+          "symbolId": "ctl.interlock",
+          "kind": "fitting",
+          "x": 640,
+          "y": 100,
+          "rotation": 0
+        }
+      ],
+      "edges": [
+        {
+          "id": "g1",
+          "lineClass": "signal.electric",
+          "source": {
+            "nodeId": "lsh",
+            "portId": "e"
+          },
+          "target": {
+            "nodeId": "and1",
+            "portId": "w1"
+          }
+        },
+        {
+          "id": "g2",
+          "lineClass": "signal.electric",
+          "source": {
+            "nodeId": "psh",
+            "portId": "e"
+          },
+          "target": {
+            "nodeId": "and1",
+            "portId": "w2"
+          }
+        },
+        {
+          "id": "g3",
+          "lineClass": "signal.electric",
+          "source": {
+            "nodeId": "and1",
+            "portId": "e"
+          },
+          "target": {
+            "nodeId": "sis1",
+            "portId": "w"
+          }
+        },
+        {
+          "id": "g4",
+          "lineClass": "signal.electric",
+          "source": {
+            "nodeId": "sis1",
+            "portId": "e"
+          },
+          "target": {
+            "nodeId": "xv1",
+            "portId": "sig"
+          }
+        },
+        {
+          "id": "g5",
+          "lineClass": "link.internal",
+          "source": {
+            "nodeId": "sis1",
+            "portId": "n"
+          },
+          "target": {
+            "nodeId": "il1",
+            "portId": "s"
+          }
+        }
+      ]
+    }
+  ],
+  "customSymbols": [
+    {
+      "id": "custom.demo-skid",
+      "name": "Dosing Skid (custom)",
+      "svg": "<rect x=\"2\" y=\"2\" width=\"92\" height=\"44\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-dasharray=\"6 3\"/><circle cx=\"24\" cy=\"24\" r=\"12\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/><path d=\"M36 24 H88\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/><path d=\"M60 16 L68 24 L60 32\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/>",
+      "gridSize": {
+        "w": 12,
+        "h": 6
+      },
+      "ports": [
+        {
+          "id": "out",
+          "x": 96,
+          "y": 24,
+          "kind": "process"
+        }
+      ],
+      "tagRule": "equipment",
+      "keywords": [
+        "custom",
+        "dosing",
+        "skid"
+      ]
+    }
+  ]
+}

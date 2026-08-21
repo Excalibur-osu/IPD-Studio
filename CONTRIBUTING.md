@@ -28,6 +28,12 @@ definitions parsed to JointJS markup by `src/canvas/markupParser.ts`.
 3. Extend `tests/symbols/catalog.test.ts` with its id and a geometry check.
 4. Eyeball it in the palette (`npm run dev`) at 100% and 200% zoom.
 
+### Custom symbols
+
+Users can import their own SVG symbols (palette → "Import symbol…"). The
+sanitizer (`src/import/svgSymbol.ts`) strips scripts, event handlers, and
+external references; keep it that way when touching import code.
+
 ### Symbol IP rule (non-negotiable)
 
 Symbols must be **authored independently from geometric first principles**

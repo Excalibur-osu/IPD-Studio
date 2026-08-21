@@ -19,6 +19,7 @@ import { parseDxfUnderlay } from '../import/dxfUnderlay'
 import { sheetPx } from '../model/doc'
 import { activeSheet } from '../store/store'
 import samplePlant from '../../examples/sample-plant.pnid.json'
+import sampleRefinery from '../../examples/sample-refinery-unit.pnid.json'
 
 function zoomCenter(factor: number) {
   const paper = canvasRef.paper
@@ -66,12 +67,13 @@ export default function Toolbar() {
           const pick = e.target.value
           if (!pick) return
           if (dirty && !window.confirm('Discard unsaved changes?')) return
-          const source = pick === 'sample' ? samplePlant : pick === 'blank' ? templateBlank : templateUtility
+          const source = pick === 'sample' ? samplePlant : pick === 'refinery' ? sampleRefinery : pick === 'blank' ? templateBlank : templateUtility
           useStore.getState().loadIntoStore(loadDoc(source))
         }}
       >
         <option value="">Templates…</option>
         <option value="sample">Sample plant</option>
+        <option value="refinery">Refinery unit (3 sheets)</option>
         <option value="blank">Blank A3 drawing</option>
         <option value="utility">Utility headers (A1)</option>
       </select>

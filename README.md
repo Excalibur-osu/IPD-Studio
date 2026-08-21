@@ -20,15 +20,18 @@ P&ID tool is a $2,600+/year desktop install. PID Studio is the missing thing:
 - The instrument index and line list are generated from the model, not typed
 - The document is versioned open JSON, designed to map onto DEXPI
 
-## Features (v0.2)
+## Features (v0.3)
 
-- **135+ parametric symbols, 155+ palette entries** — instrument bubbles (all
+- **180+ parametric symbols, 200+ palette entries** — instrument bubbles (all
   16 ISA display/location variants from one parameterized symbol), control
   valves with 7 actuator types and fail-action marks, 14 manual valve types,
   safety/relief devices, 14 flow elements, level/temperature/pressure
   accessories, pumps, compressors, turbines, spheres, silos, columns,
   reactors, separators, heat exchangers, fired heaters, cooling towers,
-  ISA-5.2 logic gates (AND/OR/NOT), DCS/PLC/SIS system boxes, fittings
+  ISA-5.2 logic gates (AND/OR/NOT), DCS/PLC/SIS system boxes, fittings,
+  solids handling (conveyors, crushers, dryers, clarifiers), boilers, flares,
+  MCC/UPS/IS barriers, steam trap variants — plus **your own imported SVG
+  symbols** with a click-to-place port editor
 - **16 line classes** with correct ISA rendering: heavy/light process,
   impulse, electric (dashed), pneumatic (double slash), hydraulic, capillary,
   data/software (circles), electromagnetic, jacketed (double line),
@@ -36,8 +39,19 @@ P&ID tool is a $2,600+/year desktop install. PID Studio is the missing thing:
 - **Multi-sheet projects** — sheet tabs, per-sheet title blocks, off-page
   connectors linked across sheets with jump-to-target, project-wide tag
   validation
-- **DEXPI-oriented export** — Proteus Schema 4.2-shaped XML with a documented
-  model mapping ([docs/DEXPI-MAPPING.md](docs/DEXPI-MAPPING.md))
+- **DEXPI-oriented export *and import*** — Proteus Schema 4.2-shaped XML with
+  a documented model mapping ([docs/DEXPI-MAPPING.md](docs/DEXPI-MAPPING.md));
+  PID Studio files round-trip, foreign files map via ComponentClass
+- **CAD interop** — layered R12 **DXF export** (opens in AutoCAD/LibreCAD),
+  and **DXF underlay import**: load a legacy drawing as a locked gray
+  background and redraw intelligently on top
+  ([DWG findings](docs/DWG-IMPORT-SPIKE.md))
+- **Generated deliverables** — one-click **ISA-5.4-style loop diagrams**
+  (field / marshalling / control room with numbered terminals) and
+  **ISA-20-style instrument datasheets** (form editor, PDF, CSV matrix)
+- **Works offline** — installable PWA; the whole editor runs with no internet
+- **Editor power** — Ctrl+F find-any-tag across sheets, align/distribute,
+  live snap guides, print-all-sheets PDF, line sequence auto-numbering
 - **Obstacle-avoiding orthogonal routing** with draggable waypoints, ports
   with connection rules (a pneumatic signal won't connect to a pipe nozzle)
 - **Live validation**: duplicate tags, missing tags, illegal ISA letters,
@@ -53,7 +67,7 @@ P&ID tool is a $2,600+/year desktop install. PID Studio is the missing thing:
 ```bash
 npm install
 npm run dev     # open http://localhost:5173, press "Sample" for a demo plant
-npm test        # 211 unit tests
+npm test        # 247 unit tests
 npx playwright test   # e2e
 ```
 
@@ -65,10 +79,9 @@ Drawings save as `.pnid.json` — versioned, human-readable JSON
 
 ## Roadmap
 
-- **v0.3** — custom symbol import (SVG upload + port editor), real-time
-  collaboration (Yjs, self-hosted), auto-generated loop diagrams (ISA-5.4),
-  instrument datasheets (ISA-20 style), DWG import spike, remaining long-tail
-  catalog (solids handling, packaged units), DEXPI import
+- **v0.4** — real-time collaboration (opt-in self-hosted sync; the no-backend
+  local-first default stays), review comments, DEXPI conformance hardening,
+  in-app DWG per the [spike findings](docs/DWG-IMPORT-SPIKE.md)
 
 ## Symbols & standards
 
