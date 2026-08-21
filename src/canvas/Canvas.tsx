@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { canvasRef, createPaper, zoomAt } from './paperSetup'
 import { reconcile } from './reconciler'
+import { decorateLinks } from './decorations'
 import '../symbols/lib/index'
 import { sheetPx } from '../model/doc'
 import { useStore } from '../store/store'
@@ -18,6 +19,8 @@ export default function Canvas() {
     canvasRef.paper = paper
     canvasRef.graph = graph
     paper.translate(24, 24)
+
+    paper.on('render:done', () => decorateLinks(paper))
 
     reconcile(graph, useStore.getState().doc, undefined)
     let prevDoc = useStore.getState().doc
