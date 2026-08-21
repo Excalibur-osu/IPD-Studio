@@ -3,6 +3,7 @@ import type { PlantEdge, PlantNode } from '../model/types'
 import { isPortEnd } from '../model/types'
 import { getSymbol } from '../symbols/registry'
 import { strokeFor } from './lineStyle'
+import { parseSvgToMarkup, type MarkupNode } from './markupParser'
 
 const PORT_MARKUP = [
   {
@@ -12,10 +13,15 @@ const PORT_MARKUP = [
   },
 ]
 
-function markupFor(node: PlantNode): string {
+function markupFor(node: PlantNode): (MarkupNode | string)[] {
   const def = getSymbol(node.symbolId)
   const svg = def.render(node.config ?? def.defaultConfig ?? {})
-  return `<g @selector="sym">${svg}</g><text @selector="tagL"/><text @selector="tagN"/><text @selector="lbl"/>`
+  return [
+    { tagName: 'g', selector: 'sym', children: parseSvgToMarkup(svg) },
+    { tagName: 'text', selector: 'tagL' },
+    { tagName: 'text', selector: 'tagN' },
+    { tagName: 'text', selector: 'lbl' },
+  ]
 }
 
 function tagAttrs(node: PlantNode): Record<string, Record<string, unknown>> {
@@ -56,13 +62,13 @@ function tagAttrs(node: PlantNode): Record<string, Record<string, unknown>> {
 
 export function makeElement(node: PlantNode): dia.Element {
   const def = getSymbol(node.symbolId)
-  const el = new dia.Element({
+  const el = new dia.Element(<dia.Element.Attributes>{
     id: node.id,
     type: 'pid.Symbol',
     position: { x: node.x, y: node.y },
     size: { width: def.gridSize.w * 8, height: def.gridSize.h * 8 },
     angle: node.rotation,
-    markup: markupFor(node),
+    markup: markupFor(node) as unknown as dia.MarkupJSON,
     attrs: { sym: { color: '#111' }, ...tagAttrs(node) },
     ports: {
       groups: {
@@ -82,7 +88,7 @@ export function makeElement(node: PlantNode): dia.Element {
 export function updateElement(cell: dia.Element, node: PlantNode, prev: PlantNode): void {
   if (node.x !== prev.x || node.y !== prev.y) cell.set('position', { x: node.x, y: node.y })
   if (node.rotation !== prev.rotation) cell.set('angle', node.rotation)
-  if (node.config !== prev.config) cell.set('markup', markupFor(node))
+  if (node.config !== prev.config) cell.set('markup', markupFor(node) as unknown as dia.MarkupJSON)
   if (node.tag !== prev.tag || node.label !== prev.label || node.config !== prev.config) {
     cell.set('attrs', { sym: { color: '#111' }, ...tagAttrs(node) })
   }
