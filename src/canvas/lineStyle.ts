@@ -3,6 +3,8 @@ import type { LineClass } from '../model/types'
 export interface LineStroke {
   width: number
   dasharray?: string
+  /** Rendered as a double (jacketed) line. */
+  double?: boolean
 }
 
 export const LINE_STROKES: Record<LineClass, LineStroke> = {
@@ -16,6 +18,17 @@ export const LINE_STROKES: Record<LineClass, LineStroke> = {
   'signal.data': { width: 1.25 },
   'signal.software': { width: 1.25, dasharray: '4 3' },
   'link.internal': { width: 1, dasharray: '2 2' },
+  'signal.em': { width: 1.25 },
+  'pipe.jacketed': { width: 2.5, double: true },
+  'pipe.traced': { width: 1.25, dasharray: '8 3 2 3 2 3' },
+  'pipe.existing': { width: 0.75 },
+  'pipe.underground': { width: 1.25, dasharray: '12 6' },
+  'pipe.battery-limit': { width: 2.5, dasharray: '12 4 3 4' },
+}
+
+/** True for classes that carry process fluid (process.* and pipe.*). */
+export function isProcessClass(lineClass: LineClass): boolean {
+  return lineClass.startsWith('process') || lineClass.startsWith('pipe')
 }
 
 export function strokeFor(lineClass: LineClass): LineStroke {
@@ -34,4 +47,10 @@ export const LINE_CLASS_LABELS: Record<LineClass, string> = {
   'signal.data': 'Data link',
   'signal.software': 'Software link',
   'link.internal': 'Internal system link',
+  'signal.em': 'Electromagnetic/sonic signal',
+  'pipe.jacketed': 'Jacketed pipe',
+  'pipe.traced': 'Heat-traced pipe',
+  'pipe.existing': 'Existing pipe',
+  'pipe.underground': 'Underground pipe',
+  'pipe.battery-limit': 'Battery limit',
 }

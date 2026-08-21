@@ -83,6 +83,21 @@ describe('reconcile', () => {
     expect(el.getPorts()).toHaveLength(4)
   })
 
+  it('jacketed renders double-line and reverts cleanly', () => {
+    const graph = new dia.Graph()
+    const e: PlantEdge = { id: 'ej', lineClass: 'pipe.jacketed', source: { x: 0, y: 0 }, target: { x: 80, y: 0 } }
+    const doc1 = docWith([], [e])
+    reconcile(graph, doc1, undefined)
+    const link = graph.getCell('ej')
+    expect(link.attr('outline/stroke')).toBe('#111')
+    expect(link.attr('line/stroke')).toBe('#fff')
+    const doc2 = docWith([], [{ ...e, lineClass: 'process.major' }])
+    reconcile(graph, doc2, doc1)
+    expect(link.attr('outline/stroke')).toBe('none')
+    expect(link.attr('line/stroke')).toBe('#111')
+    expect(link.attr('line/strokeWidth')).toBe(2.5)
+  })
+
   it('applies line class stroke and updates on change', () => {
     const graph = new dia.Graph()
     const a = node(); const b = node()

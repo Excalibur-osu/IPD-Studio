@@ -14,7 +14,13 @@ export type LineClass =
   | 'signal.capillary'
   | 'signal.data'
   | 'signal.software'
+  | 'signal.em'
   | 'link.internal'
+  | 'pipe.jacketed'
+  | 'pipe.traced'
+  | 'pipe.existing'
+  | 'pipe.underground'
+  | 'pipe.battery-limit'
 
 /** ISA tag: FT-101A -> { letters: 'FT', loop: '101', suffix: 'A' } */
 export interface Tag {

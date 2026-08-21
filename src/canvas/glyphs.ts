@@ -74,4 +74,10 @@ export const GLYPHS: Record<LineClass, GlyphSpec | null> = {
     markup: [{ tagName: 'circle', selector: 'glyph', attributes: { r: 2.5, fill: '#fff', stroke: '#111', 'stroke-width': 1.25 } }],
   },
   'link.internal': null,
+  'signal.em': { spacing: 24, markup: strokeGlyph('M -5 0 q 2.5 -4 5 0 q 2.5 4 5 0') },
+  'pipe.jacketed': null,
+  'pipe.traced': null,
+  'pipe.existing': null,
+  'pipe.underground': null,
+  'pipe.battery-limit': null,
 }

@@ -98,21 +98,33 @@ function toEnd(end: PlantEdge['source']): dia.Link.EndJSON {
   return isPortEnd(end) ? { id: end.nodeId, port: end.portId } : { x: end.x, y: end.y }
 }
 
+const LINK_MARKUP = [
+  { tagName: 'path', selector: 'wrapper', attributes: { fill: 'none', cursor: 'pointer', stroke: 'transparent' } },
+  { tagName: 'path', selector: 'outline', attributes: { fill: 'none', 'pointer-events': 'none' } },
+  { tagName: 'path', selector: 'line', attributes: { fill: 'none', 'pointer-events': 'none' } },
+]
+
 function lineAttrs(edge: PlantEdge): Record<string, Record<string, unknown>> {
   const stroke = strokeFor(edge.lineClass)
+  const marker =
+    edge.arrow === 'flow'
+      ? { type: 'path', d: 'M 10 -4 0 0 10 4 Z', fill: '#111' }
+      : { type: 'none' }
   const line: Record<string, unknown> = {
-    stroke: '#111',
-    strokeWidth: stroke.width,
+    connection: true,
     fill: 'none',
-    targetMarker:
-      edge.arrow === 'flow'
-        ? { type: 'path', d: 'M 10 -4 0 0 10 4 Z', fill: '#111' }
-        : { type: 'none' },
+    stroke: stroke.double ? '#fff' : '#111',
+    strokeWidth: stroke.width,
+    targetMarker: stroke.double ? { type: 'none' } : marker,
   }
   if (stroke.dasharray) line.strokeDasharray = stroke.dasharray
+  const outline: Record<string, unknown> = stroke.double
+    ? { connection: true, fill: 'none', stroke: '#111', strokeWidth: stroke.width + 3, targetMarker: marker }
+    : { connection: true, fill: 'none', stroke: 'none', strokeWidth: 0, targetMarker: { type: 'none' } }
   return {
     line,
-    wrapper: { strokeWidth: 12, stroke: 'transparent', fill: 'none' },
+    outline,
+    wrapper: { connection: true, strokeWidth: 12, stroke: 'transparent', fill: 'none' },
   }
 }
 
@@ -124,6 +136,7 @@ export function makeLink(edge: PlantEdge): dia.Link {
     vertices: edge.vertices ?? [],
     router: { name: 'manhattan', args: { step: 8, padding: 16 } },
     connector: { name: 'normal' },
+    markup: LINK_MARKUP,
     data: { lineClass: edge.lineClass },
   })
   link.attr(lineAttrs(edge))
