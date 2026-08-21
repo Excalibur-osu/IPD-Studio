@@ -20,7 +20,7 @@ export function createPaper(el: HTMLElement, sheetSize: SheetSize): { paper: dia
     sorting: dia.Paper.sorting.APPROX,
     interactive: { linkMove: false, labelMove: false },
     linkPinning: true,
-    snapLinks: { radius: 16 },
+    snapLinks: { radius: 24 },
     markAvailable: true,
   })
   return { paper, graph }

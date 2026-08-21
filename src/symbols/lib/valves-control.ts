@@ -83,6 +83,9 @@ export const controlValves: SymbolDef[] = Object.entries(CV_BODIES).map(([id, bo
     { id: 'w', x: 0, y: 32, kind: 'process' },
     { id: 'e', x: 32, y: 32, kind: 'process' },
     { id: 'sig', x: 16, y: 0, kind: 'signal' },
+    // Actuator flanks: positioner input one side, feedback/limit switches the other.
+    { id: 'sw', x: 4, y: 8, kind: 'signal' },
+    { id: 'se', x: 28, y: 8, kind: 'signal' },
   ],
   tagRule: 'valve',
   defaultConfig: { actuator: 'diaphragm', fail: 'none' },

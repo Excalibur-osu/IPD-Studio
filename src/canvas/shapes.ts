@@ -5,11 +5,24 @@ import { getSymbol } from '../symbols/registry'
 import { strokeFor } from './lineStyle'
 import { parseSvgToMarkup, type MarkupNode } from './markupParser'
 
+/**
+ * Each port renders as a small always-visible dot (the connection point the
+ * user aims for) under a larger invisible halo that is the actual magnet, so
+ * starting a link doesn't demand pixel-perfect clicks. Styling lives in
+ * app.css (.pid-port-*); exports strip both by joint-selector.
+ */
 const PORT_MARKUP = [
   {
     tagName: 'circle',
+    selector: 'portDot',
+    className: 'pid-port-dot',
+    attributes: { r: 3, 'pointer-events': 'none' },
+  },
+  {
+    tagName: 'circle',
     selector: 'portBody',
-    attributes: { r: 4, fill: 'transparent', stroke: 'transparent', magnet: 'true' },
+    className: 'pid-port-hit',
+    attributes: { r: 8, fill: 'transparent', stroke: 'transparent', magnet: 'true', cursor: 'crosshair' },
   },
 ]
 
@@ -17,6 +30,19 @@ function markupFor(node: PlantNode): (MarkupNode | string)[] {
   const def = getSymbol(node.symbolId)
   const svg = def.render(node.config ?? def.defaultConfig ?? {})
   return [
+    // Transparent body so the whole symbol (not just its hairline strokes)
+    // accepts clicks and drags.
+    {
+      tagName: 'rect',
+      selector: 'hit',
+      attributes: {
+        width: String(def.gridSize.w * 8),
+        height: String(def.gridSize.h * 8),
+        fill: 'transparent',
+        stroke: 'none',
+        cursor: 'move',
+      },
+    },
     { tagName: 'g', selector: 'sym', children: parseSvgToMarkup(svg) },
     { tagName: 'text', selector: 'tagL' },
     { tagName: 'text', selector: 'tagN' },
@@ -118,7 +144,8 @@ export function portDirection(symbolId: string, portId: string): Direction | nul
     ]
     candidates.sort((a, b) => a[1] - b[1])
     const [dir, distance] = candidates[0]!
-    return distance <= 8 ? dir : null
+    // 10px slack covers nozzle ports that sit slightly inside a dished head.
+    return distance <= 10 ? dir : null
   } catch {
     return null
   }

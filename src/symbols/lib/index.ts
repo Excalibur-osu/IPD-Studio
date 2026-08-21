@@ -1,5 +1,6 @@
 import { registerSymbols } from '../registry'
 import { bubble } from './bubble'
+import { converters } from './converters'
 import { manualValves } from './valves-manual'
 import { controlValves } from './valves-control'
 import { safetyDevices, safetyDevices2 } from './safety'
@@ -16,6 +17,7 @@ import { utilities } from './utilities'
 
 registerSymbols([
   bubble,
+  ...converters,
   ...manualValves,
   ...controlValves,
   ...safetyDevices,

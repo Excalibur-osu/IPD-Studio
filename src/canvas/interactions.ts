@@ -2,7 +2,7 @@ import { dia, g, highlighters, linkTools } from '@joint/core'
 import type { PlantEdge, PlantNode } from '../model/types'
 import { isPortEnd } from '../model/types'
 import type { PortKind } from '../symbols/types'
-import { canConnect } from './connectionRules'
+import { compatibleKinds, pickLineClass } from './connectionRules'
 import { alignNodes, distributeNodes, snapGuides } from './alignment'
 import { makeLink } from './shapes'
 import { activeSheet, useStore } from '../store/store'
@@ -11,11 +11,16 @@ const snap8 = (v: number) => Math.round(v / 8) * 8
 
 type PortKinds = Record<string, PortKind>
 
-function portKindOf(cellView: dia.CellView, magnet: SVGElement | undefined): PortKind | null {
-  const portId = magnet?.getAttribute('port')
-  if (!portId) return null
-  const kinds = (cellView.model.get('data') as { portKinds?: PortKinds } | undefined)?.portKinds
+function kindFromCell(cell: dia.Cell | undefined, portId: string | null | undefined): PortKind | null {
+  if (!cell || !portId) return null
+  const kinds = (cell.get('data') as { portKinds?: PortKinds } | undefined)?.portKinds
   return kinds?.[portId] ?? null
+}
+
+function portKindOf(cellView: dia.CellView, magnet: SVGElement | undefined): PortKind | null {
+  // The port id may sit on the magnet itself or on the port's container group.
+  const portId = magnet?.getAttribute('port') ?? magnet?.closest('[port]')?.getAttribute('port')
+  return kindFromCell(cellView.model, portId)
 }
 
 export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => void {
@@ -31,12 +36,27 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
       target: { x: 0, y: 0 },
     })
 
+  // Any port pairing that some line class could join is allowed; the class
+  // itself is picked at commit time so users never have to pre-select it.
   paper.options.validateConnection = (srcView, srcMagnet, tgtView, tgtMagnet) => {
     const src = portKindOf(srcView as dia.CellView, srcMagnet as SVGElement)
     const tgt = portKindOf(tgtView as dia.CellView, tgtMagnet as SVGElement)
     if (!src || !tgt) return false
     if (srcView === tgtView) return false
-    return canConnect(src, tgt, store().activeLineClass)
+    return compatibleKinds(src, tgt)
+  }
+
+  /** Sheet-local position of an edge end, for the accidental-stub check. */
+  const endPoint = (e: dia.Link.EndJSON): { x: number; y: number } | null => {
+    if (e.id) {
+      const cell = graph.getCell(e.id)
+      if (!cell || !cell.isElement() || !e.port) return null
+      const rel = (cell as dia.Element).getPortsPositions('p')[String(e.port)]
+      const pos = (cell as dia.Element).position()
+      return rel ? { x: pos.x + rel.x, y: pos.y + rel.y } : pos
+    }
+    if (typeof e.x === 'number' && typeof e.y === 'number') return { x: e.x, y: e.y }
+    return null
   }
 
   const commitDraft = (link: dia.Link) => {
@@ -53,11 +73,22 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     }
     const source = toEnd(src)
     const target = toEnd(tgt)
+    const srcKind = src.id ? kindFromCell(graph.getCell(src.id), src.port ? String(src.port) : null) : null
+    const tgtKind = tgt.id ? kindFromCell(graph.getCell(tgt.id), tgt.port ? String(tgt.port) : null) : null
+    const a = endPoint(src)
+    const b = endPoint(tgt)
     link.remove()
     // Refuse fully dangling scribbles; allow one free end (vents, off-page).
     if (!source || !target) return
     if (!isPortEnd(source) && !isPortEnd(target)) return
-    const id = store().addEdge({ lineClass: store().activeLineClass, source, target })
+    // A free-ended stub shorter than ~3 grid squares is a failed drag near a
+    // port, not a drawing intention — dropping it prevents ghost lines.
+    if ((!isPortEnd(source) || !isPortEnd(target)) && a && b && Math.hypot(a.x - b.x, a.y - b.y) < 24) return
+    const id = store().addEdge({
+      lineClass: pickLineClass(srcKind, tgtKind, store().activeLineClass),
+      source,
+      target,
+    })
     store().setSelection([id])
   }
 

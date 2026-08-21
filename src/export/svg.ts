@@ -54,7 +54,14 @@ export function exportSvg(doc: ProjectDoc, sheet: Sheet): string {
   const mm = SHEET_SIZES_MM[sheet.sheetSize]
 
   const clone = paper.svg.cloneNode(true) as SVGSVGElement
-  for (const sel of ['.joint-tools', '.joint-highlighter-layer', '.pid-underlay', '[joint-selector="portBody"]']) {
+  for (const sel of [
+    '.joint-tools',
+    '.joint-highlighter-layer',
+    '.pid-underlay',
+    '[joint-selector="portBody"]',
+    '[joint-selector="portDot"]',
+    '[joint-selector="hit"]',
+  ]) {
     clone.querySelectorAll(sel).forEach((el) => el.remove())
   }
   // Neutralize the paper's pan/zoom transform on the layers group.

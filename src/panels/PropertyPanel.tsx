@@ -158,7 +158,7 @@ function EdgeProps({ edge }: { edge: PlantEdge }) {
   )
 }
 
-export default function PropertyPanel() {
+export default function PropertyPanel({ onCollapse }: { onCollapse?: () => void }) {
   const selection = useStore((s) => s.selection)
   const doc = useStore((s) => s.doc)
   const activeSheetId = useStore((s) => s.activeSheetId)
@@ -192,5 +192,14 @@ export default function PropertyPanel() {
       </>
     )
   }
-  return <aside className="props">{body}</aside>
+  return (
+    <aside className="props">
+      {onCollapse && (
+        <div className="props-head">
+          <button className="panel-collapse" title="Hide properties" onClick={onCollapse}>▸</button>
+        </div>
+      )}
+      {body}
+    </aside>
+  )
 }

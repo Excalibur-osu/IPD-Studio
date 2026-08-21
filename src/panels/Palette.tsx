@@ -28,7 +28,7 @@ const CATEGORY_ORDER: [SymbolCategory, string][] = [
   ['annotation', 'Annotation'],
 ]
 
-const INSTRUMENT_PRESETS = ['FT', 'FIT', 'FIC', 'FE', 'PT', 'PIT', 'PIC', 'PDT', 'LT', 'LIT', 'LIC', 'TT', 'TIT', 'TIC', 'AT', 'AIT', 'SC', 'HS', 'ZSC', 'ZSO']
+const INSTRUMENT_PRESETS = ['FT', 'FIT', 'FIC', 'FE', 'FY', 'PT', 'PIT', 'PIC', 'PDT', 'PY', 'LT', 'LIT', 'LIC', 'LY', 'TT', 'TIT', 'TIC', 'TY', 'AT', 'AIT', 'SC', 'HS', 'ZSC', 'ZSO']
 
 function Preview({ def }: { def: SymbolDef }) {
   const w = def.gridSize.w * 8
@@ -61,7 +61,7 @@ function Entry({ def, label, presetLetters }: { def: SymbolDef; label: string; p
   )
 }
 
-export default function Palette() {
+export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
   const [query, setQuery] = useState('')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [importOpen, setImportOpen] = useState(false)
@@ -80,17 +80,22 @@ export default function Palette() {
 
   return (
     <aside className="palette">
-      <input
-        className="palette-search"
-        placeholder="Search symbols…  (Enter places)"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && results && results[0]) {
-            placeAtCenter(results[0].id)
-          }
-        }}
-      />
+      <div className="palette-head">
+        <input
+          className="palette-search"
+          placeholder="Search symbols…  (Enter places)"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && results && results[0]) {
+              placeAtCenter(results[0].id)
+            }
+          }}
+        />
+        {onCollapse && (
+          <button className="panel-collapse" title="Hide palette" onClick={onCollapse}>◂</button>
+        )}
+      </div>
       <button className="palette-import" onClick={() => setImportOpen(true)}>＋ Import symbol…</button>
       {importOpen && <SymbolImportDialog onClose={() => setImportOpen(false)} />}
       {results ? (
