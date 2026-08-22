@@ -2148,7 +2148,7 @@ git add -A && git commit -m "feat: flow-network compiler (pipes+widgets -> branc
 export interface ControllerSpec { tag: string; pvTag: string; outTag: string }
 export interface SimModel { defs: TagDef[]; net: FlowNetwork; controllers: ControllerSpec[] }
 export type Tags = Record<string, Record<string, number>>
-export function buildSimModel(screen: HmiScreen): SimModel   // controllers wired in Task 22; empty array until then
+export function buildSimModel(screen: HmiScreen): SimModel   // controller pairing runs now; pairs appear once controller widgets exist (Task 22 adds MAN pass-through + tests)
 export function initTags(model: SimModel): Tags
 export function tick(model: SimModel, tags: Tags, dt: number, rng: () => number): { tags: Tags; branchFlows: Record<string, number> }
 ```
@@ -2259,7 +2259,8 @@ const KP = 1.5
 const KI = 0.4
 
 export function buildSimModel(screen: HmiScreen): SimModel {
-  return { defs: buildTagDefs(screen), net: buildNetwork(screen), controllers: wireControllers(buildTagDefs(screen)) }
+  const defs = buildTagDefs(screen)
+  return { defs, net: buildNetwork(screen), controllers: wireControllers(defs) }
 }
 
 /** Family+loop matching: LIC-101 pairs with LT-101 (PV) and LV-101 (OP target). */
@@ -3255,4 +3256,612 @@ npm run build && npx firebase-tools deploy --only hosting
 
 Verify the live site serves the new bundle (content-hash check), then manually on the live site: build a two-widget screen, RUN, start the pump.
 
-<!-- CONTINUE-6 -->
+---
+
+# Phase 3 — P&ID import + auto-wired loops
+
+### Task 19: Node mapping (P&ID nodes → HMI widgets)
+
+**Files:**
+- Create: `src/hmi/importFromPid.ts`
+- Test: `tests/hmi/import.test.ts`
+
+**Interfaces:**
+- Consumes: `Sheet`, `PlantNode`, `getSymbol` (`src/symbols/registry` — plus the side-effect import that fills the catalog: copy whatever import triggers registration in existing DOM-free code, e.g. how `src/export/loopDiagram.ts` or the catalog test gets symbols), `formatTag` (`src/isa/tag.ts`), `WIDGET_DEFAULT_SIZE`.
+- Produces (this task, nodes only — pipes/geometry in Task 20):
+
+```ts
+export interface ImportCtx { nameOf: Map<string, string> }   // nodeId -> widget tag/name
+export function mapNodes(sheet: Sheet, separator: '-' | ''): { widgets: HmiWidget[]; ctx: ImportCtx }
+```
+
+Mapping (spec §8): vessels→`tank`; rotating→`pump`; control-valves→`valve` (`throttle:true`); other `kind==='valve'` except safety→`valve` on/off; safety→`symbol`; instruments: letters ending `T`→`display` (binding filled in Task 20), letters containing `C` not ending `V`→`display` with `controller:true`, else `display`; `annotation` kind→skipped; everything else→`symbol` (`symbolId`, flow-passthrough). Sizes = `gridSize*8*scale` (instruments use display default size instead of bubble size); positions copied (Task 20 rescales). Names: `formatTag(node.tag, separator)` → else non-empty `label` → else auto (`TK-1`, `P-1`, `V-1`, `XI-1`, `X-1` per type, counting up); `ctx.nameOf` records every mapped node's name for Task 20's binding walk.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+// tests/hmi/import.test.ts
+import { describe, expect, it } from 'vitest'
+import { mapNodes } from '../../src/hmi/importFromPid'
+import type { PlantNode, Sheet } from '../../src/model/types'
+
+const N = (id: string, symbolId: string, kind: PlantNode['kind'], x: number, y: number, extra?: Partial<PlantNode>): PlantNode =>
+  ({ id, symbolId, kind, x, y, rotation: 0, ...extra })
+const sheet = (nodes: PlantNode[]): Sheet =>
+  ({ id: 'sh1', name: 'S1', drawingNumber: '', revision: '0', sheetSize: 'A3', nodes, edges: [] })
+
+// Pick REAL symbol ids at implementation time (grep src/symbols/lib): one vessel,
+// one pump, one control valve, one gate valve, the instrument bubble, one PSV.
+// The strings below are placekeepers to replace with the real ids — the test
+// must construct nodes whose registry category matches each mapping row.
+const VESSEL = 'vessel.tank', PUMP = 'pump.centrifugal', CV = 'valve.control.globe', GV = 'valve.gate', BUBBLE = 'instr.bubble.field', PSV = 'safety.psv'
+
+describe('mapNodes', () => {
+  it('maps each category to its widget type', () => {
+    const { widgets } = mapNodes(sheet([
+      N('1', VESSEL, 'equipment', 100, 100, { tag: { letters: 'TK', loop: '101' } }),
+      N('2', PUMP, 'equipment', 200, 100, { tag: { letters: 'P', loop: '101' } }),
+      N('3', CV, 'valve', 300, 100, { tag: { letters: 'LV', loop: '101' } }),
+      N('4', GV, 'valve', 400, 100 ),
+      N('5', BUBBLE, 'instrument', 500, 100, { tag: { letters: 'LT', loop: '101' } }),
+      N('6', BUBBLE, 'instrument', 600, 100, { tag: { letters: 'LIC', loop: '101' } }),
+      N('7', PSV, 'valve', 700, 100 ),
+    ]), '-')
+    const by = Object.fromEntries(widgets.map((w) => [w.tag, w]))
+    expect(by['TK-101']!.type).toBe('tank')
+    expect(by['P-101']!.type).toBe('pump')
+    expect(by['LV-101']).toMatchObject({ type: 'valve', props: expect.objectContaining({ throttle: true }) })
+    expect(by['LT-101']!.type).toBe('display')
+    expect(by['LIC-101']).toMatchObject({ type: 'display', props: expect.objectContaining({ controller: true }) })
+    const gate = widgets.find((w) => w.tag === 'V-1')!      // untagged gate valve auto-name
+    expect(gate.type).toBe('valve')
+    expect(gate.props?.throttle).toBeUndefined()
+    const psv = widgets.find((w) => w.type === 'symbol')!
+    expect(psv.props?.symbolId).toBe(PSV)
+  })
+  it('skips annotation nodes and uses labels before auto-names', () => {
+    const { widgets } = mapNodes(sheet([
+      N('1', VESSEL, 'equipment', 0, 0, { label: 'Feed Drum' }),
+      N('2', 'annotation.note', 'annotation', 50, 50),
+    ]), '-')
+    expect(widgets).toHaveLength(1)
+    expect(widgets[0]!.tag).toBe('Feed Drum')
+  })
+  it('ctx.nameOf records every mapped node', () => {
+    const { ctx } = mapNodes(sheet([N('1', VESSEL, 'equipment', 0, 0, { tag: { letters: 'TK', loop: '1' } })]), '-')
+    expect(ctx.nameOf.get('1')).toBe('TK-1')
+  })
+})
+```
+
+- [ ] **Step 2: Resolve the real symbol ids, run test to verify it fails**
+
+`grep -n "id: '" src/symbols/lib/vessels.ts src/symbols/lib/rotating.ts src/symbols/lib/valves-control.ts src/symbols/lib/valves-manual.ts src/symbols/lib/bubble.ts src/symbols/lib/safety.ts | head -30` — substitute the six constants with real ids whose categories are vessels / rotating / control-valves / valves (manual) / instruments / safety. Then:
+
+Run: `npm test -- tests/hmi/import.test.ts`
+Expected: FAIL — module missing.
+
+- [ ] **Step 3: Implement `mapNodes` in `src/hmi/importFromPid.ts`**
+
+```ts
+import type { PlantNode, Sheet } from '../model/types'
+import type { HmiWidget, WidgetType } from './model'
+import { WIDGET_DEFAULT_SIZE } from './model'
+import { formatTag } from '../isa/tag'
+import { getSymbol } from '../symbols/registry'
+// side-effect: fill the symbol registry (same import the catalog tests use)
+import '../symbols/lib/index'
+
+export interface ImportCtx { nameOf: Map<string, string> }
+
+const AUTO_PREFIX: Partial<Record<WidgetType, string>> = {
+  tank: 'TK', pump: 'P', valve: 'V', display: 'XI', symbol: 'X',
+}
+
+function categoryOf(node: PlantNode): string {
+  try { return getSymbol(node.symbolId).category } catch { return 'custom' }
+}
+
+function widgetTypeFor(node: PlantNode, category: string): { type: WidgetType; props: HmiWidget['props'] } | null {
+  if (node.kind === 'annotation') return null
+  const letters = node.tag?.letters ?? ''
+  if (node.kind === 'equipment' && category === 'vessels') return { type: 'tank', props: undefined }
+  if (category === 'rotating') return { type: 'pump', props: undefined }
+  if (category === 'control-valves') return { type: 'valve', props: { throttle: true } }
+  if (category === 'safety') return { type: 'symbol', props: { symbolId: node.symbolId } }
+  if (node.kind === 'valve') return { type: 'valve', props: undefined }
+  if (node.kind === 'instrument') {
+    if (letters.endsWith('T')) return { type: 'display', props: undefined }
+    if (letters.includes('C') && !letters.endsWith('V')) return { type: 'display', props: { controller: true } }
+    return { type: 'display', props: undefined }
+  }
+  return { type: 'symbol', props: { symbolId: node.symbolId } }
+}
+
+export function mapNodes(sheet: Sheet, separator: '-' | ''): { widgets: HmiWidget[]; ctx: ImportCtx } {
+  const widgets: HmiWidget[] = []
+  const nameOf = new Map<string, string>()
+  const counters = new Map<string, number>()
+  const used = new Set<string>()
+
+  for (const node of sheet.nodes) {
+    const category = categoryOf(node)
+    const mapped = widgetTypeFor(node, category)
+    if (!mapped) continue
+    let name = node.tag ? formatTag(node.tag, separator) : (node.label?.trim() || '')
+    if (!name || used.has(name)) {
+      const prefix = AUTO_PREFIX[mapped.type] ?? 'X'
+      let n = (counters.get(prefix) ?? 0) + 1
+      while (used.has(`${prefix}-${n}`)) n++
+      counters.set(prefix, n)
+      name = `${prefix}-${n}`
+    }
+    used.add(name)
+    nameOf.set(node.id, name)
+
+    let w: number, h: number
+    if (mapped.type === 'display') {
+      ;({ w, h } = WIDGET_DEFAULT_SIZE.display)
+    } else {
+      const scale = node.scale ?? 1
+      try {
+        const g = getSymbol(node.symbolId).gridSize
+        w = g.w * 8 * scale; h = g.h * 8 * scale
+      } catch {
+        ;({ w, h } = WIDGET_DEFAULT_SIZE[mapped.type])
+      }
+      if (mapped.type === 'tank') { w = Math.max(w, 64); h = Math.max(h, 80) }
+    }
+    widgets.push({
+      id: `imp-${node.id}`,
+      type: mapped.type, x: node.x, y: node.y, w, h,
+      tag: name, label: node.label, props: mapped.props,
+    })
+  }
+  return { widgets, ctx: { nameOf } }
+}
+```
+
+If the registry side-effect import path differs (check how `tests/symbols/catalog.test.ts` imports the catalog), mirror that exact import.
+
+- [ ] **Step 4: Run tests**
+
+Run: `npm test -- tests/hmi/import.test.ts`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add -A && git commit -m "feat: P&ID node -> HMI widget mapping"
+```
+
+### Task 20: Pipes, scale-to-fit, and measurement bindings — `importSheet`
+
+**Files:**
+- Modify: `src/hmi/importFromPid.ts`
+- Test: `tests/hmi/import2.test.ts`
+
+**Interfaces:**
+- Consumes: `portWorld(node, portId)` from `src/canvas/alignment.ts`, `isPortEnd` from `src/model/types`, `mapNodes`, `buildNetwork` (for the integration assertion), `ulid`.
+- Produces: `importSheet(doc: ProjectDoc, sheetId: string): HmiScreen` — full import: widgets (Task 19) + pipes from `process.*`/`pipe.*` edges (`points = [srcWorld, ...vertices, tgtWorld]`, `flowRef: edge.id`), `signal.*`/`link.internal` dropped; transmitter bindings (`bindTank` via ≤2-hop edge walk to a vessel, else `bindPipe` = first process edge id touching the walked neighborhood); whole layout scaled uniformly into `HMI_WORLD` with a 40px margin (factor ≤ 1, never upscales); screen `name = `${sheet.name} HMI``, `fromSheetId = sheetId`, theme `'classic'`.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+// tests/hmi/import2.test.ts
+import { describe, expect, it } from 'vitest'
+import { importSheet } from '../../src/hmi/importFromPid'
+import { buildNetwork } from '../../src/hmi/sim/network'
+import { loadDoc } from '../../src/model/migrate'
+import { createEmptyDoc } from '../../src/model/doc'
+import type { PlantEdge, PlantNode, ProjectDoc } from '../../src/model/types'
+import samplePlant from '../../examples/sample-plant.pnid.json'
+
+// Reuse the six real symbol ids resolved in Task 19's test.
+const VESSEL = 'vessel.tank', PUMP = 'pump.centrifugal', CV = 'valve.control.globe', BUBBLE = 'instr.bubble.field'
+
+function docWith(nodes: PlantNode[], edges: PlantEdge[]): ProjectDoc {
+  const doc = createEmptyDoc()
+  doc.sheets[0]!.nodes = nodes
+  doc.sheets[0]!.edges = edges
+  return doc
+}
+const N = (id: string, symbolId: string, kind: PlantNode['kind'], x: number, y: number, extra?: Partial<PlantNode>): PlantNode =>
+  ({ id, symbolId, kind, x, y, rotation: 0, ...extra })
+
+describe('importSheet', () => {
+  it('imports pipes from process edges only, keeps geometry, sets fromSheetId', () => {
+    const doc = docWith(
+      [N('pu', PUMP, 'equipment', 100, 100), N('tk', VESSEL, 'equipment', 500, 60)],
+      [
+        { id: 'e1', lineClass: 'process.major', source: { x: 0, y: 120 }, target: { nodeId: 'pu', portId: 'in' }, vertices: [] },
+        { id: 'e2', lineClass: 'process.major', source: { nodeId: 'pu', portId: 'out' }, target: { nodeId: 'tk', portId: 'n1' }, vertices: [{ x: 300, y: 120 }] },
+        { id: 'e3', lineClass: 'signal.electric', source: { x: 0, y: 0 }, target: { x: 50, y: 0 } },
+      ],
+    )
+    const screen = importSheet(doc, doc.sheets[0]!.id)
+    expect(screen.fromSheetId).toBe(doc.sheets[0]!.id)
+    expect(screen.pipes).toHaveLength(2)                       // signal edge dropped
+    expect(screen.pipes.find((p) => p.flowRef === 'e2')!.points.length).toBeGreaterThanOrEqual(3)  // src + vertex + tgt
+    // pipes attach: the network must chain source -> pump -> tank
+    const net = buildNetwork(screen)
+    expect(net.branches.some((b) => b.pumps.length === 1 && b.to.kind === 'tank')).toBe(true)
+  })
+  it('binds a level transmitter to its vessel through an impulse edge', () => {
+    const doc = docWith(
+      [
+        N('tk', VESSEL, 'equipment', 500, 60, { tag: { letters: 'TK', loop: '101' } }),
+        N('lt', BUBBLE, 'instrument', 650, 90, { tag: { letters: 'LT', loop: '101' } }),
+        N('lv', CV, 'valve', 300, 100, { tag: { letters: 'LV', loop: '101' } }),
+      ],
+      [{ id: 'imp', lineClass: 'process.impulse', source: { nodeId: 'lt', portId: 'p1' }, target: { nodeId: 'tk', portId: 'n2' } }],
+    )
+    const screen = importSheet(doc, doc.sheets[0]!.id)
+    const lt = screen.widgets.find((w) => w.tag === 'LT-101')!
+    expect(lt.props?.bindTank).toBe('TK-101')
+  })
+  it('scales an oversized layout into the world with margin', () => {
+    const doc = docWith([N('a', VESSEL, 'equipment', 3000, 2000)], [])
+    const screen = importSheet(doc, doc.sheets[0]!.id)
+    const w = screen.widgets[0]!
+    expect(w.x + w.w).toBeLessThanOrEqual(1600)
+    expect(w.y + w.h).toBeLessThanOrEqual(1000)
+  })
+  it('imports the shipped sample plant end-to-end', () => {
+    const doc = loadDoc(samplePlant)
+    const screen = importSheet(doc, doc.sheets[0]!.id)
+    expect(screen.widgets.length).toBeGreaterThan(3)
+    expect(screen.pipes.length).toBeGreaterThan(0)
+    expect(buildNetwork(screen).branches.length).toBeGreaterThan(0)
+  })
+})
+```
+
+Port ids `'in'/'out'/'n1'/'n2'/'p1'` must be real port ids of the chosen symbols — read the symbol defs and use their actual port ids (vessels have multi-nozzle ports; the bubble has its ports). `portWorld` returns null for unknown ports — the import must fall back to node center `{x: node.x + w/2, y: node.y + h/2}` in that case, so wrong ids degrade, not crash; the test should still use real ids to exercise the true path.
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npm test -- tests/hmi/import2.test.ts`
+Expected: FAIL — `importSheet` missing.
+
+- [ ] **Step 3: Implement `importSheet` (append to `src/hmi/importFromPid.ts`)**
+
+```ts
+import { ulid } from 'ulid'
+import type { PlantEdge, ProjectDoc } from '../model/types'
+import { isPortEnd } from '../model/types'
+import { portWorld } from '../canvas/alignment'
+import type { HmiPipe, HmiScreen } from './model'
+import { HMI_WORLD } from './model'
+
+const isProcess = (lc: PlantEdge['lineClass']) => lc.startsWith('process') || lc.startsWith('pipe.')
+
+function endPoint(end: PlantEdge['source'], nodes: Map<string, PlantNode>): { x: number; y: number } {
+  if (!isPortEnd(end)) return { x: end.x, y: end.y }
+  const node = nodes.get(end.nodeId)
+  if (!node) return { x: 0, y: 0 }
+  const p = portWorld(node, end.portId)
+  if (p) return p
+  let w = 32, h = 32
+  try { const g = getSymbol(node.symbolId).gridSize; w = g.w * 8 * (node.scale ?? 1); h = g.h * 8 * (node.scale ?? 1) } catch { /* default */ }
+  return { x: node.x + w / 2, y: node.y + h / 2 }
+}
+
+/** ≤2-hop neighborhood walk from an instrument node over ALL edges. */
+function findBinding(sheet: Sheet, nodeId: string, ctx: ImportCtx): { bindTank?: string; bindPipe?: string } {
+  const nodesById = new Map(sheet.nodes.map((n) => [n.id, n]))
+  const frontier = [nodeId]
+  const seen = new Set(frontier)
+  let processEdge: string | undefined
+  for (let hop = 0; hop < 2; hop++) {
+    const next: string[] = []
+    for (const edge of sheet.edges) {
+      const ends = [edge.source, edge.target].filter(isPortEnd)
+      const ids = ends.map((e) => e.nodeId)
+      if (!ids.some((id) => frontier.includes(id))) continue
+      if (isProcess(edge.lineClass) && !processEdge) processEdge = edge.id
+      for (const id of ids) {
+        if (seen.has(id)) continue
+        seen.add(id)
+        const n = nodesById.get(id)
+        if (n && n.kind === 'equipment' && categoryOf(n) === 'vessels') {
+          const tank = ctx.nameOf.get(id)
+          if (tank) return { bindTank: tank }
+        }
+        next.push(id)
+      }
+    }
+    frontier.length = 0
+    frontier.push(...next)
+  }
+  return processEdge ? { bindPipe: processEdge } : {}
+}
+
+export function importSheet(doc: ProjectDoc, sheetId: string): HmiScreen {
+  const sheet = doc.sheets.find((s) => s.id === sheetId)
+  if (!sheet) throw new Error(`No sheet ${sheetId}`)
+  const { widgets, ctx } = mapNodes(sheet, doc.settings.tagSeparator)
+  const nodesById = new Map(sheet.nodes.map((n) => [n.id, n]))
+
+  // transmitter bindings
+  for (const node of sheet.nodes) {
+    if (node.kind !== 'instrument' || !(node.tag?.letters ?? '').endsWith('T')) continue
+    const name = ctx.nameOf.get(node.id)
+    const widget = widgets.find((w) => w.tag === name)
+    if (!widget) continue
+    const binding = findBinding(sheet, node.id, ctx)
+    if (binding.bindTank ?? binding.bindPipe) widget.props = { ...widget.props, ...binding }
+  }
+
+  const pipes: HmiPipe[] = sheet.edges.filter((e) => isProcess(e.lineClass)).map((e) => ({
+    id: ulid(),
+    flowRef: e.id,
+    points: [endPoint(e.source, nodesById), ...(e.vertices ?? []), endPoint(e.target, nodesById)],
+  }))
+
+  // bindPipe references edge ids -> retarget to the imported pipe id
+  const pipeByEdge = new Map(pipes.map((p) => [p.flowRef!, p.id]))
+  for (const w of widgets) {
+    if (typeof w.props?.bindPipe === 'string') {
+      const pid = pipeByEdge.get(w.props.bindPipe)
+      w.props = { ...w.props, bindPipe: pid ?? '' }
+      if (!pid) delete (w.props as Record<string, unknown>).bindPipe
+    }
+  }
+
+  // uniform scale-to-fit with 40px margin
+  const xs = [...widgets.flatMap((w) => [w.x, w.x + w.w]), ...pipes.flatMap((p) => p.points.map((q) => q.x))]
+  const ys = [...widgets.flatMap((w) => [w.y, w.y + w.h]), ...pipes.flatMap((p) => p.points.map((q) => q.y))]
+  if (xs.length > 0) {
+    const minX = Math.min(...xs), maxX = Math.max(...xs)
+    const minY = Math.min(...ys), maxY = Math.max(...ys)
+    const k = Math.min(1, (HMI_WORLD.w - 80) / Math.max(1, maxX - minX), (HMI_WORLD.h - 80) / Math.max(1, maxY - minY))
+    const tx = (v: number) => 40 + (v - minX) * k
+    const ty = (v: number) => 40 + (v - minY) * k
+    for (const w of widgets) { w.x = tx(w.x); w.y = ty(w.y); w.w *= k; w.h *= k }
+    for (const p of pipes) p.points = p.points.map((q) => ({ x: tx(q.x), y: ty(q.y) }))
+  }
+
+  return { id: ulid(), name: `${sheet.name} HMI`, theme: 'classic', widgets, pipes, fromSheetId: sheetId }
+}
+```
+
+Sim note: `bindPipe` now holds an **HmiPipe id**; the engine looks up `branches.find(b => b.pipeIds.includes(bindPipe))` — already how Task 12 wrote it. Network `ATTACH` tolerance (14px) must survive the scale-down: after scaling, pipe endpoints and widget rects scale together, so attachment is preserved.
+
+- [ ] **Step 4: Run tests**
+
+Run: `npm test -- tests/hmi/import2.test.ts && npm test`
+Expected: PASS. If sample-plant attachment fails, log which pipe endpoints missed which rects and bump `ATTACH` to 18 (one knob, both sides scale together — do not special-case).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add -A && git commit -m "feat: importSheet — pipes, bindings, scale-to-fit"
+```
+
+### Task 21: Import UI — Build from sheet + Re-import
+
+**Files:**
+- Modify: `src/hmi/HmiToolbar.tsx`, `src/hmi/HmiWorkspace.tsx`
+- Test: extend `e2e/hmi.spec.ts`
+
+**Interfaces:**
+- Consumes: `importSheet`, `addImportedScreen`, `replaceScreen`, store doc.
+- Produces: edit-mode toolbar button `data-testid="hmi-import"` ("From P&ID…"): if the doc has one sheet, import it directly; else `window.prompt` listing `1..N` sheet names (match the repo's existing plain-confirm style — no new dialog component). Re-import button `data-testid="hmi-reimport"` shown when the active screen has `fromSheetId` and that sheet still exists: `window.confirm('Replace this screen from the P&ID sheet? Your HMI edits to it are lost.')` → `replaceScreen({ ...importSheet(doc, fromSheetId), id: screen.id, name: screen.name, theme: screen.theme })`. The empty state's "Build from P&ID sheet…" button now triggers the same import path.
+
+- [ ] **Step 1: Implement**
+
+In `HmiToolbar` (edit-mode section):
+
+```tsx
+const doc = useStore((s) => s.doc)
+const addImportedScreen = useStore((s) => s.addImportedScreen)
+const replaceScreen = useStore((s) => s.replaceScreen)
+const runImport = async () => {
+  const { importSheet } = await import('./importFromPid')
+  let sheet = doc.sheets[0]!
+  if (doc.sheets.length > 1) {
+    const pick = window.prompt(doc.sheets.map((s, i) => `${i + 1}: ${s.name}`).join('\n'), '1')
+    const idx = Number(pick) - 1
+    if (!pick || Number.isNaN(idx) || !doc.sheets[idx]) return
+    sheet = doc.sheets[idx]!
+  }
+  addImportedScreen(importSheet(doc, sheet.id))
+}
+// buttons in edit mode:
+<button data-testid="hmi-import" onClick={() => void runImport()} title="Build an HMI screen from a P&ID sheet">From P&ID…</button>
+{screen?.fromSheetId && doc.sheets.some((s) => s.id === screen.fromSheetId) && (
+  <button data-testid="hmi-reimport" onClick={async () => {
+    if (!window.confirm('Replace this screen from the P&ID sheet? Your HMI edits to it are lost.')) return
+    const { importSheet } = await import('./importFromPid')
+    replaceScreen({ ...importSheet(doc, screen.fromSheetId!), id: screen.id, name: screen.name, theme: screen.theme })
+  }}>Re-import</button>
+)}
+```
+
+(The dynamic `import()` keeps registry/import code out of the initial HMI chunk render path; it stays inside the lazy HMI chunk family either way.) Wire the empty-state button in `HmiWorkspace` to the same `runImport` — lift `runImport` into `HmiWorkspace` and pass it to both, so the empty state and toolbar share one implementation.
+
+- [ ] **Step 2: e2e — import the sample plant and run it**
+
+Append to `e2e/hmi.spec.ts`:
+
+```ts
+test('one click: sample P&ID becomes a running HMI', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('select.tb-template').selectOption('sample')
+  await page.getByTestId('open-hmi').click()
+  await page.getByTestId('hmi-import').click()
+  const canvas = page.getByTestId('hmi-canvas')
+  await expect(canvas.locator('g.hmi-widget')).not.toHaveCount(0)
+  await expect(canvas.locator('polyline')).not.toHaveCount(0)
+  await page.getByTestId('hmi-run-toggle').click()
+  await page.getByTestId('hmi-speed').click()
+  // some pipe should carry flow (sources feed through open hand valves) or a
+  // level should move — poll the whole canvas text for change
+  const text = () => canvas.textContent()
+  const before = await text()
+  await expect.poll(text, { timeout: 20000 }).not.toBe(before)
+})
+```
+
+If the sample plant's first sheet genuinely has no self-driving flow (all pumps stopped and no pressurized source path), start a pump through its faceplate inside the test instead of relying on drift — adapt while keeping the assertion "something on screen changes."
+
+- [ ] **Step 3: Run + commit**
+
+Run: `pkill -f vite || true; set -o pipefail; npm test && npm run e2e 2>&1 | tail -20`
+Expected: PASS.
+
+```bash
+git add -A && git commit -m "feat: one-click Build-HMI-from-P&ID + Re-import"
+```
+
+### Task 22: Auto-wired PI control loops + MAN pass-through
+
+**Files:**
+- Modify: `src/hmi/sim/engine.ts` (MAN pass-through), `src/hmi/simStore.ts` (nothing expected — verify), `src/hmi/Faceplate.tsx` (verify MAN slider drives the valve)
+- Test: `tests/hmi/controllers.test.ts`
+
+**Interfaces:**
+- Consumes: everything from Tasks 12/19/20 (`wireControllers` already pairs `LIC-101`→PV `LT-101` / OP `LV-101` by family+loop — spec §8's loop rule applied to widget tags).
+- Produces: engine change — controllers in MAN (`MODE < 0.5`) copy their operator-set `OP` to the wired valve each tick (`valve.OP = t.OP`) instead of running PI. This makes the controller faceplate's MAN slider actually stroke the valve.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+// tests/hmi/controllers.test.ts
+import { describe, expect, it } from 'vitest'
+import { buildSimModel, initTags, tick } from '../../src/hmi/sim/engine'
+import { makeRng } from '../../src/hmi/sim/noise'
+import type { HmiScreen } from '../../src/hmi/model'
+
+// source -> P-101 -> LV-101 -> TK-101 -> HV-101 -> sink, LT-101 bound to the tank, LIC-101 controller
+const screen: HmiScreen = {
+  id: 's', name: 'S', theme: 'classic',
+  widgets: [
+    { id: 'p', type: 'pump', x: 100, y: 90, w: 56, h: 56, tag: 'P-101' },
+    { id: 'v', type: 'valve', x: 300, y: 95, w: 48, h: 32, tag: 'LV-101', props: { throttle: true } },
+    { id: 't', type: 'tank', x: 500, y: 40, w: 96, h: 128, tag: 'TK-101', props: { capacity: 100, level0: 30 } },
+    { id: 'h', type: 'valve', x: 650, y: 150, w: 48, h: 32, tag: 'HV-101' },
+    { id: 'lt', type: 'display', x: 700, y: 40, w: 96, h: 40, tag: 'LT-101', props: { bindTank: 'TK-101' } },
+    { id: 'lic', type: 'display', x: 700, y: 90, w: 96, h: 40, tag: 'LIC-101', props: { controller: true } },
+  ],
+  pipes: [
+    { id: 'e1', points: [{ x: 0, y: 118 }, { x: 110, y: 118 }] },
+    { id: 'e2', points: [{ x: 150, y: 118 }, { x: 310, y: 111 }] },
+    { id: 'e3', points: [{ x: 340, y: 111 }, { x: 510, y: 100 }] },
+    { id: 'e4', points: [{ x: 590, y: 160 }, { x: 660, y: 166 }] },
+    { id: 'e5', points: [{ x: 692, y: 166 }, { x: 800, y: 166 }] },
+  ],
+}
+
+const runFor = (seconds: number, mut?: (t: ReturnType<typeof initTags>) => void) => {
+  const model = buildSimModel(screen)
+  let tags = initTags(model)
+  tags['P-101']!.RUN = 1
+  if (mut) mut(tags)
+  const rng = makeRng(2)
+  for (let i = 0; i < seconds * 5; i++) tags = tick(model, tags, 0.2, rng).tags
+  return { tags, model }
+}
+
+describe('auto-wired control loops', () => {
+  it('wires LIC-101 to LT-101 (PV) and LV-101 (OP)', () => {
+    const { model } = runFor(1)
+    expect(model.controllers).toEqual([{ tag: 'LIC-101', pvTag: 'LT-101', outTag: 'LV-101' }])
+  })
+  it('holds level at SP against a constant drain (AUTO)', () => {
+    const { tags } = runFor(240)
+    expect(Math.abs(tags['TK-101']!.PV! - 50)).toBeLessThan(4)   // SP default 50
+  })
+  it('tracks an SP change', () => {
+    const { tags } = runFor(300, (t) => { t['LIC-101']!.SP = 70 })
+    expect(Math.abs(tags['TK-101']!.PV! - 70)).toBeLessThan(5)
+  })
+  it('MAN mode passes operator OP through to the valve', () => {
+    const { tags } = runFor(2, (t) => { t['LIC-101']!.MODE = 0; t['LIC-101']!.OP = 77 })
+    expect(tags['LV-101']!.OP).toBe(77)
+  })
+})
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npm test -- tests/hmi/controllers.test.ts`
+Expected: the MAN pass-through test FAILS (AUTO tests may already pass — Task 12 wired PI).
+
+- [ ] **Step 3: Implement the MAN pass-through in `engine.ts`**
+
+In the controller loop, replace the early `continue` for MAN with:
+
+```ts
+if ((t.MODE ?? 0) < 0.5) {
+  const valve = tags[c.outTag]
+  if (valve && valve.OP !== undefined) valve.OP = t.OP ?? valve.OP
+  t.PV = tags[c.pvTag]?.PV ?? 0
+  continue
+}
+```
+
+If the AUTO convergence tests oscillate outside the tolerance, tune only `KP`/`KI` constants (try KP 1.2 / KI 0.25) — do not add derivative action or change physics.
+
+- [ ] **Step 4: Run tests**
+
+Run: `npm test -- tests/hmi/controllers.test.ts && npm test`
+Expected: PASS.
+
+- [ ] **Step 5: Commit + deploy checkpoint (Phase 3 live)**
+
+```bash
+git add -A && git commit -m "feat: auto-wired PI loops from P&ID tags + MAN pass-through"
+npm run build && npx firebase-tools deploy --only hosting
+```
+
+Live check: load the sample plant on the live site, build the HMI in one click, RUN — watch a wired loop hold its level.
+
+---
+
+# Phase 4 — Polish
+
+### Task 23: Demo content + docs
+
+**Files:**
+- Create: `examples/template-hmi-demo.pnid.json`, `docs/HMI.md`
+- Modify: `src/panels/Toolbar.tsx` (templates select), `src/hmi/HmiWorkspace.tsx` (empty-state hint), `README.md`
+
+- [ ] **Step 1: Build the demo document in the app** (dev server): one A3 P&ID sheet — feed source → P-101 pump → LV-101 control valve → TK-101 vessel → HV-101 gate valve → drain; LT-101 transmitter on the vessel (impulse line), LIC-101 controller (signal lines), all tagged via the normal editor. Switch to HMI, "From P&ID…", then hand-polish the screen: add a Trend bound to `TK-101`, a Gauge on `LT-101`, a Lamp on `P-101.RUN`, a Switch on `HV-101.OPEN`, a title Label. Save the file, prettify (`npx prettier --parser json` or `python3 -m json.tool`), commit as `examples/template-hmi-demo.pnid.json`.
+- [ ] **Step 2: Add to the templates menu** — in `Toolbar.tsx` add `<option value="hmi-demo">HMI demo (tank level loop)</option>` and its import + branch in the select handler (same pattern as the four existing options).
+- [ ] **Step 3: Write `docs/HMI.md`** — one page: what the HMI workspace is, EDIT vs RUN, the widget list, tag/signal model (`TAG.PV/.RUN/.OP/.SP/.MODE`), import + re-import behavior, the loop auto-wiring rule (family + loop number), themes (classic vs ISA-101 high-performance and why gray matters), the "training/demo simulation" disclaimer. Link it from `README.md`'s feature list with one line: "**HMI Studio** — build operator screens from your P&ID and run them as a live training simulation ([docs](docs/HMI.md))."
+- [ ] **Step 4: Empty-state hint** — under the two buttons add `<p style={{ fontSize: 12, opacity: 0.7 }}>Tip: load the “HMI demo” template from the P&ID toolbar, then come back here.</p>`
+- [ ] **Step 5: Full suite, commit**
+
+Run: `npm test && npm run build`
+
+```bash
+git add -A && git commit -m "docs: HMI guide + demo template"
+```
+
+### Task 24: Perf pass + release v0.5.0
+
+**Files:**
+- Modify: `src/hmi/HmiCanvas.tsx` (memoized widget subcomponent), `package.json` (version), `README.md` (what's new)
+
+- [ ] **Step 1: Memoize widget rendering** — extract the widget `<g>` body into `const WidgetG = React.memo(function WidgetG(props: { widget; theme; values; history; alarm; selected; ox; oy }) {...})` and pass primitive/stable props so paused sim ⇒ zero re-renders. Verify with React DevTools profiler (or a render-count `console.count` removed after checking) that a 5 Hz tick re-renders only widgets whose values changed. Keep the sim-store selector granularity as-is (canvas-level) — memo does the pruning.
+- [ ] **Step 2: Bundle check** — `npm run build`; confirm the main (P&ID) chunk did not grow (compare against `git stash`-built baseline if in doubt) and the HMI chunk lazy-loads (`dist/assets/HmiWorkspace-*.js` or similar). The PWA precache warns if any chunk exceeds the 4 MB workbox cap — it must not.
+- [ ] **Step 3: Full verification** — `pkill -f vite || true; set -o pipefail; npm test && npm run e2e 2>&1 | tail -20` — everything green.
+- [ ] **Step 4: Version + ship** — `package.json` version `0.5.0`; README "What's new" line.
+
+```bash
+git add -A && git commit -m "feat: HMI Studio v0.5.0 — perf pass + release"
+npm run build && npx firebase-tools deploy --only hosting
+```
+
+Verify live bundle hash + a manual end-to-end on the live site (demo template → HMI → RUN → faceplate → alarm → ack → theme toggle).
+
+---
+
+## Plan self-review notes (kept for executors)
+
+- **Spec coverage:** §3 workspace/schema → T1/T2/T6; §4 architecture → T2/T7/T14; §5 model+widgets → T1/T3/T4; §6 sim/faceplates/alarms/controls → T10–T17; §7 themes → T3/T8/T15; §8 import/re-import/loops → T19–T22; §9 tests → every task + e2e in T9/T18/T21/T22; §10 milestones → deploy checkpoints at T9/T18/T22/T24; §11 risks → history cap T14, memo T24, demo label T6/T15, lazy chunk T6/T24.
+- **Symbol ids in T19/T20 tests are the only intentionally-unresolved literals** — resolve them from the registry before writing the tests (Step 2 of T19 says how). Everything else is exact.
+- **Type consistency spot-checks:** `activeHmiScreen` (T2) used in T6/T8/T15; `HMI_DRAG_MIME` (T7) only within T7; `WidgetView.sim` is per-widget signal map — canvas builds it from `simStore.tags[widget.tag]` plus fully-qualified `props.signal` keys (T7/T16); `bindPipe` is an HmiPipe id after import retargeting (T20) and the engine resolves it via `branch.pipeIds` (T12); alarm ids are `TAG:LEVEL` (T13) and the banner/canvas treat `active|cleared` as unacked (T15/T17).
+
