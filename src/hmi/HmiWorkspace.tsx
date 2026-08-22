@@ -7,6 +7,7 @@ import ScreenTabs from './ScreenTabs'
 import HmiPalette from './HmiPalette'
 import HmiCanvas from './HmiCanvas'
 import HmiPropertyPanel from './HmiPropertyPanel'
+import Faceplate from './Faceplate'
 
 export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   const screen = useStore(activeHmiScreen)
@@ -14,6 +15,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   const addScreen = useStore((s) => s.addScreen)
   const [selection, setSelection] = useState<string[]>([])
   const [tool, setTool] = useState<'select' | 'pipe'>('select')
+  const [faceplate, setFaceplate] = useState<string | null>(null)
 
   useSimEngine()
   const mode = useSimStore((s) => s.mode)
@@ -22,7 +24,8 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   const alarms = useSimStore((s) => s.alarms)
   const history = useSimStore((s) => s.history)
 
-  useEffect(() => { setSelection([]); setTool('select') }, [activeScreenId])
+  useEffect(() => { setSelection([]); setTool('select'); setFaceplate(null) }, [activeScreenId])
+  useEffect(() => { setFaceplate(null) }, [mode])
   // leaving the workspace (unmount) stops any running simulation
   useEffect(() => () => useSimStore.getState().exitRun(), [])
 
@@ -45,8 +48,13 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
                 flows={mode === 'run' ? pipeFlows : undefined}
                 history={mode === 'run' ? history : undefined}
                 alarms={mode === 'run' ? alarms : undefined}
+                onWidgetClick={(w) => setFaceplate(w.id)}
               />
             </div>
+            {mode === 'run' && faceplate && (() => {
+              const w = screen.widgets.find((x) => x.id === faceplate)
+              return w ? <Faceplate widget={w} onClose={() => setFaceplate(null)} /> : null
+            })()}
             <ScreenTabs />
           </>
         ) : (

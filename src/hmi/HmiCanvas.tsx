@@ -6,6 +6,7 @@ import { renderWidget } from './widgets/index'
 import { HANDLES, handlePoint, hitPipe, hitWidget, resizeRect, snap8, widgetRect } from './editGeometry'
 import type { Handle } from './editGeometry'
 import { useStore } from '../store/store'
+import { useSimStore } from './simStore'
 import { HMI_DRAG_MIME } from './HmiPalette'
 
 /** Structural subset of sim/alarms' AlarmRecord that the canvas needs. */
@@ -59,7 +60,21 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
     const pt = toWorld(e)
     if (mode === 'run') {
       const w = hitWidget(screen, pt)
-      if (w && onWidgetClick) onWidgetClick(w)
+      if (!w) return
+      const sig = typeof w.props?.signal === 'string' ? w.props.signal : ''
+      if (w.type === 'button') {
+        if (sig) useSimStore.getState().writeTag(sig, '', Number(w.props?.writeValue ?? 1))
+        return
+      }
+      if (w.type === 'switch') {
+        if (sig.includes('.')) {
+          const i = sig.lastIndexOf('.')
+          const cur = useSimStore.getState().tags[sig.slice(0, i)]?.[sig.slice(i + 1)] ?? 0
+          useSimStore.getState().writeTag(sig, '', cur >= 0.5 ? 0 : 1)
+        }
+        return
+      }
+      if (onWidgetClick) onWidgetClick(w)
       return
     }
     if (tool === 'pipe') {
