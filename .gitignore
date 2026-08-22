@@ -7,3 +7,6 @@ coverage/
 test-results/
 playwright-report/
 .firebase/
+
+# Claude Code worktrees/session state
+.claude/
