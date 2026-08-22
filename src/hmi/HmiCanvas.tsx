@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { memo, useRef, useState } from 'react'
+import type { ThemeTokens } from './theme'
 import type { HmiScreen, HmiWidget, WidgetType } from './model'
 import { HMI_WORLD, WIDGET_DEFAULT_SIZE } from './model'
 import { THEMES } from './theme'
@@ -26,6 +27,56 @@ export interface HmiCanvasProps {
   alarms?: AlarmView[]
   onWidgetClick?(w: HmiWidget): void
 }
+
+interface WidgetGProps {
+  widget: HmiWidget
+  theme: ThemeTokens
+  values: Record<string, number>
+  history?: number[]
+  alarm: 'none' | 'unacked' | 'acked'
+  selected: boolean
+  editing: boolean
+  ox: number
+  oy: number
+}
+
+const shallowEq = (a: Record<string, number>, b: Record<string, number>) => {
+  const ka = Object.keys(a), kb = Object.keys(b)
+  return ka.length === kb.length && ka.every((k) => a[k] === b[k])
+}
+
+/** Memoized widget group: a 5 Hz tick only re-renders widgets whose values,
+ *  history, alarm state, or geometry actually changed. */
+const WidgetG = memo(
+  function WidgetG({ widget, theme, values, history, alarm, selected, editing, ox, oy }: WidgetGProps) {
+    return (
+      <g data-wid={widget.id} className="hmi-widget" transform={`translate(${widget.x + ox}, ${widget.y + oy})`}>
+        {renderWidget({ widget, theme, sim: values, history, alarm })}
+        {alarm !== 'none' && (
+          <rect x={-4} y={-4} width={widget.w + 8} height={widget.h + 8} fill="none"
+            stroke={alarm === 'unacked' ? theme.alarm : theme.alarmAck} strokeWidth={3}
+            className={alarm === 'unacked' ? 'hmi-blink' : undefined} />
+        )}
+        {editing && selected && (
+          <rect x={-2} y={-2} width={widget.w + 4} height={widget.h + 4} fill="none" stroke="#2b6cb0" strokeDasharray="4 3" strokeWidth={1.5} />
+        )}
+      </g>
+    )
+  },
+  (prev, next) =>
+    prev.widget === next.widget &&
+    prev.theme === next.theme &&
+    prev.alarm === next.alarm &&
+    prev.selected === next.selected &&
+    prev.editing === next.editing &&
+    prev.ox === next.ox &&
+    prev.oy === next.oy &&
+    (prev.history === next.history ||
+      (prev.history !== undefined && next.history !== undefined &&
+        prev.history.length === next.history.length &&
+        prev.history[prev.history.length - 1] === next.history[next.history.length - 1])) &&
+    shallowEq(prev.values, next.values),
+)
 
 type DragState =
   | { kind: 'move'; start: { x: number; y: number } }
@@ -196,17 +247,8 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
         const recs = (alarms ?? []).filter((a) => a.tag === w.tag)
         const alarm = recs.some((a) => a.phase === 'active' || a.phase === 'cleared') ? 'unacked' as const : recs.length > 0 ? 'acked' as const : 'none' as const
         return (
-          <g key={w.id} data-wid={w.id} className="hmi-widget" transform={`translate(${w.x + o.dx}, ${w.y + o.dy})`}>
-            {renderWidget({ widget: w, theme, sim: values, history: history?.[w.tag ?? ''], alarm })}
-            {alarm !== 'none' && (
-              <rect x={-4} y={-4} width={w.w + 8} height={w.h + 8} fill="none"
-                stroke={alarm === 'unacked' ? theme.alarm : theme.alarmAck} strokeWidth={3}
-                className={alarm === 'unacked' ? 'hmi-blink' : undefined} />
-            )}
-            {mode === 'edit' && selection.includes(w.id) && (
-              <rect x={-2} y={-2} width={w.w + 4} height={w.h + 4} fill="none" stroke="#2b6cb0" strokeDasharray="4 3" strokeWidth={1.5} />
-            )}
-          </g>
+          <WidgetG key={w.id} widget={w} theme={theme} values={values} history={history?.[w.tag ?? '']}
+            alarm={alarm} selected={selection.includes(w.id)} editing={mode === 'edit'} ox={o.dx} oy={o.dy} />
         )
       })}
       {draft.length > 0 && (
