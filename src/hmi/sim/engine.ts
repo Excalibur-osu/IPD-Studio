@@ -74,13 +74,17 @@ function branchFlow(b: Branch, tags: Tags, tankLevel: (t: string) => number): nu
 export function tick(model: SimModel, prev: Tags, dt: number, rng: () => number): { tags: Tags; branchFlows: Record<string, number> } {
   const tags: Tags = Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, { ...v }]))
 
-  // 1) controllers drive their valve OP (PI in AUTO; MAN pass-through arrives with the loop feature)
+  // 1) controllers drive their valve OP: PI in AUTO, operator OP pass-through in MAN
   for (const c of model.controllers) {
     const t = tags[c.tag]
     if (!t) continue
     const pv = tags[c.pvTag]?.PV ?? 0
     t.PV = pv
-    if ((t.MODE ?? 0) < 0.5) continue
+    if ((t.MODE ?? 0) < 0.5) {
+      const manValve = tags[c.outTag]
+      if (manValve && manValve.OP !== undefined) manValve.OP = t.OP ?? manValve.OP
+      continue
+    }
     const e = (t.SP ?? 50) - pv
     t.I = clamp((t.I ?? 0) + KI * e * dt, -100, 100)
     const op = clamp(KP * e + t.I, 0, 100)
