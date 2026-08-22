@@ -1,20 +1,34 @@
 import './hmi.css'
+import { useEffect, useState } from 'react'
 import { useStore, activeHmiScreen } from '../store/store'
 import HmiToolbar from './HmiToolbar'
 import ScreenTabs from './ScreenTabs'
+import HmiPalette from './HmiPalette'
+import HmiCanvas from './HmiCanvas'
 
 export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   const screen = useStore(activeHmiScreen)
+  const activeScreenId = useStore((s) => s.activeScreenId)
   const addScreen = useStore((s) => s.addScreen)
+  const [selection, setSelection] = useState<string[]>([])
+  const [tool, setTool] = useState<'select' | 'pipe'>('select')
+  useEffect(() => { setSelection([]); setTool('select') }, [activeScreenId])
   return (
     <div className="hmi">
       <HmiToolbar onExit={onExit} />
-      <div className="hmi-side" />
+      <div className="hmi-side"><HmiPalette /></div>
       <div className="hmi-center">
         {screen ? (
           <>
             <div className="hmi-canvas-wrap">
-              <svg data-testid="hmi-canvas" viewBox="0 0 1600 1000" />
+              <HmiCanvas
+                screen={screen}
+                selection={selection}
+                onSelect={setSelection}
+                mode="edit"
+                tool={tool}
+                onToolDone={() => setTool('select')}
+              />
             </div>
             <ScreenTabs />
           </>

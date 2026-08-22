@@ -1,0 +1,214 @@
+import { useRef, useState } from 'react'
+import type { HmiScreen, HmiWidget, WidgetType } from './model'
+import { HMI_WORLD, WIDGET_DEFAULT_SIZE } from './model'
+import { THEMES } from './theme'
+import { renderWidget } from './widgets/index'
+import { HANDLES, handlePoint, hitPipe, hitWidget, resizeRect, snap8, widgetRect } from './editGeometry'
+import type { Handle } from './editGeometry'
+import { useStore } from '../store/store'
+import { HMI_DRAG_MIME } from './HmiPalette'
+
+/** Structural subset of sim/alarms' AlarmRecord that the canvas needs. */
+export interface AlarmView { tag: string; phase: 'active' | 'acked' | 'cleared' }
+
+export interface HmiCanvasProps {
+  screen: HmiScreen
+  selection: string[]
+  onSelect(ids: string[]): void
+  mode: 'edit' | 'run'
+  tool: 'select' | 'pipe'
+  onToolDone(): void
+  /** Runtime bindings (absent in edit mode). */
+  sim?: Record<string, Record<string, number>>
+  flows?: Record<string, number>
+  history?: Record<string, number[]>
+  alarms?: AlarmView[]
+  onWidgetClick?(w: HmiWidget): void
+}
+
+type DragState =
+  | { kind: 'move'; start: { x: number; y: number } }
+  | { kind: 'resize'; handle: Handle; start: { x: number; y: number }; orig: { x: number; y: number; w: number; h: number }; id: string }
+  | null
+
+export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onToolDone, sim, flows, history, alarms, onWidgetClick }: HmiCanvasProps) {
+  const svgRef = useRef<SVGSVGElement>(null)
+  const [drag, setDrag] = useState<DragState>(null)
+  const [ghost, setGhost] = useState<{ dx: number; dy: number } | null>(null)
+  const [draft, setDraft] = useState<{ x: number; y: number }[]>([])
+  const theme = THEMES[screen.theme]
+  const st = useStore.getState
+
+  /** Client -> world coordinates through the viewBox. */
+  const toWorld = (e: { clientX: number; clientY: number }) => {
+    const svg = svgRef.current!
+    const r = svg.getBoundingClientRect()
+    return {
+      x: ((e.clientX - r.left) / r.width) * HMI_WORLD.w,
+      y: ((e.clientY - r.top) / r.height) * HMI_WORLD.h,
+    }
+  }
+
+  const commitDraft = (points: { x: number; y: number }[]) => {
+    if (points.length >= 2) st().addHmiPipe({ points })
+    setDraft([])
+    onToolDone()
+  }
+
+  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    const pt = toWorld(e)
+    if (mode === 'run') {
+      const w = hitWidget(screen, pt)
+      if (w && onWidgetClick) onWidgetClick(w)
+      return
+    }
+    if (tool === 'pipe') {
+      const next = [...draft, { x: snap8(pt.x), y: snap8(pt.y) }]
+      if (e.detail === 2) commitDraft(next)
+      else setDraft(next)
+      return
+    }
+    const target = e.target as Element
+    const handle = (target.getAttribute?.('data-handle') ?? null) as Handle | null
+    if (handle && selection.length === 1) {
+      const w = screen.widgets.find((x) => x.id === selection[0])
+      if (w) {
+        setDrag({ kind: 'resize', handle, start: pt, orig: widgetRect(w), id: w.id })
+        e.currentTarget.setPointerCapture(e.pointerId)
+        return
+      }
+    }
+    const w = hitWidget(screen, pt)
+    if (w) {
+      const ids = e.shiftKey ? (selection.includes(w.id) ? selection : [...selection, w.id]) : selection.includes(w.id) ? selection : [w.id]
+      onSelect(ids)
+      setDrag({ kind: 'move', start: pt })
+      e.currentTarget.setPointerCapture(e.pointerId)
+      return
+    }
+    const p = hitPipe(screen, pt)
+    onSelect(p ? [p.id] : [])
+  }
+
+  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!drag) return
+    const pt = toWorld(e)
+    if (drag.kind === 'move') {
+      setGhost({ dx: snap8(pt.x - drag.start.x), dy: snap8(pt.y - drag.start.y) })
+    } else {
+      const r = resizeRect(drag.orig, drag.handle, snap8(pt.x - drag.start.x), snap8(pt.y - drag.start.y))
+      st().updateWidget(drag.id, r)
+    }
+  }
+
+  const onPointerUp = () => {
+    if (drag?.kind === 'move' && ghost && (ghost.dx !== 0 || ghost.dy !== 0)) {
+      st().moveWidgets(selection.filter((id) => screen.widgets.some((w) => w.id === id)), ghost.dx, ghost.dy)
+    }
+    setDrag(null)
+    setGhost(null)
+  }
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (mode === 'run') return
+    if (tool === 'pipe') {
+      if (e.key === 'Enter') commitDraft(draft)
+      if (e.key === 'Escape') { setDraft([]); onToolDone() }
+      return
+    }
+    if (selection.length === 0) return
+    if (e.key === 'Delete' || e.key === 'Backspace') { st().deleteHmiIds(selection); onSelect([]) }
+    const step = e.shiftKey ? 1 : 8
+    if (e.key === 'ArrowLeft') st().moveWidgets(selection, -step, 0)
+    if (e.key === 'ArrowRight') st().moveWidgets(selection, step, 0)
+    if (e.key === 'ArrowUp') st().moveWidgets(selection, 0, -step)
+    if (e.key === 'ArrowDown') st().moveWidgets(selection, 0, step)
+  }
+
+  const onDrop = (e: React.DragEvent<SVGSVGElement>) => {
+    const raw = e.dataTransfer.getData(HMI_DRAG_MIME)
+    if (!raw) return
+    e.preventDefault()
+    const { type } = JSON.parse(raw) as { type: WidgetType }
+    const pt = toWorld(e)
+    const size = WIDGET_DEFAULT_SIZE[type]
+    const id = st().addWidget({ type, x: snap8(pt.x - size.w / 2), y: snap8(pt.y - size.h / 2), ...size })
+    onSelect([id])
+  }
+
+  const offset = (id: string) => (ghost && selection.includes(id) ? ghost : { dx: 0, dy: 0 })
+
+  return (
+    <svg
+      ref={svgRef}
+      data-testid="hmi-canvas"
+      viewBox={`0 0 ${HMI_WORLD.w} ${HMI_WORLD.h}`}
+      style={{ background: theme.bg, touchAction: 'none' }}
+      tabIndex={0}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onKeyDown={onKeyDown}
+      onDragOver={(e) => { if (e.dataTransfer.types.includes(HMI_DRAG_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' } }}
+      onDrop={onDrop}
+    >
+      {screen.pipes.map((p) => {
+        const pts = p.points.map((q) => `${q.x},${q.y}`).join(' ')
+        const flow = flows?.[p.id] ?? 0
+        const wpx = p.width ?? 4
+        return (
+          <g key={p.id}>
+            <polyline points={pts} fill="none" stroke={theme.pipe} strokeWidth={wpx} strokeLinejoin="round" />
+            {flow > 0 && (
+              <polyline points={pts} fill="none" stroke={theme.pipeFlow} strokeWidth={wpx} strokeLinejoin="round"
+                className="hmi-flow" strokeDasharray="10 14"
+                style={{ animationDuration: `${Math.max(0.35, Math.min(3, 8 / flow))}s` }} />
+            )}
+            {mode === 'edit' && selection.includes(p.id) && (
+              <polyline points={pts} fill="none" stroke="#2b6cb0" strokeWidth={wpx + 4} opacity={0.35} />
+            )}
+          </g>
+        )
+      })}
+      {screen.widgets.map((w) => {
+        const o = offset(w.id)
+        const values: Record<string, number> = { ...(sim?.[w.tag ?? ''] ?? {}) }
+        const signal = typeof w.props?.signal === 'string' ? w.props.signal : ''
+        if (signal.includes('.')) {
+          const i = signal.lastIndexOf('.')
+          values[signal] = sim?.[signal.slice(0, i)]?.[signal.slice(i + 1)] ?? 0
+        }
+        const recs = (alarms ?? []).filter((a) => a.tag === w.tag)
+        const alarm = recs.some((a) => a.phase === 'active' || a.phase === 'cleared') ? 'unacked' as const : recs.length > 0 ? 'acked' as const : 'none' as const
+        return (
+          <g key={w.id} data-wid={w.id} className="hmi-widget" transform={`translate(${w.x + o.dx}, ${w.y + o.dy})`}>
+            {renderWidget({ widget: w, theme, sim: values, history: history?.[w.tag ?? ''], alarm })}
+            {alarm !== 'none' && (
+              <rect x={-4} y={-4} width={w.w + 8} height={w.h + 8} fill="none"
+                stroke={alarm === 'unacked' ? theme.alarm : theme.alarmAck} strokeWidth={3}
+                className={alarm === 'unacked' ? 'hmi-blink' : undefined} />
+            )}
+            {mode === 'edit' && selection.includes(w.id) && (
+              <rect x={-2} y={-2} width={w.w + 4} height={w.h + 4} fill="none" stroke="#2b6cb0" strokeDasharray="4 3" strokeWidth={1.5} />
+            )}
+          </g>
+        )
+      })}
+      {draft.length > 0 && (
+        <g>
+          <polyline points={draft.map((q) => `${q.x},${q.y}`).join(' ')} fill="none" stroke={theme.pipeFlow} strokeDasharray="6 4" strokeWidth={3} />
+          {draft.map((q, i) => <circle key={i} cx={q.x} cy={q.y} r={3} fill={theme.pipeFlow} />)}
+        </g>
+      )}
+      {mode === 'edit' && tool === 'select' && selection.length === 1 && (() => {
+        const w = screen.widgets.find((x) => x.id === selection[0])
+        if (!w) return null
+        const o = offset(w.id)
+        return HANDLES.map((h) => {
+          const p = handlePoint({ x: w.x + o.dx, y: w.y + o.dy, w: w.w, h: w.h }, h)
+          return <rect key={h} data-handle={h} x={p.x - 4} y={p.y - 4} width={8} height={8} fill="#2b6cb0" stroke="#fff" strokeWidth={1} style={{ cursor: `${h}-resize` }} />
+        })
+      })()}
+    </svg>
+  )
+}
