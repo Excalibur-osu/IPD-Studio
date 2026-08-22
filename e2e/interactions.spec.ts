@@ -151,6 +151,11 @@ test('port dots show only on hover or while linking; nodes resize from the panel
     tank,
   )
   expect(scale).toBe(1.25)
-  const box = await page.locator(`[model-id="${tank}"] [joint-selector="hit"]`).boundingBox()
-  expect(Math.round(box!.width)).toBe(80) // 64 * 1.25
+  // the async paper applies the resize a frame later — poll, don't snapshot
+  await expect
+    .poll(async () => {
+      const box = await page.locator(`[model-id="${tank}"] [joint-selector="hit"]`).boundingBox()
+      return box ? Math.round(box.width) : 0
+    })
+    .toBe(80) // 64 * 1.25
 })
