@@ -2,6 +2,7 @@ import { dia, shapes } from '@joint/core'
 import type { PlantEdge, PlantNode } from '../model/types'
 import { isPortEnd } from '../model/types'
 import { getSymbol } from '../symbols/registry'
+import { portWorld } from './alignment'
 import { strokeFor } from './lineStyle'
 import { parseSvgToMarkup, type MarkupNode } from './markupParser'
 
@@ -195,21 +196,64 @@ export function portDirection(symbolId: string, portId: string): Direction | nul
   }
 }
 
-function routerFor(edge: PlantEdge, nodes?: Map<string, string>): Record<string, unknown> {
-  const args: Record<string, unknown> = { step: 8, padding: 16 }
-  if (nodes) {
-    if (isPortEnd(edge.source)) {
-      const symbolId = nodes.get(edge.source.nodeId)
-      const dir = symbolId ? portDirection(symbolId, edge.source.portId) : null
-      if (dir) args.startDirections = [dir]
+const CLOCKWISE: Record<Direction, Direction> = { top: 'right', right: 'bottom', bottom: 'left', left: 'top' }
+
+function rotateDir(dir: Direction, rotation: number): Direction {
+  let d = dir
+  const turns = (((rotation % 360) + 360) % 360) / 90
+  for (let i = 0; i < turns; i++) d = CLOCKWISE[d]
+  return d
+}
+
+function routerFor(edge: PlantEdge, nodes?: Map<string, PlantNode>): Record<string, unknown> {
+  const args: Record<string, unknown> = { step: 8, padding: 8 }
+  let srcDir: Direction | null = null
+  let tgtDir: Direction | null = null
+  const srcNode = nodes && isPortEnd(edge.source) ? nodes.get(edge.source.nodeId) : undefined
+  const tgtNode = nodes && isPortEnd(edge.target) ? nodes.get(edge.target.nodeId) : undefined
+  if (srcNode && isPortEnd(edge.source)) {
+    const dir = portDirection(srcNode.symbolId, edge.source.portId)
+    if (dir) {
+      srcDir = rotateDir(dir, srcNode.rotation)
+      args.startDirections = [srcDir]
     }
-    if (isPortEnd(edge.target)) {
-      const symbolId = nodes.get(edge.target.nodeId)
-      const dir = symbolId ? portDirection(symbolId, edge.target.portId) : null
-      if (dir) args.endDirections = [dir]
+  }
+  if (tgtNode && isPortEnd(edge.target)) {
+    const dir = portDirection(tgtNode.symbolId, edge.target.portId)
+    if (dir) {
+      tgtDir = rotateDir(dir, tgtNode.rotation)
+      args.endDirections = [tgtDir]
+    }
+  }
+
+  // Facing ports in line at close range route as one straight segment.
+  // Manhattan's obstacle padding cannot pass through the small gap between
+  // side-by-side symbols, so it would loop over the top instead.
+  if (
+    srcNode && tgtNode && srcDir && tgtDir &&
+    isPortEnd(edge.source) && isPortEnd(edge.target) &&
+    (!edge.vertices || edge.vertices.length === 0)
+  ) {
+    const pa = portWorld(srcNode, edge.source.portId)
+    const pb = portWorld(tgtNode, edge.target.portId)
+    if (pa && pb && Math.hypot(pb.x - pa.x, pb.y - pa.y) <= 120) {
+      const facingH =
+        pa.y === pb.y &&
+        ((pb.x > pa.x && srcDir === 'right' && tgtDir === 'left') ||
+          (pb.x < pa.x && srcDir === 'left' && tgtDir === 'right'))
+      const facingV =
+        pa.x === pb.x &&
+        ((pb.y > pa.y && srcDir === 'bottom' && tgtDir === 'top') ||
+          (pb.y < pa.y && srcDir === 'top' && tgtDir === 'bottom'))
+      if (facingH || facingV) return { name: 'normal' }
     }
   }
   return { name: 'manhattan', args }
+}
+
+/** Recompute a link's route choice after an endpoint node moved or resized. */
+export function refreshLinkRouter(cell: dia.Link, edge: PlantEdge, nodes?: Map<string, PlantNode>): void {
+  cell.router(routerFor(edge, nodes) as never)
 }
 
 const LINK_MARKUP = [
@@ -242,13 +286,13 @@ function lineAttrs(edge: PlantEdge): Record<string, Record<string, unknown>> {
   }
 }
 
-export function makeLink(edge: PlantEdge, nodeSymbols?: Map<string, string>): dia.Link {
+export function makeLink(edge: PlantEdge, nodes?: Map<string, PlantNode>): dia.Link {
   const link = new shapes.standard.Link({
     id: edge.id,
     source: toEnd(edge.source),
     target: toEnd(edge.target),
     vertices: edge.vertices ?? [],
-    router: routerFor(edge, nodeSymbols),
+    router: routerFor(edge, nodes),
     connector: { name: 'normal' },
     markup: LINK_MARKUP,
     data: { lineClass: edge.lineClass },
@@ -257,13 +301,14 @@ export function makeLink(edge: PlantEdge, nodeSymbols?: Map<string, string>): di
   return link
 }
 
-export function updateLink(cell: dia.Link, edge: PlantEdge, prev: PlantEdge, nodeSymbols?: Map<string, string>): void {
+export function updateLink(cell: dia.Link, edge: PlantEdge, prev: PlantEdge, nodes?: Map<string, PlantNode>): void {
   if (edge.source !== prev.source || edge.target !== prev.target) {
     cell.source(toEnd(edge.source))
     cell.target(toEnd(edge.target))
-    cell.router(routerFor(edge, nodeSymbols) as never)
   }
   if (edge.vertices !== prev.vertices) cell.vertices(edge.vertices ?? [])
+  // Route choice depends on endpoints, vertices, and node geometry alike.
+  refreshLinkRouter(cell, edge, nodes)
   if (edge.lineClass !== prev.lineClass || edge.arrow !== prev.arrow) {
     cell.removeAttr('line/strokeDasharray')
     cell.attr(lineAttrs(edge))

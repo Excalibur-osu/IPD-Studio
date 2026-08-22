@@ -113,9 +113,11 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     const dy = pb.y - pa.y
     const mover = na.kind !== 'equipment' ? na : nb.kind !== 'equipment' ? nb : na
     const sign = mover === na ? 1 : -1
-    if (dx !== 0 && Math.abs(dx) <= 6 && Math.abs(dy) > 24) {
+    // Run length only needs to dominate the cross offset — side-by-side
+    // symbols connect over runs far shorter than a couple of grid squares.
+    if (dx !== 0 && Math.abs(dx) <= 6 && Math.abs(dy) > 8 && Math.abs(dy) >= 2 * Math.abs(dx)) {
       store().setNodePos(mover.id, mover.x + sign * dx, mover.y)
-    } else if (dy !== 0 && Math.abs(dy) <= 6 && Math.abs(dx) > 24) {
+    } else if (dy !== 0 && Math.abs(dy) <= 6 && Math.abs(dx) > 8 && Math.abs(dx) >= 2 * Math.abs(dy)) {
       store().setNodePos(mover.id, mover.x, mover.y + sign * dy)
     }
   }

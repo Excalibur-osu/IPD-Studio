@@ -41,10 +41,13 @@ describe('router directions from port side', () => {
     expect(portDirection('vessel.tank', 's')).toBe('bottom')
   })
   it('link routers carry start/end directions for port ends', () => {
-    const symbols = new Map([['n1', 'pump.centrifugal'], ['n2', 'vessel.tank']])
+    const nodes = new Map([
+      ['n1', { id: 'n1', symbolId: 'pump.centrifugal', kind: 'equipment', x: 0, y: 0, rotation: 0 as const }],
+      ['n2', { id: 'n2', symbolId: 'vessel.tank', kind: 'equipment', x: 300, y: 120, rotation: 0 as const }],
+    ])
     const link = makeLink(
       { id: 'e', lineClass: 'process.major', source: { nodeId: 'n1', portId: 'discharge' }, target: { nodeId: 'n2', portId: 'w' } },
-      symbols,
+      nodes as never,
     )
     const router = link.get('router') as { args: { startDirections?: string[]; endDirections?: string[] } }
     expect(router.args.startDirections).toEqual(['right'])
