@@ -1,0 +1,48 @@
+.hmi {
+  height: 100%;
+  display: grid;
+  grid-template-areas: "toolbar toolbar toolbar" "palette center props" "status status status";
+  grid-template-rows: 40px 1fr 24px;
+  grid-template-columns: 200px 1fr 280px;
+}
+.hmi.run-mode { grid-template-columns: 0 1fr 0; }
+.hmi-toolbar { grid-area: toolbar; display: flex; align-items: center; gap: 6px; padding: 0 10px; background: #182c44; color: #dce8f4; }
+.hmi-toolbar button { background: #24405f; color: inherit; border: 1px solid #35567c; border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+.hmi-toolbar button:hover { background: #2d4f75; }
+.hmi-toolbar button.active { background: #2b6cb0; border-color: #2b6cb0; }
+.hmi-toolbar .grow { flex: 1; }
+.hmi-toolbar .demo-note { font-size: 10px; opacity: 0.65; }
+.hmi-side { grid-area: palette; overflow-y: auto; background: #f4f6f9; border-right: 1px solid #d5d5d5; }
+.hmi.run-mode .hmi-side, .hmi.run-mode .hmi-props { display: none; }
+.hmi-props { grid-area: props; overflow-y: auto; background: #f4f6f9; border-left: 1px solid #d5d5d5; padding: 10px; font-size: 12px; }
+.hmi-center { grid-area: center; display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
+.hmi-canvas-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: auto; background: #0a1826; }
+.hmi-canvas-wrap svg { max-width: 100%; max-height: 100%; outline: none; }
+.hmi-status { grid-area: status; display: flex; align-items: center; gap: 12px; padding: 0 10px; font-size: 11px; background: #f0f0f4; border-top: 1px solid #d5d5d5; }
+.hmi-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #dce8f4; background: #0a1826; }
+.hmi-empty button { font-size: 14px; padding: 8px 18px; background: #24405f; color: inherit; border: 1px solid #35567c; border-radius: 6px; cursor: pointer; }
+.hmi-empty button:disabled { opacity: 0.5; cursor: default; }
+.hmi-tabs { display: flex; gap: 2px; padding: 2px 6px; background: #10243a; }
+.hmi-tab { padding: 3px 12px; font-size: 12px; color: #9db4cc; background: #16324e; border-radius: 4px 4px 0 0; cursor: pointer; display: flex; gap: 6px; align-items: center; }
+.hmi-tab.active { background: #2b6cb0; color: #fff; }
+.hmi-tab .sheet-close { background: none; border: none; color: inherit; cursor: pointer; padding: 0 2px; }
+.hmi-pal-item { padding: 6px 8px; margin: 2px 0; background: #fff; border: 1px solid #d5d5d5; border-radius: 4px; cursor: grab; font-size: 12px; }
+.hmi-pal-item:hover { border-color: #2b6cb0; }
+.hmi-faceplate { position: absolute; right: 16px; top: 56px; width: 240px; background: #1d314e; color: #e8f0fa; border: 1px solid #35567c; border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px #0008; z-index: 20; }
+.hmi-faceplate header { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.hmi-faceplate .fp-row { display: flex; gap: 6px; margin-top: 8px; }
+.hmi-faceplate button { flex: 1; background: #24405f; color: inherit; border: 1px solid #35567c; border-radius: 4px; padding: 5px; cursor: pointer; }
+.hmi-faceplate button.active { background: #2b6cb0; }
+.hmi-faceplate .fp-state { font-size: 16px; font-weight: 700; margin: 6px 0; }
+.hmi-alarms { position: absolute; left: 12px; top: 8px; z-index: 15; display: flex; flex-direction: column; gap: 3px; }
+.hmi-alarm-row { display: flex; gap: 8px; align-items: center; font-size: 12px; padding: 4px 8px; border-radius: 4px; color: #fff; background: #b02a2a; }
+.hmi-alarm-row.cleared { background: #8a6d00; }
+.hmi-alarm-row.acked { background: #7a3a3a; opacity: 0.85; }
+.hmi-alarm-row button, .al-all { background: #0006; color: #fff; border: 1px solid #fff5; border-radius: 3px; cursor: pointer; font-size: 11px; }
+.al-all { align-self: flex-start; padding: 3px 10px; }
+@keyframes hmi-spin { to { transform: rotate(360deg); } }
+.hmi-spin { animation: hmi-spin 1.2s linear infinite; }
+@keyframes hmi-dash { to { stroke-dashoffset: -24; } }
+.hmi-flow { animation: hmi-dash 1s linear infinite; }
+@keyframes hmi-blink { 50% { opacity: 0.15; } }
+.hmi-blink { animation: hmi-blink 0.9s step-start infinite; }

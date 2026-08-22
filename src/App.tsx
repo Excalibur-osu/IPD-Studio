@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import Canvas from './canvas/Canvas'
 import Toolbar from './panels/Toolbar'
 import Palette from './panels/Palette'
@@ -8,6 +8,8 @@ import SheetTabs from './panels/SheetTabs'
 import StatusBar from './panels/StatusBar'
 import SearchOverlay from './panels/SearchOverlay'
 import QuickLineEditor from './panels/QuickLineEditor'
+
+const HmiWorkspace = lazy(() => import('./hmi/HmiWorkspace'))
 
 function readPref(key: string, fallback: boolean): boolean {
   try {
@@ -31,10 +33,25 @@ export default function App() {
   const [showProps, setShowProps] = useState(() => readPref('pid.ui.props', true))
   const togglePalette = (v: boolean) => { setShowPalette(v); writePref('pid.ui.palette', v) }
   const toggleProps = (v: boolean) => { setShowProps(v); writePref('pid.ui.props', v) }
+  const [workspace, setWorkspaceState] = useState<'pid' | 'hmi'>(() => {
+    try { return localStorage.getItem('pid.ui.workspace') === 'hmi' ? 'hmi' : 'pid' } catch { return 'pid' }
+  })
+  const setWorkspace = (w: 'pid' | 'hmi') => {
+    setWorkspaceState(w)
+    try { localStorage.setItem('pid.ui.workspace', w) } catch { /* private mode */ }
+  }
+
+  if (workspace === 'hmi') {
+    return (
+      <Suspense fallback={<div style={{ padding: 24 }}>Loading HMI workspace…</div>}>
+        <HmiWorkspace onExit={() => setWorkspace('pid')} />
+      </Suspense>
+    )
+  }
 
   return (
     <div className={`app${showPalette ? '' : ' no-palette'}${showProps ? '' : ' no-props'}`}>
-      <Toolbar />
+      <Toolbar onOpenHmi={() => setWorkspace('hmi')} />
       {showPalette ? (
         <Palette onCollapse={() => togglePalette(false)} />
       ) : (

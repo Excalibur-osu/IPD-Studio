@@ -34,7 +34,7 @@ function zoomFit() {
   canvasRef.paper?.transformToFitContent({ padding: 40, minScale: 0.25, maxScale: 2, verticalAlign: 'middle', horizontalAlign: 'middle' })
 }
 
-export default function Toolbar() {
+export default function Toolbar({ onOpenHmi }: { onOpenHmi?: () => void } = {}) {
   const dirty = useStore((s) => s.dirty)
   const undo = useStore((s) => s.undo)
   const redo = useStore((s) => s.redo)
@@ -127,6 +127,8 @@ export default function Toolbar() {
       <button onClick={() => zoomCenter(1.2)}>＋</button>
       <button onClick={() => zoomCenter(1 / 1.2)}>－</button>
       <button onClick={zoomFit}>Fit</button>
+      <span className="tb-sep" />
+      <button onClick={onOpenHmi} title="Switch to the HMI workspace" data-testid="open-hmi">HMI ⇄</button>
       <span className="tb-grow" />
       <button onClick={() => exportSvgFile()}>SVG</button>
       <button onClick={() => printPdf()}>PDF</button>

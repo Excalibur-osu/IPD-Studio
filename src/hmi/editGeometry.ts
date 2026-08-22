@@ -4,7 +4,7 @@ export interface Rect { x: number; y: number; w: number; h: number }
 export type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
 export const HANDLES: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
 
-export const snap8 = (v: number): number => Math.round(v / 8) * 8
+export const snap8 = (v: number): number => Math.round(v / 8) * 8 || 0 // || 0 normalizes -0
 
 export const widgetRect = (w: HmiWidget): Rect => ({ x: w.x, y: w.y, w: w.w, h: w.h })
 
