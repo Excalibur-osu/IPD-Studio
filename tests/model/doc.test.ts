@@ -5,7 +5,7 @@ import { DocError, loadDoc } from '../../src/model/migrate'
 describe('createEmptyDoc', () => {
   it('creates a v3 doc with one A3 sheet and ISO timestamps', () => {
     const doc = createEmptyDoc('Test Plant')
-    expect(doc.schemaVersion).toBe(3)
+    expect(doc.schemaVersion).toBe(4)
     expect(doc.meta.name).toBe('Test Plant')
     expect(doc.sheets[0]!.sheetSize).toBe('A3')
     expect(new Date(doc.meta.created).toISOString()).toBe(doc.meta.created)

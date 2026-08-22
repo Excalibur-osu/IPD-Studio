@@ -30,10 +30,11 @@ function migrateV1(v1: V1Doc): ProjectDoc {
     edges: v1.edges,
   }
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     meta: { name: v1.meta.name, author: v1.meta.author, created: v1.meta.created, modified: v1.meta.modified },
     settings: v1.settings,
     sheets: [sheet],
+    hmiScreens: [],
   }
 }
 
@@ -52,7 +53,7 @@ export function loadDoc(raw: unknown): ProjectDoc {
     if (typeof v1.settings !== 'object' || v1.settings === null) throw new DocError('Document is missing settings')
     return migrateV1(v1 as V1Doc)
   }
-  if (version === 2 || version === 3) {
+  if (version === 2 || version === 3 || version === 4) {
     const doc = raw as Partial<ProjectDoc>
     if (!Array.isArray(doc.sheets) || doc.sheets.length === 0) throw new DocError('Document has no sheets')
     for (const sheet of doc.sheets) {
@@ -67,7 +68,17 @@ export function loadDoc(raw: unknown): ProjectDoc {
     if (doc.customSymbols !== undefined && !Array.isArray(doc.customSymbols)) {
       throw new DocError('customSymbols is malformed')
     }
-    return { ...doc, schemaVersion: 3 } as ProjectDoc
+    if (doc.hmiScreens !== undefined && !Array.isArray(doc.hmiScreens)) {
+      throw new DocError('hmiScreens is malformed')
+    }
+    if (Array.isArray(doc.hmiScreens)) {
+      for (const s of doc.hmiScreens) {
+        if (typeof s.id !== 'string' || !Array.isArray(s.widgets) || !Array.isArray(s.pipes)) {
+          throw new DocError('hmiScreens is malformed')
+        }
+      }
+    }
+    return { ...doc, schemaVersion: 4, hmiScreens: doc.hmiScreens ?? [] } as ProjectDoc
   }
   throw new DocError(`Unsupported schema version: ${String(version)}`)
 }

@@ -1,5 +1,7 @@
 /** Core document types — the single source of truth for a P&ID drawing. */
 
+import type { HmiScreen } from '../hmi/model'
+
 export type SheetSize = 'A4' | 'A3' | 'A2' | 'A1' | 'ANSI_B' | 'ANSI_D'
 
 export type NodeKind = 'equipment' | 'instrument' | 'valve' | 'fitting' | 'annotation'
@@ -114,7 +116,7 @@ export interface CustomSymbolDef {
 }
 
 export interface ProjectDoc {
-  schemaVersion: 3
+  schemaVersion: 4
   meta: ProjectMeta
   settings: {
     gridPx: number
@@ -123,6 +125,8 @@ export interface ProjectDoc {
     numberStart?: 100 | 1
   }
   sheets: Sheet[]
+  /** HMI operator screens (HMI Studio workspace). */
+  hmiScreens: HmiScreen[]
   customSymbols?: CustomSymbolDef[]
 }
 
