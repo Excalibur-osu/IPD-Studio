@@ -58,14 +58,43 @@ export function placeTypicalAtCenter(typicalId: string): void {
   store.addBatch(nodes, edges)
 }
 
+/** Open a file the user dropped on the canvas, routed by extension. */
+async function openDroppedFile(file: File): Promise<void> {
+  const name = file.name.toLowerCase()
+  const text = await file.text()
+  const store = useStore.getState()
+  if (name.endsWith('.dxf')) {
+    const { parseDxfUnderlay } = await import('../import/dxfUnderlay')
+    const { sheetPx } = await import('../model/doc')
+    const { activeSheet } = await import('../store/store')
+    const { polylines, warnings } = parseDxfUnderlay(text, sheetPx(activeSheet(store).sheetSize))
+    store.setUnderlay({ name: file.name, polylines })
+    if (warnings.length) window.alert(warnings.join('\n'))
+    return
+  }
+  if (store.dirty && !window.confirm(`Open “${file.name}”? Unsaved changes will be lost.`)) return
+  const { loadAnyText } = await import('../persist/file')
+  try {
+    loadAnyText(file.name, text)
+  } catch {
+    window.alert(`Could not read ${file.name} as a PID Studio drawing`)
+  }
+}
+
 export function attachDropHandling(host: HTMLElement, paper: dia.Paper): () => void {
   const onDragOver = (e: DragEvent) => {
-    if (e.dataTransfer?.types.includes(DRAG_MIME)) {
+    if (e.dataTransfer?.types.includes(DRAG_MIME) || e.dataTransfer?.types.includes('Files')) {
       e.preventDefault()
       e.dataTransfer.dropEffect = 'copy'
     }
   }
   const onDrop = (e: DragEvent) => {
+    const file = e.dataTransfer?.files?.[0]
+    if (file && /\.(pnid|json|xml|dxf)$/i.test(file.name)) {
+      e.preventDefault()
+      void openDroppedFile(file)
+      return
+    }
     const raw = e.dataTransfer?.getData(DRAG_MIME)
     if (!raw) return
     e.preventDefault()

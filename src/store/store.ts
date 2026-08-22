@@ -22,6 +22,8 @@ export interface StoreState {
   setTag(id: string, tag: Tag | undefined): void
   setLabel(id: string, label: string): void
   setLabelPos(id: string, pos: 'below' | 'center'): void
+  setTagOffset(id: string, off: { x: number; y: number } | undefined): void
+  setLabelOffset(id: string, off: { x: number; y: number } | undefined): void
   setNodeLink(id: string, link: PlantNode['link']): void
   setDatasheet(id: string, patch: Record<string, string>): void
   setUnderlay(underlay: Sheet['underlay']): void
@@ -131,6 +133,28 @@ export const useStore = create<StoreState>()(
 
         setLabel(id, label) {
           patchSheet((sh) => ({ ...sh, nodes: sh.nodes.map((n) => (n.id === id ? { ...n, label } : n)) }))
+        },
+
+        setTagOffset(id, off) {
+          patchSheet((sh) => ({
+            ...sh,
+            nodes: sh.nodes.map((n) => {
+              if (n.id !== id) return n
+              const { tagOffset: _d, ...rest } = n
+              return off ? { ...rest, tagOffset: off } : rest
+            }),
+          }))
+        },
+
+        setLabelOffset(id, off) {
+          patchSheet((sh) => ({
+            ...sh,
+            nodes: sh.nodes.map((n) => {
+              if (n.id !== id) return n
+              const { labelOffset: _d, ...rest } = n
+              return off ? { ...rest, labelOffset: off } : rest
+            }),
+          }))
         },
 
         setLabelPos(id, pos) {
@@ -309,10 +333,12 @@ export const useStore = create<StoreState>()(
         },
 
         undo() {
+          useStore.temporal.getState().resume()
           useStore.temporal.getState().undo()
         },
 
         redo() {
+          useStore.temporal.getState().resume()
           useStore.temporal.getState().redo()
         },
       }
@@ -324,3 +350,17 @@ export const useStore = create<StoreState>()(
     },
   ),
 )
+
+/**
+ * Undo grouping for continuous edits (typing, label dragging): the first
+ * change records normally, then history pauses until resumeHistory() — so
+ * one Ctrl+Z reverts the whole burst. resumeHistory is safe to over-call;
+ * the global pointerup listener calls it as a safety net.
+ */
+export function pauseHistory(): void {
+  useStore.temporal.getState().pause()
+}
+
+export function resumeHistory(): void {
+  useStore.temporal.getState().resume()
+}

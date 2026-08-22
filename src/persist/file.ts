@@ -17,12 +17,17 @@ interface FilePickerWindow extends Window {
   showOpenFilePicker?: (opts: unknown) => Promise<FileSystemFileHandle[]>
 }
 
+/** PID Studio's own drawing extension. Old .pnid.json / .json files still open. */
+export const PNID_EXT = '.pnid'
+export const PNID_MIME = 'application/x-pnid'
+
 const PICKER_TYPES = [
-  { description: 'PID Studio drawing', accept: { 'application/json': ['.pnid.json'] } },
+  { description: 'PID Studio drawing', accept: { [PNID_MIME]: [PNID_EXT] } },
+  { description: 'Legacy JSON drawing', accept: { 'application/json': ['.json'] } },
   { description: 'DEXPI / Proteus XML', accept: { 'application/xml': ['.xml'] } },
 ]
 
-function loadAnyText(name: string, text: string): void {
+export function loadAnyText(name: string, text: string): void {
   if (name.endsWith('.xml') || text.trimStart().startsWith('<?xml') || text.includes('<PlantModel')) {
     const { sheet, warnings } = importDexpi(text)
     const doc = createEmptyDoc(sheet.name || name.replace(/\.[^.]+$/, ''))
@@ -38,7 +43,7 @@ export async function saveFile(): Promise<void> {
   const { doc, markSaved } = useStore.getState()
   const json = serializeDoc(doc)
   const w = window as FilePickerWindow
-  const suggested = `${(doc.meta.name || 'diagram').replace(/[^\w-]+/g, '-')}.pnid.json`
+  const suggested = `${(doc.meta.name || 'diagram').replace(/[^\w-]+/g, '-')}${PNID_EXT}`
   if (w.showSaveFilePicker) {
     try {
       const handle = await w.showSaveFilePicker({ suggestedName: suggested, types: PICKER_TYPES })
@@ -52,7 +57,7 @@ export async function saveFile(): Promise<void> {
       // fall through to download
     }
   }
-  const blob = new Blob([json], { type: 'application/json' })
+  const blob = new Blob([json], { type: PNID_MIME })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
   a.download = suggested
@@ -77,7 +82,7 @@ export async function openFile(): Promise<void> {
   }
   const input = document.createElement('input')
   input.type = 'file'
-  input.accept = '.json,.xml,application/json,application/xml'
+  input.accept = `${PNID_EXT},.json,.xml,${PNID_MIME},application/json,application/xml`
   input.onchange = async () => {
     const file = input.files?.[0]
     if (file) loadAnyText(file.name, await file.text())

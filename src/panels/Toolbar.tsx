@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from '../store/store'
 import { openFile, saveFile } from '../persist/file'
+import HistoryDialog from './HistoryDialog'
 import { createEmptyDoc } from '../model/doc'
 import { canvasRef, zoomAt } from '../canvas/paperSetup'
 import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
@@ -40,6 +41,7 @@ export default function Toolbar() {
   const activeLineClass = useStore((s) => s.activeLineClass)
   const setActiveLineClass = useStore((s) => s.setActiveLineClass)
   const name = useStore((s) => s.doc.meta.name)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   useEffect(() => {
     const onSave = () => void saveFile()
@@ -60,6 +62,8 @@ export default function Toolbar() {
       <button onClick={newDoc}>New</button>
       <button onClick={() => void openFile()}>Open</button>
       <button onClick={() => void saveFile()}>Save</button>
+      <button onClick={() => setHistoryOpen(true)} title="Restore an earlier snapshot">⏱</button>
+      {historyOpen && <HistoryDialog onClose={() => setHistoryOpen(false)} />}
       <select
         className="tb-template"
         value=""

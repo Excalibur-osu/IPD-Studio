@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { getSymbol } from '../symbols/registry'
-import { activeSheet, useStore } from '../store/store'
+import { activeSheet, pauseHistory, resumeHistory, useStore } from '../store/store'
 import type { LineClass, PlantEdge, PlantNode, SheetSize } from '../model/types'
 import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
 import TagEditor from './TagEditor'
@@ -20,8 +20,8 @@ function SheetProps() {
   return (
     <>
       <div className="prop-title">Project</div>
-      <label className="prop-field">Name<input value={meta.name} onChange={(e) => setMeta({ name: e.target.value })} /></label>
-      <label className="prop-field">Author<input value={meta.author} onChange={(e) => setMeta({ author: e.target.value })} /></label>
+      <label className="prop-field">Name<input value={meta.name} onChange={(e) => { setMeta({ name: e.target.value }); pauseHistory() }} onBlur={resumeHistory} /></label>
+      <label className="prop-field">Author<input value={meta.author} onChange={(e) => { setMeta({ author: e.target.value }); pauseHistory() }} onBlur={resumeHistory} /></label>
       <label className="prop-field">Tag numbering starts at
         <select
           value={String(numberStart)}
@@ -32,8 +32,8 @@ function SheetProps() {
         </select>
       </label>
       <div className="prop-title">{sheet.name}</div>
-      <label className="prop-field">Drawing №<input value={sheet.drawingNumber} onChange={(e) => setSheetMeta({ drawingNumber: e.target.value })} /></label>
-      <label className="prop-field">Revision<input value={sheet.revision} onChange={(e) => setSheetMeta({ revision: e.target.value })} /></label>
+      <label className="prop-field">Drawing №<input value={sheet.drawingNumber} onChange={(e) => { setSheetMeta({ drawingNumber: e.target.value }); pauseHistory() }} onBlur={resumeHistory} /></label>
+      <label className="prop-field">Revision<input value={sheet.revision} onChange={(e) => { setSheetMeta({ revision: e.target.value }); pauseHistory() }} onBlur={resumeHistory} /></label>
       <label className="prop-field">Sheet size
         <select value={sheet.sheetSize} onChange={(e) => setSheetMeta({ sheetSize: e.target.value as SheetSize })}>
           {SHEETS.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
@@ -94,6 +94,8 @@ function NodeProps({ node }: { node: PlantNode }) {
   const setNodeConfig = useStore((s) => s.setNodeConfig)
   const setLabel = useStore((s) => s.setLabel)
   const setLabelPos = useStore((s) => s.setLabelPos)
+  const setTagOffset = useStore((s) => s.setTagOffset)
+  const setLabelOffset = useStore((s) => s.setLabelOffset)
   const rotateNode = useStore((s) => s.rotateNode)
   const setNodeScale = useStore((s) => s.setNodeScale)
   const [datasheetOpen, setDatasheetOpen] = useState(false)
@@ -116,7 +118,7 @@ function NodeProps({ node }: { node: PlantNode }) {
       {def.tagRule !== 'none' && <TagEditor node={node} />}
       {node.symbolId === 'ann.offpage' && <OffPageLink node={node} />}
       <label className="prop-field">Label
-        <input value={node.label ?? ''} onChange={(e) => setLabel(node.id, e.target.value)} placeholder="Service / name" />
+        <input value={node.label ?? ''} onChange={(e) => { setLabel(node.id, e.target.value); pauseHistory() }} onBlur={resumeHistory} placeholder="Service / name" />
       </label>
       {(node.label ?? '') !== '' && (
         <label className="prop-field">Label position
@@ -141,6 +143,13 @@ function NodeProps({ node }: { node: PlantNode }) {
         <button title="Larger" disabled={scale >= 3} onClick={() => setNodeScale(node.id, scale + 0.25)}>＋</button>
         {scale !== 1 && <button title="Reset size" onClick={() => setNodeScale(node.id, 1)}>reset</button>}
       </div>
+      {(node.tagOffset || node.labelOffset) && (
+        <div className="prop-row">
+          <button onClick={() => { setTagOffset(node.id, undefined); setLabelOffset(node.id, undefined) }}>
+            Reset text position
+          </button>
+        </div>
+      )}
       {node.kind === 'instrument' && (
         <div className="prop-row">
           <button onClick={() => setDatasheetOpen(true)}>Datasheet…</button>
@@ -156,7 +165,7 @@ function EdgeProps({ edge }: { edge: PlantEdge }) {
   const doc = useStore((s) => s.doc)
   const isProcess = edge.lineClass.startsWith('process')
   const ln = edge.lineNumber ?? { size: '', spec: '', service: '', seq: '' }
-  const setLn = (patch: Partial<typeof ln>) => setEdge(edge.id, { lineNumber: { ...ln, ...patch } })
+  const setLn = (patch: Partial<typeof ln>) => { setEdge(edge.id, { lineNumber: { ...ln, ...patch } }); pauseHistory() }
   return (
     <>
       <div className="prop-title">Line</div>
@@ -177,12 +186,12 @@ function EdgeProps({ edge }: { edge: PlantEdge }) {
         <div className="prop-group">
           <div className="prop-title">Line Number</div>
           <div className="tag-row">
-            <input placeholder='size (2")' value={ln.size} onChange={(e) => setLn({ size: e.target.value })} />
-            <input placeholder="spec" value={ln.spec} onChange={(e) => setLn({ spec: e.target.value })} />
+            <input placeholder='size (2")' value={ln.size} onChange={(e) => setLn({ size: e.target.value })} onBlur={resumeHistory} />
+            <input placeholder="spec" value={ln.spec} onChange={(e) => setLn({ spec: e.target.value })} onBlur={resumeHistory} />
           </div>
           <div className="tag-row">
-            <input placeholder="service" value={ln.service} onChange={(e) => setLn({ service: e.target.value })} />
-            <input placeholder="seq" value={ln.seq} onChange={(e) => setLn({ seq: e.target.value })} />
+            <input placeholder="service" value={ln.service} onChange={(e) => setLn({ service: e.target.value })} onBlur={resumeHistory} />
+            <input placeholder="seq" value={ln.seq} onChange={(e) => setLn({ seq: e.target.value })} onBlur={resumeHistory} />
             <button className="tag-auto" title="Next free sequence" onClick={() => setLn({ seq: nextLineSeq(doc) })}>№</button>
           </div>
         </div>

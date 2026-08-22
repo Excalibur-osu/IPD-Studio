@@ -2,7 +2,7 @@ import { fieldsFor } from '../model/datasheet'
 import type { PlantNode } from '../model/types'
 import { formatTag } from '../isa/tag'
 import { expandLetters } from '../isa/tag'
-import { useStore } from '../store/store'
+import { pauseHistory, resumeHistory, useStore } from '../store/store'
 import { printDatasheet } from '../export/datasheetPdf'
 
 const SECTION_TITLES: Record<string, string> = {
@@ -42,7 +42,8 @@ export default function DatasheetEditor({ node, onClose }: { node: PlantNode; on
                     <span>{f.label}</span>
                     <input
                       value={node.datasheet?.[f.key] ?? ''}
-                      onChange={(e) => setDatasheet(node.id, { [f.key]: e.target.value })}
+                      onChange={(e) => { setDatasheet(node.id, { [f.key]: e.target.value }); pauseHistory() }}
+                      onBlur={resumeHistory}
                     />
                   </label>
                 ))}

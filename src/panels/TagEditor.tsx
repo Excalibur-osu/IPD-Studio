@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { expandLetters, validateLetters } from '../isa/tag'
 import { isDuplicateTag, suggestLoop } from '../isa/autonumber'
-import { useStore } from '../store/store'
+import { pauseHistory, resumeHistory, useStore } from '../store/store'
 import type { PlantNode } from '../model/types'
 
 export default function TagEditor({ node }: { node: PlantNode }) {
@@ -21,6 +21,7 @@ export default function TagEditor({ node }: { node: PlantNode }) {
     const next = { ...tag, ...patch }
     if (!next.letters && !next.loop) setTag(node.id, undefined)
     else setTag(node.id, { letters: next.letters, loop: next.loop, ...(next.suffix ? { suffix: next.suffix } : {}) })
+    pauseHistory() // typing bursts undo as one step; resumes on blur/pointerup
   }
 
   return (
@@ -46,6 +47,7 @@ export default function TagEditor({ node }: { node: PlantNode }) {
             }
             update(patch)
           }}
+          onBlur={resumeHistory}
         />
         <span>–</span>
         <input
@@ -54,6 +56,7 @@ export default function TagEditor({ node }: { node: PlantNode }) {
           value={tag.loop}
           maxLength={6}
           onChange={(e) => update({ loop: e.target.value.replace(/\D/g, '') })}
+          onBlur={resumeHistory}
         />
         <input
           className="tag-suffix"
@@ -61,6 +64,7 @@ export default function TagEditor({ node }: { node: PlantNode }) {
           value={tag.suffix ?? ''}
           maxLength={1}
           onChange={(e) => update({ suffix: e.target.value.toUpperCase() || undefined })}
+          onBlur={resumeHistory}
         />
         <button
           className="tag-auto"

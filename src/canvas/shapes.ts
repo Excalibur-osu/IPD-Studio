@@ -83,27 +83,48 @@ function tagAttrs(node: PlantNode): Record<string, Record<string, unknown>> {
     stroke: '#fff',
     strokeWidth: 3,
     paintOrder: 'stroke',
-    pointerEvents: 'none',
+    // texts are draggable annotation (Canvas host handles the drag)
+    pointerEvents: 'auto',
+    cursor: 'move',
   }
+  // Annotation reads horizontally no matter how the symbol is turned. The
+  // wanted spot is defined against the ROTATED visual box (tags stacked on
+  // top, label under), mapped back into the element frame, then the text is
+  // counter-rotated about that anchor.
+  const rot = ((node.rotation % 360) + 360) % 360
+  const swap = rot === 90 || rot === 270
+  const visH = swap ? w : h // rotated visual height
+  const place = (sheetDx: number, sheetDy: number, off: { x: number; y: number }): Record<string, unknown> => {
+    // sheet-space offset from the symbol center -> element frame
+    let dx = sheetDx
+    let dy = sheetDy
+    for (let i = 0; i < rot / 90; i++) {
+      const r = { x: dy, y: -dx } // inverse of the clockwise element rotation
+      dx = r.x
+      dy = r.y
+    }
+    const x = w / 2 + dx + off.x
+    const y = h / 2 + dy + off.y
+    return rot ? { x, y, transform: `rotate(${-rot} ${x} ${y})` } : { x, y }
+  }
+  const tOff = node.tagOffset ?? { x: 0, y: 0 }
+  const lOff = node.labelOffset ?? { x: 0, y: 0 }
   return {
     tagL: {
       ...base,
       text: node.tag?.letters ?? '',
-      x: w / 2,
-      y: inside ? h / 2 - 3 : -14,
+      ...place(0, inside ? -3 : -visH / 2 - 14, tOff),
     },
     tagN: {
       ...base,
       text: node.tag ? node.tag.loop + (node.tag.suffix ?? '') : '',
-      x: w / 2,
-      y: inside ? h / 2 + 9 : -3,
+      ...place(0, inside ? 9 : -visH / 2 - 3, tOff),
     },
     lbl: {
       ...base,
       fontSize: 10,
       text: node.label ?? '',
-      x: w / 2,
-      y: node.labelPos === 'center' ? h / 2 + 3 : h + 12,
+      ...place(0, node.labelPos === 'center' ? 3 : visH / 2 + 12, lOff),
     },
   }
 }
@@ -164,7 +185,8 @@ export function updateElement(cell: dia.Element, node: PlantNode, prev: PlantNod
   }
   if (
     node.tag !== prev.tag || node.label !== prev.label || node.labelPos !== prev.labelPos ||
-    node.config !== prev.config || rescaled
+    node.rotation !== prev.rotation || node.tagOffset !== prev.tagOffset ||
+    node.labelOffset !== prev.labelOffset || node.config !== prev.config || rescaled
   ) {
     cell.set('attrs', baseAttrs(node))
   }
@@ -296,7 +318,8 @@ export function makeLink(edge: PlantEdge, nodes?: Map<string, PlantNode>): dia.L
     target: toEnd(edge.target),
     vertices: edge.vertices ?? [],
     router: routerFor(edge, nodes),
-    connector: { name: 'normal' },
+    // jumpover draws the little hop where unrelated lines cross
+    connector: { name: 'jumpover', args: { size: 5 } },
     markup: LINK_MARKUP,
     data: { lineClass: edge.lineClass },
   })

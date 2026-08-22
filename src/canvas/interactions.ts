@@ -5,7 +5,7 @@ import type { PortKind } from '../symbols/types'
 import { compatibleKinds, pickLineClass } from './connectionRules'
 import { alignNodes, distributeNodes, portWorld, snapGuides } from './alignment'
 import { makeLink } from './shapes'
-import { activeSheet, useStore } from '../store/store'
+import { activeSheet, resumeHistory, useStore } from '../store/store'
 
 const snap8 = (v: number) => Math.round(v / 8) * 8
 
@@ -122,12 +122,47 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     }
   }
 
-  const onLinkPointerUp = (view: dia.LinkView) => commitDraft(view.model)
+  /** Commit an arrowhead-tool re-attach: sync the moved model ends to the doc. */
+  const syncMovedEnds = (link: dia.Link) => {
+    const id = String(link.id)
+    if (id.startsWith('draft-')) return
+    const sheet = activeSheet(store())
+    const edge = sheet.edges.find((e) => e.id === id)
+    if (!edge) return
+    const toDocEnd = (e: dia.Link.EndJSON): PlantEdge['source'] | null => {
+      if (e.id) return e.port ? { nodeId: String(e.id), portId: String(e.port) } : null
+      if (typeof e.x === 'number' && typeof e.y === 'number') return { x: snap8(e.x), y: snap8(e.y) }
+      return null
+    }
+    const src = toDocEnd(link.source())
+    const tgt = toDocEnd(link.target())
+    const revert = () => {
+      const asEnd = (end: PlantEdge['source']): dia.Link.EndJSON =>
+        isPortEnd(end) ? { id: end.nodeId, port: end.portId } : { x: end.x, y: end.y }
+      link.source(asEnd(edge.source))
+      link.target(asEnd(edge.target))
+    }
+    // A re-attach must keep at least one port end; otherwise snap back.
+    if (!src || !tgt || (!isPortEnd(src) && !isPortEnd(tgt))) return revert()
+    const same = (a: PlantEdge['source'], b: PlantEdge['source']) => JSON.stringify(a) === JSON.stringify(b)
+    if (!same(src, edge.source) || !same(tgt, edge.target)) {
+      store().setEdge(id, { source: src, target: tgt })
+    }
+  }
+
+  const onLinkPointerUp = (view: dia.LinkView) => {
+    commitDraft(view.model)
+    syncMovedEnds(view.model)
+  }
 
   // Port dots are hidden until they matter: hovering a symbol shows its own,
   // and holding a link drag ('pid-linking' on the paper root) shows them all.
   const onMagnetDown = () => paper.el.classList.add('pid-linking')
-  const onGlobalPointerUp = () => paper.el.classList.remove('pid-linking')
+  const onGlobalPointerUp = () => {
+    paper.el.classList.remove('pid-linking')
+    // safety net: any grouped edit (typing, label drag) ends by now
+    resumeHistory()
+  }
 
   // --- selection ----------------------------------------------------------
   const onElementPointerDown = (view: dia.ElementView, evt: dia.Event) => {
@@ -244,7 +279,14 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
         })
         if (cell.isLink()) {
           ;(view as dia.LinkView).addTools(
-            new dia.ToolsView({ tools: [new linkTools.Vertices({ snapRadius: 8 }), new linkTools.Remove({ distance: '25%' })] }),
+            new dia.ToolsView({
+              tools: [
+                new linkTools.Vertices({ snapRadius: 8 }),
+                new linkTools.SourceArrowhead(),
+                new linkTools.TargetArrowhead(),
+                new linkTools.Remove({ distance: '25%' }),
+              ],
+            }),
           )
         }
       } else if (!sel.has(String(cell.id)) && has) {

@@ -7,7 +7,18 @@ import { attachInteractions, attachMarquee } from './interactions'
 import { renderUnderlay } from './underlay'
 import '../symbols/lib/index'
 import { sheetPx } from '../model/doc'
-import { activeSheet, useStore } from '../store/store'
+import { activeSheet, pauseHistory, resumeHistory, useStore } from '../store/store'
+
+interface LabelDrag {
+  id: string
+  kind: 'tag' | 'label'
+  sx: number
+  sy: number
+  ox: number
+  oy: number
+  rotation: number
+  recorded: boolean
+}
 
 export default function Canvas() {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -51,6 +62,7 @@ export default function Canvas() {
     let panning = false
     let spaceDown = false
     let last = { x: 0, y: 0 }
+    let labelDrag: LabelDrag | null = null
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
@@ -64,6 +76,33 @@ export default function Canvas() {
       }
     }
     const onPointerDown = (e: PointerEvent) => {
+      // grab a tag/label text -> reposition it instead of moving the symbol
+      if (e.button === 0 && !spaceDown) {
+        // Visible text beats invisible port halos: search the whole hit
+        // stack for a tag/label glyph, not just the topmost element.
+        const textEl = document
+          .elementsFromPoint(e.clientX, e.clientY)
+          .slice(0, 5)
+          .map((el) => (typeof el.closest === 'function' ? el.closest('text[joint-selector]') : null))
+          .find((el): el is Element => Boolean(el))
+        const sel = textEl?.getAttribute('joint-selector')
+        if (textEl && (sel === 'tagL' || sel === 'tagN' || sel === 'lbl')) {
+          const id = textEl.closest('[model-id]')?.getAttribute('model-id')
+          const node = id ? activeSheet(useStore.getState()).nodes.find((n) => n.id === id) : undefined
+          if (id && node) {
+            const kind = sel === 'lbl' ? 'label' : 'tag'
+            const off = (kind === 'label' ? node.labelOffset : node.tagOffset) ?? { x: 0, y: 0 }
+            labelDrag = {
+              id, kind, sx: e.clientX, sy: e.clientY, ox: off.x, oy: off.y,
+              rotation: node.rotation, recorded: false,
+            }
+            host.setPointerCapture(e.pointerId)
+            e.preventDefault()
+            e.stopPropagation()
+            return
+          }
+        }
+      }
       if (e.button === 1 || (e.button === 0 && spaceDown)) {
         panning = true
         last = { x: e.clientX, y: e.clientY }
@@ -74,12 +113,41 @@ export default function Canvas() {
       }
     }
     const onPointerMove = (e: PointerEvent) => {
+      if (labelDrag) {
+        const scale = paper.scale().sx
+        let dx = (e.clientX - labelDrag.sx) / scale
+        let dy = (e.clientY - labelDrag.sy) / scale
+        // sheet-space delta -> element frame (invert the symbol's rotation)
+        const turns = (((labelDrag.rotation % 360) + 360) % 360) / 90
+        for (let i = 0; i < turns; i++) {
+          const r = { x: dy, y: -dx }
+          dx = r.x
+          dy = r.y
+        }
+        const s = useStore.getState()
+        const off = { x: Math.round(labelDrag.ox + dx), y: Math.round(labelDrag.oy + dy) }
+        if (labelDrag.kind === 'label') s.setLabelOffset(labelDrag.id, off)
+        else s.setTagOffset(labelDrag.id, off)
+        if (!labelDrag.recorded) {
+          labelDrag.recorded = true
+          pauseHistory() // the whole drag is one undo step
+        }
+        return
+      }
       if (!panning) return
       const t = paper.translate()
       paper.translate(t.tx + e.clientX - last.x, t.ty + e.clientY - last.y)
       last = { x: e.clientX, y: e.clientY }
     }
     const onPointerUp = (e: PointerEvent) => {
+      if (labelDrag) {
+        host.releasePointerCapture(e.pointerId)
+        // a plain click on the text selects its symbol
+        if (!labelDrag.recorded) useStore.getState().setSelection([labelDrag.id])
+        labelDrag = null
+        resumeHistory()
+        return
+      }
       if (panning) {
         panning = false
         host.releasePointerCapture(e.pointerId)

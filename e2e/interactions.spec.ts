@@ -146,6 +146,82 @@ test('typical loop places wired+tagged; advisor flags and fixes the missing I/P'
   await expect(page.locator('.advisor-fix')).toHaveCount(0)
 })
 
+test('polish: grouped undo, label drag, line re-attach, .pnid save name', async ({ page }) => {
+  await page.goto('/')
+  await page.waitForFunction(() => Boolean(window.__pid))
+  const ids = await page.evaluate(() => {
+    const s = window.__pid.useStore.getState()
+    const tank = s.addNode({ symbolId: 'vessel.tank', kind: 'equipment', x: 96, y: 96, rotation: 0, label: 'Hot Tank' })
+    const lt = s.addNode({ symbolId: 'instr.bubble', kind: 'instrument', x: 320, y: 96, rotation: 0, tag: { letters: 'LT', loop: '100' } })
+    const edge = s.addEdge({ lineClass: 'process.impulse', source: { nodeId: lt, portId: 'w' }, target: { nodeId: tank, portId: 'e' } })
+    s.setSelection([])
+    return { tank, lt, edge }
+  })
+
+  await expect(page.locator('[model-id]')).toHaveCount(3) // rendered before clicking
+
+  // --- grouped undo: typing a label is ONE undo step --------------------
+  const cp = (x, y) => page.evaluate(([lx, ly]) => window.__pid.canvasRef.paper.localToClientPoint({ x: lx, y: ly }), [x, y]) as Promise<{ x: number; y: number }>
+  const tc = await cp(128, 124)
+  await page.mouse.click(tc.x, tc.y) // select tank
+  const labelInput = page.locator('.props input[placeholder="Service / name"]')
+  await labelInput.click()
+  await labelInput.pressSequentially(' II', { delay: 30 })
+  await labelInput.blur()
+  await page.keyboard.press('ControlOrMeta+z')
+  const label = await page.evaluate((id) =>
+    window.__pid.useStore.getState().doc.sheets[0].nodes.find((n: any) => n.id === id).label, ids.tank)
+  expect(label).toBe('Hot Tank')
+
+  // --- drag the label text to a new spot --------------------------------
+  // tank label baseline is local y=164; grab mid-glyph slightly above it
+  const from = await cp(128, 160)
+  await page.mouse.move(from.x, from.y)
+  await page.mouse.down()
+  await page.mouse.move(from.x + 40, from.y + 16, { steps: 8 })
+  await page.mouse.up()
+  const off = await page.evaluate((id) =>
+    window.__pid.useStore.getState().doc.sheets[0].nodes.find((n: any) => n.id === id).labelOffset, ids.tank)
+  expect(off.x).toBeGreaterThanOrEqual(32)
+  expect(off.y).toBeGreaterThanOrEqual(10)
+
+  // --- re-attach the line's tank end to a different nozzle --------------
+  await page.evaluate((id) => window.__pid.useStore.getState().setSelection([id]), ids.edge)
+  await page.waitForTimeout(300)
+  const arrow = page.locator('.joint-tool.target-arrowhead, [data-tool-name="target-arrowhead"]').first()
+  const abox = await arrow.boundingBox()
+  expect(abox).toBeTruthy()
+  const dest = await cp(160, 96) // tank n1 roof nozzle
+  await page.mouse.move(abox!.x + abox!.width / 2, abox!.y + abox!.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(dest.x, dest.y, { steps: 10 })
+  await page.mouse.up()
+  const target = await page.evaluate((id) =>
+    window.__pid.useStore.getState().doc.sheets[0].edges.find((e: any) => e.id === id).target, ids.edge)
+  expect(target.nodeId).toBe(ids.tank)
+  expect(target.portId).not.toBe('e')
+
+  // --- saving downloads a .pnid file ------------------------------------
+  // headless Chromium's native save picker never resolves; use the fallback
+  await page.evaluate(() => { (window as { showSaveFilePicker?: unknown }).showSaveFilePicker = undefined })
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toMatch(/\.pnid$/)
+
+  // --- dropping a .pnid file on the canvas opens it ----------------------
+  await page.evaluate(() => {
+    const doc = JSON.parse(JSON.stringify(window.__pid.useStore.getState().doc))
+    doc.meta.name = 'Dropped Drawing'
+    const dt = new DataTransfer()
+    dt.items.add(new File([JSON.stringify(doc)], 'dropped.pnid', { type: 'application/x-pnid' }))
+    document.querySelector('.canvas-host')!.dispatchEvent(
+      new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }),
+    )
+  })
+  await expect(page.locator('.doc-name')).toContainText('Dropped Drawing')
+})
+
 test('port dots show only on hover or while linking; nodes resize from the panel', async ({ page }) => {
   await page.goto('/')
   await page.waitForFunction(() => Boolean(window.__pid))
