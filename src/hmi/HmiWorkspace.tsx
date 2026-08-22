@@ -8,6 +8,7 @@ import HmiPalette from './HmiPalette'
 import HmiCanvas from './HmiCanvas'
 import HmiPropertyPanel from './HmiPropertyPanel'
 import Faceplate from './Faceplate'
+import AlarmBanner from './AlarmBanner'
 
 export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   const screen = useStore(activeHmiScreen)
@@ -51,6 +52,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
                 onWidgetClick={(w) => setFaceplate(w.id)}
               />
             </div>
+            {mode === 'run' && <AlarmBanner />}
             {mode === 'run' && faceplate && (() => {
               const w = screen.widgets.find((x) => x.id === faceplate)
               return w ? <Faceplate widget={w} onClose={() => setFaceplate(null)} /> : null
