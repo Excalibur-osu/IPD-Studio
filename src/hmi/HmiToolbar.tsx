@@ -1,16 +1,26 @@
 import { useStore, activeHmiScreen } from '../store/store'
 import { useSimStore } from './simStore'
 
-export default function HmiToolbar({ onExit, tool, setTool }: {
+export default function HmiToolbar({ onExit, tool, setTool, onImport }: {
   onExit(): void
   tool: 'select' | 'pipe'
   setTool(t: 'select' | 'pipe'): void
+  onImport(): void
 }) {
   const undo = useStore((s) => s.undo)
   const redo = useStore((s) => s.redo)
   const name = useStore((s) => s.doc.meta.name)
+  const doc = useStore((s) => s.doc)
   const screen = useStore(activeHmiScreen)
   const setScreenTheme = useStore((s) => s.setScreenTheme)
+  const replaceScreen = useStore((s) => s.replaceScreen)
+
+  const reimport = async () => {
+    if (!screen?.fromSheetId) return
+    if (!window.confirm('Replace this screen from the P&ID sheet? Your HMI edits to it are lost.')) return
+    const { importSheet } = await import('./importFromPid')
+    replaceScreen({ ...importSheet(doc, screen.fromSheetId), id: screen.id, name: screen.name, theme: screen.theme })
+  }
   const mode = useSimStore((s) => s.mode)
   const playing = useSimStore((s) => s.playing)
   const speed = useSimStore((s) => s.speed)
@@ -48,6 +58,10 @@ export default function HmiToolbar({ onExit, tool, setTool }: {
           </button>
           <button onClick={undo} title="Ctrl+Z">↩</button>
           <button onClick={redo} title="Ctrl+Y">↪</button>
+          <button data-testid="hmi-import" onClick={onImport} title="Build an HMI screen from a P&ID sheet">From P&ID…</button>
+          {screen?.fromSheetId && doc.sheets.some((sh) => sh.id === screen.fromSheetId) && (
+            <button data-testid="hmi-reimport" onClick={() => void reimport()} title="Rebuild this screen from its source sheet">Re-import</button>
+          )}
         </>
       )}
       {screen && (

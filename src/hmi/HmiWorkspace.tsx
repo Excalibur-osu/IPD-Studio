@@ -14,6 +14,24 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   const screen = useStore(activeHmiScreen)
   const activeScreenId = useStore((s) => s.activeScreenId)
   const addScreen = useStore((s) => s.addScreen)
+
+  /** Build a new HMI screen from a P&ID sheet (prompted pick when several). */
+  const runImport = async () => {
+    const s = useStore.getState()
+    const { importSheet } = await import('./importFromPid')
+    let sheet = s.doc.sheets[0]!
+    if (s.doc.sheets.length > 1) {
+      const pick = window.prompt(
+        `Build HMI from which sheet?\n${s.doc.sheets.map((sh, i) => `${i + 1}: ${sh.name}`).join('\n')}`,
+        '1',
+      )
+      if (!pick) return
+      const idx = Number(pick) - 1
+      if (Number.isNaN(idx) || !s.doc.sheets[idx]) return
+      sheet = s.doc.sheets[idx]!
+    }
+    s.addImportedScreen(importSheet(s.doc, sheet.id))
+  }
   const [selection, setSelection] = useState<string[]>([])
   const [tool, setTool] = useState<'select' | 'pipe'>('select')
   const [faceplate, setFaceplate] = useState<string | null>(null)
@@ -32,7 +50,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
 
   return (
     <div className={`hmi${mode === 'run' ? ' run-mode' : ''}`}>
-      <HmiToolbar onExit={onExit} tool={tool} setTool={setTool} />
+      <HmiToolbar onExit={onExit} tool={tool} setTool={setTool} onImport={() => void runImport()} />
       <div className="hmi-side"><HmiPalette /></div>
       <div className="hmi-center">
         {screen ? (
@@ -63,7 +81,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
           <div className="hmi-empty">
             <p>No HMI screens yet.</p>
             <button onClick={addScreen}>New screen</button>
-            <button disabled title="Coming soon">Build from P&ID sheet…</button>
+            <button data-testid="hmi-import-empty" onClick={() => void runImport()}>Build from P&ID sheet…</button>
           </div>
         )}
       </div>

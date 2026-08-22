@@ -1,5 +1,24 @@
 import { expect, test } from '@playwright/test'
 
+test('one click: sample P&ID becomes a running HMI', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.goto('/')
+  await page.locator('select.tb-template').selectOption('sample')
+  await page.getByTestId('open-hmi').click()
+  // the doc has no screens yet -> empty-state import button
+  await page.getByTestId('hmi-import-empty').click()
+  const canvas = page.getByTestId('hmi-canvas')
+  await expect(canvas.locator('g.hmi-widget')).not.toHaveCount(0)
+  await expect(canvas.locator('polyline')).not.toHaveCount(0)
+  await expect(page.getByTestId('hmi-reimport')).toBeVisible()
+  await page.getByTestId('hmi-run-toggle').click()
+  await page.getByTestId('hmi-speed').click()
+  // something on screen changes as the sim runs (flows/levels/drifting values)
+  const text = () => canvas.textContent()
+  const before = await text()
+  await expect.poll(text, { timeout: 20000 }).not.toBe(before)
+})
+
 test('operate a hand-built screen: start pump, watch it fill, alarm, ack', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.goto('/')
