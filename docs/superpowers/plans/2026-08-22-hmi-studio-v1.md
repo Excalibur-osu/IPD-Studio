@@ -21,6 +21,7 @@
 - Default theme `classic`; second theme `hp` (ISA-101 gray). Theme is per-screen.
 - Commit style: `feat:`/`test:`/`docs:` one-liners, `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
 - Deploy checkpoints (end of Tasks 9, 18, 22, 24): `npm run build` then `npx firebase-tools deploy --only hosting`; verify live by comparing `dist/assets` content-hash filename against the live HTML.
+- **Baseline drift:** commit `a13acb9` (v0.5.0, .pnid file format + interaction polish) landed after this plan's code excerpts of `Toolbar.tsx`/`file.ts` were captured. Where a task modifies an existing file, trust the file on disk over any excerpt here — the insertion instructions (e.g. "after the Fit button") still apply.
 
 ## File Structure
 
@@ -3840,7 +3841,7 @@ Run: `npm test && npm run build`
 git add -A && git commit -m "docs: HMI guide + demo template"
 ```
 
-### Task 24: Perf pass + release v0.5.0
+### Task 24: Perf pass + release v0.6.0
 
 **Files:**
 - Modify: `src/hmi/HmiCanvas.tsx` (memoized widget subcomponent), `package.json` (version), `README.md` (what's new)
@@ -3848,10 +3849,10 @@ git add -A && git commit -m "docs: HMI guide + demo template"
 - [ ] **Step 1: Memoize widget rendering** — extract the widget `<g>` body into `const WidgetG = React.memo(function WidgetG(props: { widget; theme; values; history; alarm; selected; ox; oy }) {...})` and pass primitive/stable props so paused sim ⇒ zero re-renders. Verify with React DevTools profiler (or a render-count `console.count` removed after checking) that a 5 Hz tick re-renders only widgets whose values changed. Keep the sim-store selector granularity as-is (canvas-level) — memo does the pruning.
 - [ ] **Step 2: Bundle check** — `npm run build`; confirm the main (P&ID) chunk did not grow (compare against `git stash`-built baseline if in doubt) and the HMI chunk lazy-loads (`dist/assets/HmiWorkspace-*.js` or similar). The PWA precache warns if any chunk exceeds the 4 MB workbox cap — it must not.
 - [ ] **Step 3: Full verification** — `pkill -f vite || true; set -o pipefail; npm test && npm run e2e 2>&1 | tail -20` — everything green.
-- [ ] **Step 4: Version + ship** — `package.json` version `0.5.0`; README "What's new" line.
+- [ ] **Step 4: Version + ship** — `package.json` to the next minor (`0.6.0` if `0.5.0` is still current — v0.5.0 was released separately on 2026-08-22 for the .pnid file format); README "What's new" line.
 
 ```bash
-git add -A && git commit -m "feat: HMI Studio v0.5.0 — perf pass + release"
+git add -A && git commit -m "feat: HMI Studio v0.6.0 — perf pass + release"
 npm run build && npx firebase-tools deploy --only hosting
 ```
 
