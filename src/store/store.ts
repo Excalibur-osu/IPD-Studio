@@ -21,6 +21,7 @@ export interface StoreState {
   setNodeConfig(id: string, config: Record<string, string>): void
   setTag(id: string, tag: Tag | undefined): void
   setLabel(id: string, label: string): void
+  setLabelPos(id: string, pos: 'below' | 'center'): void
   setNodeLink(id: string, link: PlantNode['link']): void
   setDatasheet(id: string, patch: Record<string, string>): void
   setUnderlay(underlay: Sheet['underlay']): void
@@ -127,6 +128,17 @@ export const useStore = create<StoreState>()(
 
         setLabel(id, label) {
           patchSheet((sh) => ({ ...sh, nodes: sh.nodes.map((n) => (n.id === id ? { ...n, label } : n)) }))
+        },
+
+        setLabelPos(id, pos) {
+          patchSheet((sh) => ({
+            ...sh,
+            nodes: sh.nodes.map((n) => {
+              if (n.id !== id) return n
+              const { labelPos: _drop, ...rest } = n
+              return pos === 'below' ? rest : { ...rest, labelPos: pos }
+            }),
+          }))
         },
 
         setNodeLink(id, link) {

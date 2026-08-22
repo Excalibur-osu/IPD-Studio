@@ -103,7 +103,7 @@ function tagAttrs(node: PlantNode): Record<string, Record<string, unknown>> {
       fontSize: 10,
       text: node.label ?? '',
       x: w / 2,
-      y: h + 12,
+      y: node.labelPos === 'center' ? h / 2 + 3 : h + 12,
     },
   }
 }
@@ -162,7 +162,10 @@ export function updateElement(cell: dia.Element, node: PlantNode, prev: PlantNod
     // markup carries scale-normalized stroke widths, so rebuild it too
     if (node.config === prev.config) cell.set('markup', markupFor(node) as unknown as dia.MarkupJSON)
   }
-  if (node.tag !== prev.tag || node.label !== prev.label || node.config !== prev.config || rescaled) {
+  if (
+    node.tag !== prev.tag || node.label !== prev.label || node.labelPos !== prev.labelPos ||
+    node.config !== prev.config || rescaled
+  ) {
     cell.set('attrs', baseAttrs(node))
   }
 }

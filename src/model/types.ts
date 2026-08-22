@@ -49,6 +49,8 @@ export interface PlantNode {
   config?: Record<string, string>
   tag?: Tag
   label?: string
+  /** Where the label text sits: under the symbol (default) or centered inside it. */
+  labelPos?: 'below' | 'center'
   attrs?: Record<string, string>
   /** Off-page connector pairing to a connector on another sheet. */
   link?: { sheetId: string; nodeId: string }

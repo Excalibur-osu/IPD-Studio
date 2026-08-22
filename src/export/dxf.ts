@@ -192,7 +192,12 @@ function nodeEntities(node: PlantNode, flipY: (y: number) => number): string {
     out += textEnt('TEXT', node.x + w / 2 - 12, flipY(node.y - 8), 8, formatTag(node.tag, '-'))
   }
   if (node.label) {
-    out += textEnt('TEXT', node.x, flipY(node.y + def.gridSize.h * 8 * t.scale + 14), 8, node.label)
+    if (node.labelPos === 'center') {
+      const h = def.gridSize.h * 8 * t.scale
+      out += textEnt('TEXT', node.x + w / 2 - node.label.length * 2.2, flipY(node.y + h / 2 + 3), 8, node.label)
+    } else {
+      out += textEnt('TEXT', node.x, flipY(node.y + def.gridSize.h * 8 * t.scale + 14), 8, node.label)
+    }
   }
   return out
 }

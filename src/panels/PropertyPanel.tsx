@@ -82,6 +82,7 @@ function NodeProps({ node }: { node: PlantNode }) {
   const def = getSymbol(node.symbolId)
   const setNodeConfig = useStore((s) => s.setNodeConfig)
   const setLabel = useStore((s) => s.setLabel)
+  const setLabelPos = useStore((s) => s.setLabelPos)
   const rotateNode = useStore((s) => s.rotateNode)
   const setNodeScale = useStore((s) => s.setNodeScale)
   const [datasheetOpen, setDatasheetOpen] = useState(false)
@@ -106,6 +107,18 @@ function NodeProps({ node }: { node: PlantNode }) {
       <label className="prop-field">Label
         <input value={node.label ?? ''} onChange={(e) => setLabel(node.id, e.target.value)} placeholder="Service / name" />
       </label>
+      {(node.label ?? '') !== '' && (
+        <label className="prop-field">Label position
+          <select
+            title="Label position"
+            value={node.labelPos ?? 'below'}
+            onChange={(e) => setLabelPos(node.id, e.target.value as 'below' | 'center')}
+          >
+            <option value="below">below the symbol</option>
+            <option value="center">inside, centered</option>
+          </select>
+        </label>
+      )}
       <div className="prop-row">
         <button onClick={() => rotateNode(node.id)}>Rotate 90°</button>
         <span className="prop-hint">{node.rotation}°</span>
