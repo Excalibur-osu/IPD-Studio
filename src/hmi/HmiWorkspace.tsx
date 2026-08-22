@@ -16,7 +16,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   useEffect(() => { setSelection([]); setTool('select') }, [activeScreenId])
   return (
     <div className="hmi">
-      <HmiToolbar onExit={onExit} />
+      <HmiToolbar onExit={onExit} tool={tool} setTool={setTool} />
       <div className="hmi-side"><HmiPalette /></div>
       <div className="hmi-center">
         {screen ? (
