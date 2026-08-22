@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 4,
+  "meta": {
+    "name": "HMI Demo — Tank Level Loop",
+    "author": "PID Studio",
+    "created": "2026-08-22T00:00:00.000Z",
+    "modified": "2026-08-22T00:00:00.000Z"
+  },
+  "settings": { "gridPx": 8, "tagSeparator": "-", "numberStart": 100 },
+  "sheets": [
+    {
+      "id": "sheet-demo",
+      "name": "Level Loop",
+      "drawingNumber": "DEMO-001",
+      "revision": "0",
+      "sheetSize": "A3",
+      "nodes": [
+        { "id": "n-pump", "symbolId": "pump.centrifugal", "kind": "equipment", "x": 200, "y": 400, "rotation": 0, "tag": { "letters": "P", "loop": "101" }, "label": "Feed Pump" },
+        { "id": "n-lv", "symbolId": "cv.globe", "kind": "valve", "x": 400, "y": 380, "rotation": 0, "tag": { "letters": "LV", "loop": "101" } },
+        { "id": "n-tank", "symbolId": "vessel.tank", "kind": "equipment", "x": 640, "y": 280, "rotation": 0, "tag": { "letters": "TK", "loop": "101" }, "label": "Feed Tank" },
+        { "id": "n-hv", "symbolId": "valve.gate", "kind": "valve", "x": 800, "y": 480, "rotation": 0, "tag": { "letters": "HV", "loop": "101" } },
+        { "id": "n-lt", "symbolId": "instr.bubble", "kind": "instrument", "x": 760, "y": 320, "rotation": 0, "tag": { "letters": "LT", "loop": "101" } },
+        { "id": "n-lic", "symbolId": "instr.bubble", "kind": "instrument", "x": 760, "y": 200, "rotation": 0, "tag": { "letters": "LIC", "loop": "101" } }
+      ],
+      "edges": [
+        { "id": "e-feed", "lineClass": "process.major", "source": { "x": 80, "y": 428 }, "target": { "nodeId": "n-pump", "portId": "suction" }, "arrow": "flow" },
+        { "id": "e-p-lv", "lineClass": "process.major", "source": { "nodeId": "n-pump", "portId": "discharge" }, "target": { "nodeId": "n-lv", "portId": "w" } },
+        { "id": "e-lv-tk", "lineClass": "process.major", "source": { "nodeId": "n-lv", "portId": "e" }, "target": { "nodeId": "n-tank", "portId": "w" } },
+        { "id": "e-tk-hv", "lineClass": "process.major", "source": { "nodeId": "n-tank", "portId": "s" }, "target": { "nodeId": "n-hv", "portId": "w" } },
+        { "id": "e-drain", "lineClass": "process.major", "source": { "nodeId": "n-hv", "portId": "e" }, "target": { "x": 1000, "y": 496 }, "arrow": "flow" },
+        { "id": "e-imp", "lineClass": "process.impulse", "source": { "nodeId": "n-lt", "portId": "w" }, "target": { "nodeId": "n-tank", "portId": "e" } },
+        { "id": "e-lt-lic", "lineClass": "signal.electric", "source": { "nodeId": "n-lt", "portId": "n" }, "target": { "nodeId": "n-lic", "portId": "s" } },
+        { "id": "e-lic-lv", "lineClass": "signal.electric", "source": { "nodeId": "n-lic", "portId": "w" }, "target": { "nodeId": "n-lv", "portId": "sig" } }
+      ]
+    }
+  ],
+  "hmiScreens": [
+    {
+      "id": "screen-demo",
+      "name": "Tank Level HMI",
+      "theme": "classic",
+      "fromSheetId": "sheet-demo",
+      "widgets": [
+        { "id": "w-title", "type": "label", "x": 40, "y": 24, "w": 480, "h": 30, "label": "TANK LEVEL CONTROL — TRAINING DEMO" },
+        { "id": "w-pump", "type": "pump", "x": 140, "y": 460, "w": 64, "h": 64, "tag": "P-101" },
+        { "id": "w-lv", "type": "valve", "x": 420, "y": 468, "w": 56, "h": 36, "tag": "LV-101", "props": { "throttle": true } },
+        { "id": "w-tank", "type": "tank", "x": 700, "y": 280, "w": 120, "h": 160, "tag": "TK-101", "props": { "capacity": 120, "level0": 35 } },
+        { "id": "w-hv", "type": "valve", "x": 900, "y": 560, "w": 56, "h": 36, "tag": "HV-101" },
+        { "id": "w-lt", "type": "display", "x": 880, "y": 300, "w": 110, "h": 40, "tag": "LT-101", "props": { "bindTank": "TK-101", "unit": "%" } },
+        { "id": "w-lic", "type": "display", "x": 880, "y": 350, "w": 110, "h": 40, "tag": "LIC-101", "props": { "controller": true } },
+        { "id": "w-gauge", "type": "gauge", "x": 880, "y": 400, "w": 100, "h": 100, "tag": "LT-101", "props": { "bindTank": "TK-101" } },
+        { "id": "w-trend", "type": "trend", "x": 1150, "y": 280, "w": 240, "h": 120, "tag": "TK-101" },
+        { "id": "w-lamp", "type": "lamp", "x": 152, "y": 560, "w": 36, "h": 36, "label": "PUMP", "props": { "signal": "P-101.RUN" } },
+        { "id": "w-switch", "type": "switch", "x": 1000, "y": 560, "w": 72, "h": 36, "props": { "signal": "HV-101.OPEN", "onLabel": "DRAIN OPEN", "offLabel": "DRAIN SHUT" } },
+        { "id": "w-help", "type": "label", "x": 40, "y": 940, "w": 900, "h": 22, "label": "Click the pump to start it — LIC-101 will hold the tank at its setpoint. Try MAN mode, move the SP, or shut the drain." }
+      ],
+      "pipes": [
+        { "id": "pp-feed", "points": [{ "x": 40, "y": 492 }, { "x": 150, "y": 492 }] },
+        { "id": "pp-p-lv", "points": [{ "x": 204, "y": 492 }, { "x": 430, "y": 486 }] },
+        { "id": "pp-lv-tk", "points": [{ "x": 476, "y": 486 }, { "x": 600, "y": 486 }, { "x": 600, "y": 360 }, { "x": 710, "y": 360 }] },
+        { "id": "pp-tk-hv", "points": [{ "x": 760, "y": 440 }, { "x": 760, "y": 578 }, { "x": 910, "y": 578 }] },
+        { "id": "pp-drain", "points": [{ "x": 956, "y": 578 }, { "x": 1100, "y": 578 }] }
+      ]
+    }
+  ]
+}

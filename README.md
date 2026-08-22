@@ -22,6 +22,10 @@ P&ID tool is a $2,600+/year desktop install. PID Studio is the missing thing:
 
 ## Features (v0.3)
 
+- **HMI Studio (v0.6)** — build operator screens from your P&ID and run them
+  as a live training simulation: faceplates, PI control loops auto-wired from
+  your ISA tags, alarms with acknowledge, flow animation, classic and ISA-101
+  high-performance themes ([docs](docs/HMI.md))
 - **180+ parametric symbols, 200+ palette entries** — instrument bubbles (all
   16 ISA display/location variants from one parameterized symbol), control
   valves with 7 actuator types and fail-action marks, 14 manual valve types,

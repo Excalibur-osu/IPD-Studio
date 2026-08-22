@@ -82,6 +82,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
             <p>No HMI screens yet.</p>
             <button onClick={addScreen}>New screen</button>
             <button data-testid="hmi-import-empty" onClick={() => void runImport()}>Build from P&ID sheet…</button>
+            <p style={{ fontSize: 12, opacity: 0.7 }}>Tip: load the “HMI demo” template from the P&ID toolbar, then come back here and press RUN.</p>
           </div>
         )}
       </div>
