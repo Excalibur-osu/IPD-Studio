@@ -5,6 +5,7 @@ import HmiToolbar from './HmiToolbar'
 import ScreenTabs from './ScreenTabs'
 import HmiPalette from './HmiPalette'
 import HmiCanvas from './HmiCanvas'
+import HmiPropertyPanel from './HmiPropertyPanel'
 
 export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   const screen = useStore(activeHmiScreen)
@@ -40,7 +41,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
           </div>
         )}
       </div>
-      <div className="hmi-props" />
+      <div className="hmi-props"><HmiPropertyPanel selection={selection} /></div>
       <div className="hmi-status"><span>HMI workspace</span></div>
     </div>
   )
