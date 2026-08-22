@@ -38,7 +38,7 @@ export function createEmptyDoc(name = 'Untitled P&ID'): ProjectDoc {
   return {
     schemaVersion: 3,
     meta: { name, author: '', created: now, modified: now },
-    settings: { gridPx: 8, tagSeparator: '-' },
+    settings: { gridPx: 8, tagSeparator: '-', numberStart: 100 },
     sheets: [createSheet(1)],
   }
 }

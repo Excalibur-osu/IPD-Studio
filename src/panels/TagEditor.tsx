@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { expandLetters, validateLetters } from '../isa/tag'
-import { isDuplicateTag, nextLoopNumber } from '../isa/autonumber'
+import { isDuplicateTag, suggestLoop } from '../isa/autonumber'
 import { useStore } from '../store/store'
 import type { PlantNode } from '../model/types'
 
@@ -8,6 +8,7 @@ export default function TagEditor({ node }: { node: PlantNode }) {
   const setTag = useStore((s) => s.setTag)
   const doc = useStore((s) => s.doc)
   const tag = node.tag ?? { letters: '', loop: '' }
+  const autoLoop = useRef<string | null>(null)
 
   const validation = useMemo(() => (tag.letters ? validateLetters(tag.letters) : null), [tag.letters])
   const expansion = useMemo(() => (tag.letters ? expandLetters(tag.letters) : ''), [tag.letters])
@@ -31,7 +32,20 @@ export default function TagEditor({ node }: { node: PlantNode }) {
           placeholder="FIC"
           value={tag.letters}
           maxLength={5}
-          onChange={(e) => update({ letters: e.target.value.toUpperCase() })}
+          onChange={(e) => {
+            // Numbers assign themselves in the same update: each letter
+            // combination counts on its own sequence. A number the user
+            // typed by hand (≠ the last auto value) is never overwritten.
+            const letters = e.target.value.toUpperCase()
+            const patch: Partial<typeof tag> = { letters }
+            const untouched = !tag.loop || tag.loop === autoLoop.current
+            if (letters && untouched && validateLetters(letters).ok) {
+              const suggested = suggestLoop(doc, node.id, letters)
+              patch.loop = suggested
+              autoLoop.current = suggested
+            }
+            update(patch)
+          }}
         />
         <span>–</span>
         <input
@@ -50,8 +64,8 @@ export default function TagEditor({ node }: { node: PlantNode }) {
         />
         <button
           className="tag-auto"
-          title="Next free loop number"
-          onClick={() => update({ loop: nextLoopNumber(doc, tag.letters || 'X') })}
+          title="Next free number for these letters"
+          onClick={() => update({ loop: suggestLoop(doc, node.id, tag.letters || 'X') })}
         >
           №
         </button>

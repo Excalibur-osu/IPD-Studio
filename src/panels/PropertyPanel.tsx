@@ -13,13 +13,24 @@ const SHEETS: SheetSize[] = ['A4', 'A3', 'A2', 'A1', 'ANSI_B', 'ANSI_D']
 function SheetProps() {
   const meta = useStore((s) => s.doc.meta)
   const sheet = useStore((s) => activeSheet(s))
+  const numberStart = useStore((s) => s.doc.settings.numberStart ?? 100)
   const setMeta = useStore((s) => s.setMeta)
+  const setSettings = useStore((s) => s.setSettings)
   const setSheetMeta = useStore((s) => s.setSheetMeta)
   return (
     <>
       <div className="prop-title">Project</div>
       <label className="prop-field">Name<input value={meta.name} onChange={(e) => setMeta({ name: e.target.value })} /></label>
       <label className="prop-field">Author<input value={meta.author} onChange={(e) => setMeta({ author: e.target.value })} /></label>
+      <label className="prop-field">Tag numbering starts at
+        <select
+          value={String(numberStart)}
+          onChange={(e) => setSettings({ numberStart: e.target.value === '1' ? 1 : 100 })}
+        >
+          <option value="100">100, 101, 102…</option>
+          <option value="1">001, 002, 003…</option>
+        </select>
+      </label>
       <div className="prop-title">{sheet.name}</div>
       <label className="prop-field">Drawing №<input value={sheet.drawingNumber} onChange={(e) => setSheetMeta({ drawingNumber: e.target.value })} /></label>
       <label className="prop-field">Revision<input value={sheet.revision} onChange={(e) => setSheetMeta({ revision: e.target.value })} /></label>

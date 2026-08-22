@@ -114,6 +114,38 @@ test('move, connect, ghost-stub guard, quick line editor, panel collapse', async
   await expect(page.locator('.palette-entry', { hasText: 'Signal Converter' })).toBeVisible()
 })
 
+test('typical loop places wired+tagged; advisor flags and fixes the missing I/P', async ({ page }) => {
+  await page.goto('/')
+  await page.waitForFunction(() => Boolean(window.__pid))
+
+  // one click drops a complete flow loop, numbered per component type
+  await page.locator('.typical-entry', { hasText: 'Flow control' }).click()
+  const tags = await page.evaluate(() =>
+    window.__pid.useStore.getState().doc.sheets[0].nodes
+      .map((n: any) => (n.tag ? `${n.tag.letters}-${n.tag.loop}` : '?'))
+      .sort(),
+  )
+  expect(tags).toEqual(['FE-100', 'FIC-100', 'FT-100', 'FV-100', 'FY-100'])
+
+  // wire an electric signal straight into a diaphragm valve -> advisor offers the fix
+  await page.evaluate(() => {
+    const s = window.__pid.useStore.getState()
+    const lic = s.addNode({ symbolId: 'instr.bubble', kind: 'instrument', x: 480, y: 96, rotation: 0, tag: { letters: 'LIC', loop: '100' } })
+    const lv = s.addNode({ symbolId: 'cv.globe', kind: 'valve', x: 476, y: 320, rotation: 0, config: { actuator: 'diaphragm', fail: 'fc' }, tag: { letters: 'LV', loop: '100' } })
+    s.addEdge({ lineClass: 'signal.electric', source: { nodeId: lic, portId: 's' }, target: { nodeId: lv, portId: 'sig' } })
+  })
+  await page.locator('.drawer-tabs button', { hasText: 'Advisor' }).click()
+  await expect(page.locator('.advisor-fix')).toHaveCount(1)
+  await page.locator('.advisor-fix').click()
+  const converters = await page.evaluate(() =>
+    window.__pid.useStore.getState().doc.sheets[0].nodes
+      .filter((n: any) => n.symbolId === 'instr.converter')
+      .map((n: any) => `${n.tag.letters}-${n.tag.loop}`),
+  )
+  expect(converters).toContain('LY-100')
+  await expect(page.locator('.advisor-fix')).toHaveCount(0)
+})
+
 test('port dots show only on hover or while linking; nodes resize from the panel', async ({ page }) => {
   await page.goto('/')
   await page.waitForFunction(() => Boolean(window.__pid))

@@ -4,6 +4,7 @@ import { getSymbol } from '../symbols/registry'
 import type { NodeKind } from '../model/types'
 import type { SymbolDef } from '../symbols/types'
 import { nextLoopNumber } from '../isa/autonumber'
+import { buildTypical } from '../assist/typicals'
 import { useStore } from '../store/store'
 import { canvasRef } from './paperSetup'
 
@@ -43,6 +44,18 @@ export function placeAtCenter(symbolId: string): void {
   if (def.defaultConfig) node.config = { ...def.defaultConfig }
   const id = store.addNode(node)
   store.setSelection([id])
+}
+
+/** Place a fully wired typical loop with its top-left near the canvas center. */
+export function placeTypicalAtCenter(typicalId: string): void {
+  const paper = canvasRef.paper
+  if (!paper) return
+  const el = paper.el as HTMLElement
+  const rect = el.getBoundingClientRect()
+  const local = paper.clientToLocalPoint({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
+  const store = useStore.getState()
+  const { nodes, edges } = buildTypical(typicalId, store.doc, { x: local.x - 96, y: local.y - 96 })
+  store.addBatch(nodes, edges)
 }
 
 export function attachDropHandling(host: HTMLElement, paper: dia.Paper): () => void {

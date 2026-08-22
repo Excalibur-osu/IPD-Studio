@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { byCategory, searchSymbols } from '../symbols/registry'
-import { placeAtCenter } from '../canvas/dropHandling'
+import { placeAtCenter, placeTypicalAtCenter } from '../canvas/dropHandling'
+import { TYPICALS } from '../assist/typicals'
 import { useStore } from '../store/store'
 import SymbolImportDialog from './SymbolImportDialog'
 import type { SymbolCategory, SymbolDef } from '../symbols/types'
@@ -98,6 +99,27 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
       </div>
       <button className="palette-import" onClick={() => setImportOpen(true)}>＋ Import symbol…</button>
       {importOpen && <SymbolImportDialog onClose={() => setImportOpen(false)} />}
+      {!query && (
+        <section>
+          <button className="palette-cat" onClick={() => toggle('typicals')}>
+            {!collapsed.has('typicals') ? '▾' : '▸'} Typical Loops
+          </button>
+          {!collapsed.has('typicals') && (
+            <div className="typical-list">
+              {TYPICALS.map((t) => (
+                <button
+                  key={t.id}
+                  className="typical-entry"
+                  title={`Place a wired, tagged ${t.name.toLowerCase()}`}
+                  onClick={() => placeTypicalAtCenter(t.id)}
+                >
+                  ⚡ {t.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
       {results ? (
         <div className="palette-grid">
           {results.map((def) => (

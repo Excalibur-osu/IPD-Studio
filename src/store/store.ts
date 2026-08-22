@@ -28,6 +28,9 @@ export interface StoreState {
   addCustomSymbol(def: CustomSymbolDef): void
   removeCustomSymbol(id: string): void
   setMeta(patch: Partial<ProjectDoc['meta']>): void
+  setSettings(patch: Partial<ProjectDoc['settings']>): void
+  /** Add a prebuilt group of nodes/edges (and optionally drop edges) as ONE undo step. */
+  addBatch(nodes: PlantNode[], edges: PlantEdge[], deleteEdgeIds?: string[]): void
   setSheetMeta(patch: Partial<Pick<Sheet, 'name' | 'drawingNumber' | 'revision' | 'sheetSize'>>): void
   addSheet(): string
   renameSheet(id: string, name: string): void
@@ -154,6 +157,20 @@ export const useStore = create<StoreState>()(
 
         setMeta(patch) {
           set((s) => ({ doc: touched({ ...s.doc, meta: { ...s.doc.meta, ...patch } }), dirty: true }))
+        },
+
+        setSettings(patch) {
+          set((s) => ({ doc: touched({ ...s.doc, settings: { ...s.doc.settings, ...patch } }), dirty: true }))
+        },
+
+        addBatch(nodes, edges, deleteEdgeIds) {
+          const drop = new Set(deleteEdgeIds ?? [])
+          patchSheet((sh) => ({
+            ...sh,
+            nodes: [...sh.nodes, ...nodes],
+            edges: [...sh.edges.filter((e) => !drop.has(e.id)), ...edges],
+          }))
+          set({ selection: nodes.map((n) => n.id) })
         },
 
         setSheetMeta(patch) {

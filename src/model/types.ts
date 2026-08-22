@@ -113,7 +113,12 @@ export interface CustomSymbolDef {
 export interface ProjectDoc {
   schemaVersion: 3
   meta: ProjectMeta
-  settings: { gridPx: number; tagSeparator: '-' | '' }
+  settings: {
+    gridPx: number
+    tagSeparator: '-' | ''
+    /** Auto-numbering base per component type: 100 (default) or 1 (shown 001). */
+    numberStart?: 100 | 1
+  }
   sheets: Sheet[]
   customSymbols?: CustomSymbolDef[]
 }
@@ -125,4 +130,6 @@ export interface Finding {
   message: string
   targetId?: string
   sheetId?: string
+  /** Absent = error; 'suggestion' items render in the Advisor tab instead. */
+  severity?: 'suggestion'
 }
