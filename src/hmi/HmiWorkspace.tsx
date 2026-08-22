@@ -43,10 +43,30 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   const alarms = useSimStore((s) => s.alarms)
   const history = useSimStore((s) => s.history)
 
-  useEffect(() => { setSelection([]); setTool('select'); setFaceplate(null) }, [activeScreenId])
+  useEffect(() => {
+    setSelection([])
+    setTool('select')
+    setFaceplate(null)
+    // switching screens mid-RUN would leave the sim ticking a stale model
+    useSimStore.getState().exitRun()
+  }, [activeScreenId])
   useEffect(() => { setFaceplate(null) }, [mode])
   // leaving the workspace (unmount) stops any running simulation
   useEffect(() => () => useSimStore.getState().exitRun(), [])
+  // the P&ID canvas owns these shortcuts normally; it is unmounted here
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement
+      if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) return
+      if (!(e.ctrlKey || e.metaKey)) return
+      const k = e.key.toLowerCase()
+      if (k === 'z') { e.preventDefault(); if (e.shiftKey) useStore.getState().redo(); else useStore.getState().undo() }
+      else if (k === 'y') { e.preventDefault(); useStore.getState().redo() }
+      else if (k === 's') { e.preventDefault(); void import('../persist/file').then((m) => m.saveFile()) }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   return (
     <div className={`hmi${mode === 'run' ? ' run-mode' : ''}`}>

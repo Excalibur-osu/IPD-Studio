@@ -71,16 +71,16 @@ const WidgetG = memo(
     prev.editing === next.editing &&
     prev.ox === next.ox &&
     prev.oy === next.oy &&
-    (prev.history === next.history ||
-      (prev.history !== undefined && next.history !== undefined &&
-        prev.history.length === next.history.length &&
-        prev.history[prev.history.length - 1] === next.history[next.history.length - 1])) &&
+    // identity only: history arrays are rebuilt each tick for bound tags, so
+    // trends re-render every tick (correct — samples scroll even when PV is
+    // flat at the cap); unbound widgets pass undefined === undefined
+    prev.history === next.history &&
     shallowEq(prev.values, next.values),
 )
 
 type DragState =
   | { kind: 'move'; start: { x: number; y: number } }
-  | { kind: 'resize'; handle: Handle; start: { x: number; y: number }; orig: { x: number; y: number; w: number; h: number }; id: string }
+  | { kind: 'resize'; handle: Handle; start: { x: number; y: number }; orig: { x: number; y: number; w: number; h: number }; id: string; live?: { x: number; y: number; w: number; h: number } }
   | null
 
 export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onToolDone, sim, flows, history, alarms, onWidgetClick }: HmiCanvasProps) {
@@ -162,14 +162,19 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
     if (drag.kind === 'move') {
       setGhost({ dx: snap8(pt.x - drag.start.x), dy: snap8(pt.y - drag.start.y) })
     } else {
-      const r = resizeRect(drag.orig, drag.handle, snap8(pt.x - drag.start.x), snap8(pt.y - drag.start.y))
-      st().updateWidget(drag.id, r)
+      // live-preview only; the store commit happens once on pointerup so a
+      // resize gesture is ONE undo step, not hundreds
+      const live = resizeRect(drag.orig, drag.handle, snap8(pt.x - drag.start.x), snap8(pt.y - drag.start.y))
+      setDrag({ ...drag, live })
     }
   }
 
   const onPointerUp = () => {
     if (drag?.kind === 'move' && ghost && (ghost.dx !== 0 || ghost.dy !== 0)) {
       st().moveWidgets(selection.filter((id) => screen.widgets.some((w) => w.id === id)), ghost.dx, ghost.dy)
+    }
+    if (drag?.kind === 'resize' && drag.live) {
+      st().updateWidget(drag.id, drag.live)
     }
     setDrag(null)
     setGhost(null)
@@ -236,7 +241,8 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
           </g>
         )
       })}
-      {screen.widgets.map((w) => {
+      {screen.widgets.map((raw) => {
+        const w = drag?.kind === 'resize' && drag.id === raw.id && drag.live ? { ...raw, ...drag.live } : raw
         const o = offset(w.id)
         const values: Record<string, number> = { ...(sim?.[w.tag ?? ''] ?? {}) }
         const signal = typeof w.props?.signal === 'string' ? w.props.signal : ''
@@ -258,8 +264,9 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
         </g>
       )}
       {mode === 'edit' && tool === 'select' && selection.length === 1 && (() => {
-        const w = screen.widgets.find((x) => x.id === selection[0])
-        if (!w) return null
+        const found = screen.widgets.find((x) => x.id === selection[0])
+        if (!found) return null
+        const w = drag?.kind === 'resize' && drag.id === found.id && drag.live ? { ...found, ...drag.live } : found
         const o = offset(w.id)
         return HANDLES.map((h) => {
           const p = handlePoint({ x: w.x + o.dx, y: w.y + o.dy, w: w.w, h: w.h }, h)

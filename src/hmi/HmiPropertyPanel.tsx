@@ -1,5 +1,8 @@
-import { useStore, activeHmiScreen } from '../store/store'
+import { useStore, activeHmiScreen, pauseHistory, resumeHistory } from '../store/store'
 import type { HmiWidget } from './model'
+
+/** Group a typing burst into one undo step (same pattern as the P&ID panels). */
+const burst = (apply: () => void) => { apply(); pauseHistory() }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -15,12 +18,13 @@ function NumProp({ w, k, label }: { w: HmiWidget; k: string; label: string }) {
   return (
     <Row label={label}>
       <input type="number" style={{ width: 70 }} value={typeof v === 'number' ? v : ''} placeholder="auto"
-        onChange={(e) => {
+        onBlur={resumeHistory}
+        onChange={(e) => burst(() => {
           const props = { ...w.props }
           if (e.target.value === '') delete props[k]
           else props[k] = Number(e.target.value)
           updateWidget(w.id, { props })
-        }} />
+        })} />
     </Row>
   )
 }
@@ -30,7 +34,8 @@ function StrProp({ w, k, label, placeholder }: { w: HmiWidget; k: string; label:
   return (
     <Row label={label}>
       <input style={{ width: 110 }} value={typeof w.props?.[k] === 'string' ? String(w.props[k]) : ''} placeholder={placeholder}
-        onChange={(e) => updateWidget(w.id, { props: { ...w.props, [k]: e.target.value } })} />
+        onBlur={resumeHistory}
+        onChange={(e) => burst(() => updateWidget(w.id, { props: { ...w.props, [k]: e.target.value } }))} />
     </Row>
   )
 }
@@ -73,7 +78,8 @@ export default function HmiPropertyPanel({ selection }: { selection: string[] })
 
   const geom = (k: 'x' | 'y' | 'w' | 'h') => (
     <input key={k} type="number" style={{ width: 56 }} value={w[k]}
-      onChange={(e) => updateWidget(w.id, { [k]: Number(e.target.value) || 0 })} />
+      onBlur={resumeHistory}
+      onChange={(e) => burst(() => updateWidget(w.id, { [k]: Number(e.target.value) || 0 }))} />
   )
 
   return (
@@ -81,11 +87,13 @@ export default function HmiPropertyPanel({ selection }: { selection: string[] })
       <h4>{w.type}</h4>
       <Row label="Tag">
         <input style={{ width: 110 }} value={w.tag ?? ''} placeholder="e.g. LT-101"
-          onChange={(e) => updateWidget(w.id, { tag: e.target.value || undefined })} />
+          onBlur={resumeHistory}
+          onChange={(e) => burst(() => updateWidget(w.id, { tag: e.target.value || undefined }))} />
       </Row>
       <Row label="Label">
         <input style={{ width: 110 }} value={w.label ?? ''}
-          onChange={(e) => updateWidget(w.id, { label: e.target.value || undefined })} />
+          onBlur={resumeHistory}
+          onChange={(e) => burst(() => updateWidget(w.id, { label: e.target.value || undefined }))} />
       </Row>
       <Row label="X / Y">{geom('x')}{geom('y')}</Row>
       <Row label="W / H">{geom('w')}{geom('h')}</Row>

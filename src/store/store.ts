@@ -75,9 +75,11 @@ export function activeSheet(s: Pick<StoreState, 'doc' | 'activeSheetId'>): Sheet
   return s.doc.sheets.find((sh) => sh.id === s.activeSheetId) ?? s.doc.sheets[0]!
 }
 
-/** The HMI screen all widget/pipe actions and the HMI canvas operate on. */
+/** The HMI screen all widget/pipe actions and the HMI canvas operate on.
+ *  Falls back to the first screen when the active id is stale (e.g. an undo
+ *  removed the screen it pointed at); null only when no screens exist. */
 export function activeHmiScreen(s: Pick<StoreState, 'doc' | 'activeScreenId'>): HmiScreen | null {
-  return s.doc.hmiScreens.find((sc) => sc.id === s.activeScreenId) ?? null
+  return s.doc.hmiScreens.find((sc) => sc.id === s.activeScreenId) ?? s.doc.hmiScreens[0] ?? null
 }
 
 function touched(doc: ProjectDoc): ProjectDoc {

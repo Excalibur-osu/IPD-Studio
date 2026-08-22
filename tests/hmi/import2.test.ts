@@ -47,6 +47,15 @@ describe('importSheet', () => {
     const lt = screen.widgets.find((w) => w.tag === 'LT-101')!
     expect(lt.props?.bindTank).toBe('TK-101')
   })
+  it('impulse tubing never becomes a flow pipe (would read as a phantom source)', () => {
+    const doc = docWith(
+      [N('tk', VESSEL, 'equipment', 500, 60, { tag: { letters: 'TK', loop: '1' } }), N('lt', BUBBLE, 'instrument', 700, 90, { tag: { letters: 'LT', loop: '1' } })],
+      [{ id: 'imp', lineClass: 'process.impulse', source: { nodeId: 'lt', portId: 'w' }, target: { nodeId: 'tk', portId: 'e' } }],
+    )
+    const screen = importSheet(doc, doc.sheets[0]!.id)
+    expect(screen.pipes).toHaveLength(0)
+    expect(buildNetwork(screen).branches).toHaveLength(0)
+  })
   it('scales an oversized layout into the world with margin', () => {
     const doc = docWith([N('a', VESSEL, 'equipment', 3000, 2000)], [])
     const screen = importSheet(doc, doc.sheets[0]!.id)

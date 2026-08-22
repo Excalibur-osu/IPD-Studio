@@ -82,6 +82,10 @@ export function mapNodes(sheet: Sheet, separator: '-' | ''): { widgets: HmiWidge
 
 const isProcess = (lc: PlantEdge['lineClass']) => lc.startsWith('process') || lc.startsWith('pipe.')
 
+/** Edges that become HMI pipes: process/pipe runs, but NOT impulse tubing —
+ *  an imported impulse stub would read as a free-ended flow source. */
+const isPipeWorthy = (lc: PlantEdge['lineClass']) => isProcess(lc) && lc !== 'process.impulse'
+
 function nodeSize(node: PlantNode): { w: number; h: number } {
   const scale = node.scale ?? 1
   try {
@@ -148,7 +152,7 @@ export function importSheet(doc: ProjectDoc, sheetId: string): HmiScreen {
     if (binding.bindTank ?? binding.bindPipe) widget.props = { ...widget.props, ...binding }
   }
 
-  const pipes: HmiPipe[] = sheet.edges.filter((e) => isProcess(e.lineClass)).map((e) => ({
+  const pipes: HmiPipe[] = sheet.edges.filter((e) => isPipeWorthy(e.lineClass)).map((e) => ({
     id: ulid(),
     flowRef: e.id,
     points: [endPoint(e.source, nodesById), ...(e.vertices ?? []), endPoint(e.target, nodesById)],

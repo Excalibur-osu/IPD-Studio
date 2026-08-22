@@ -53,12 +53,17 @@ function defFor(w: HmiWidget): TagDef | null {
   }
 }
 
-/** One TagDef per distinct widget tag; the first widget carrying a tag wins. */
+/** One TagDef per distinct widget tag. Physical kinds (tank/motor/valve/
+ *  controller) outrank plain displays, so a Trend placed before its Tank
+ *  cannot demote the tag to a drifting display. */
 export function buildTagDefs(screen: HmiScreen): TagDef[] {
+  const rank = (k: TagKind) => (k === 'display' ? 1 : 2)
   const out = new Map<string, TagDef>()
   for (const w of screen.widgets) {
     const d = defFor(w)
-    if (d && !out.has(d.name)) out.set(d.name, d)
+    if (!d) continue
+    const existing = out.get(d.name)
+    if (!existing || rank(d.kind) > rank(existing.kind)) out.set(d.name, d)
   }
   return [...out.values()]
 }

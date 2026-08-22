@@ -32,12 +32,14 @@ function widgetAt(screen: HmiScreen, p: { x: number; y: number }): HmiWidget | n
 export function buildNetwork(screen: HmiScreen): FlowNetwork {
   const start = new Map<string, HmiPipe[]>()
   const ends = new Map<HmiPipe, { a: HmiWidget | null; b: HmiWidget | null }>()
+  const hasInflow = new Set<string>()
   for (const p of screen.pipes) {
     if (p.points.length < 2) continue
     const a = widgetAt(screen, p.points[0]!)
     const b = widgetAt(screen, p.points[p.points.length - 1]!)
     ends.set(p, { a, b })
     if (a) start.set(a.id, [...(start.get(a.id) ?? []), p])
+    if (b) hasInflow.add(b.id)
   }
   const inline = (w: HmiWidget | null): w is HmiWidget =>
     !!w && (w.type === 'pump' || w.type === 'valve' || w.type === 'symbol')
@@ -49,9 +51,13 @@ export function buildNetwork(screen: HmiScreen): FlowNetwork {
   for (const p of screen.pipes) {
     if (!ends.has(p) || used.has(p.id)) continue
     const { a } = ends.get(p)!
-    // only begin a branch at a non-inline start (tank / free end), or an inline
-    // element nothing flows into (dangling chain head)
-    if (inline(a) && screen.pipes.some((q) => q !== p && !used.has(q.id) && ends.get(q)?.b?.id === a.id)) continue
+    // Only begin a branch at a non-inline start (tank / free end), or an inline
+    // element nothing flows into (a dangling chain head). The inflow test is
+    // computed over ALL pipes, not just unwalked ones — otherwise a second
+    // outgoing pipe of an already-walked pump would masquerade as a fresh
+    // source and fabricate flow. Such surplus fan-out pipes join no branch
+    // and simply carry no flow (the v1 solver is single-path per chain).
+    if (inline(a) && hasInflow.has(a.id)) continue
 
     const branch: Branch = {
       id: `B${++n}`,

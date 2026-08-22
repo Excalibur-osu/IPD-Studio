@@ -34,6 +34,14 @@ describe('buildTagDefs', () => {
     expect(by['LT-1']).toMatchObject({ kind: 'display', bindTank: 'TK-1' })
     expect(by['LIC-1']!.kind).toBe('controller')
   })
+  it('a physical widget outranks a display sharing its tag, regardless of order', () => {
+    const defs = buildTagDefs(screen([
+      { id: '1', type: 'trend', x: 0, y: 0, w: 192, h: 96, tag: 'TK-1' },
+      { id: '2', type: 'tank', x: 0, y: 0, w: 96, h: 128, tag: 'TK-1' },
+    ]))
+    expect(defs).toHaveLength(1)
+    expect(defs[0]!.kind).toBe('tank')
+  })
   it('dedupes repeated tags and skips untagged/static widgets', () => {
     const defs = buildTagDefs(screen([
       { id: '1', type: 'display', x: 0, y: 0, w: 96, h: 40, tag: 'FT-1' },
