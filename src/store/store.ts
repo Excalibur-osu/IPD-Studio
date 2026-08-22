@@ -5,6 +5,8 @@ import type { CustomSymbolDef, PlantEdge, PlantNode, ProjectDoc, Sheet, Tag } fr
 import { registerCustomSymbols } from '../symbols/custom'
 import { isPortEnd } from '../model/types'
 import { createEmptyDoc, createSheet } from '../model/doc'
+import type { HmiPipe, HmiScreen, HmiTheme, HmiWidget } from '../hmi/model'
+import { createScreen } from '../hmi/model'
 
 export interface StoreState {
   doc: ProjectDoc
@@ -50,11 +52,32 @@ export interface StoreState {
   markSaved(): void
   undo(): void
   redo(): void
+
+  /** HMI Studio slice — screens live in doc.hmiScreens; edits are undoable. */
+  activeScreenId: string | null
+  setActiveScreen(id: string): void
+  addScreen(): string
+  addImportedScreen(screen: HmiScreen): void
+  replaceScreen(screen: HmiScreen): void
+  renameScreen(id: string, name: string): void
+  deleteScreen(id: string): void
+  setScreenTheme(id: string, theme: HmiTheme): void
+  addWidget(partial: Omit<HmiWidget, 'id'>): string
+  updateWidget(id: string, patch: Partial<Omit<HmiWidget, 'id'>>): void
+  moveWidgets(ids: string[], dx: number, dy: number): void
+  addHmiPipe(partial: Omit<HmiPipe, 'id'>): string
+  updateHmiPipe(id: string, patch: Partial<Omit<HmiPipe, 'id'>>): void
+  deleteHmiIds(ids: string[]): void
 }
 
 /** The sheet all node/edge actions and the canvas operate on. */
 export function activeSheet(s: Pick<StoreState, 'doc' | 'activeSheetId'>): Sheet {
   return s.doc.sheets.find((sh) => sh.id === s.activeSheetId) ?? s.doc.sheets[0]!
+}
+
+/** The HMI screen all widget/pipe actions and the HMI canvas operate on. */
+export function activeHmiScreen(s: Pick<StoreState, 'doc' | 'activeScreenId'>): HmiScreen | null {
+  return s.doc.hmiScreens.find((sc) => sc.id === s.activeScreenId) ?? null
 }
 
 function touched(doc: ProjectDoc): ProjectDoc {
@@ -77,9 +100,25 @@ export const useStore = create<StoreState>()(
         }))
       }
 
+      /** Immutably replace the active HMI screen via an updater. */
+      const patchScreen = (updater: (screen: HmiScreen) => HmiScreen) => {
+        set((s) => {
+          const id = s.activeScreenId
+          if (!id) return s
+          return {
+            doc: touched({
+              ...s.doc,
+              hmiScreens: s.doc.hmiScreens.map((sc) => (sc.id === id ? updater(sc) : sc)),
+            }),
+            dirty: true,
+          }
+        })
+      }
+
       return {
         doc: initialDoc,
         activeSheetId: initialDoc.sheets[0]!.id,
+        activeScreenId: null,
         selection: [],
         dirty: false,
         activeLineClass: 'process.major',
@@ -324,8 +363,99 @@ export const useStore = create<StoreState>()(
 
         loadIntoStore(doc) {
           registerCustomSymbols(doc)
-          set({ doc, activeSheetId: doc.sheets[0]!.id, selection: [], dirty: false })
+          set({ doc, activeSheetId: doc.sheets[0]!.id, activeScreenId: doc.hmiScreens[0]?.id ?? null, selection: [], dirty: false })
           useStore.temporal.getState().clear()
+        },
+
+        setActiveScreen(id) {
+          if (get().doc.hmiScreens.some((sc) => sc.id === id)) set({ activeScreenId: id })
+        },
+
+        addScreen() {
+          const screen = createScreen(get().doc.hmiScreens.length + 1)
+          set((s) => ({
+            doc: touched({ ...s.doc, hmiScreens: [...s.doc.hmiScreens, screen] }),
+            activeScreenId: screen.id,
+            dirty: true,
+          }))
+          return screen.id
+        },
+
+        addImportedScreen(screen) {
+          set((s) => ({
+            doc: touched({ ...s.doc, hmiScreens: [...s.doc.hmiScreens, screen] }),
+            activeScreenId: screen.id,
+            dirty: true,
+          }))
+        },
+
+        replaceScreen(screen) {
+          set((s) => ({
+            doc: touched({ ...s.doc, hmiScreens: s.doc.hmiScreens.map((sc) => (sc.id === screen.id ? screen : sc)) }),
+            dirty: true,
+          }))
+        },
+
+        renameScreen(id, name) {
+          set((s) => ({
+            doc: touched({ ...s.doc, hmiScreens: s.doc.hmiScreens.map((sc) => (sc.id === id ? { ...sc, name } : sc)) }),
+            dirty: true,
+          }))
+        },
+
+        deleteScreen(id) {
+          set((s) => {
+            const rest = s.doc.hmiScreens.filter((sc) => sc.id !== id)
+            return {
+              doc: touched({ ...s.doc, hmiScreens: rest }),
+              activeScreenId: s.activeScreenId === id ? (rest[0]?.id ?? null) : s.activeScreenId,
+              dirty: true,
+            }
+          })
+        },
+
+        setScreenTheme(id, theme) {
+          set((s) => ({
+            doc: touched({ ...s.doc, hmiScreens: s.doc.hmiScreens.map((sc) => (sc.id === id ? { ...sc, theme } : sc)) }),
+            dirty: true,
+          }))
+        },
+
+        addWidget(partial) {
+          const id = ulid()
+          patchScreen((sc) => ({ ...sc, widgets: [...sc.widgets, { ...partial, id }] }))
+          return id
+        },
+
+        updateWidget(id, patch) {
+          patchScreen((sc) => ({ ...sc, widgets: sc.widgets.map((w) => (w.id === id ? { ...w, ...patch } : w)) }))
+        },
+
+        moveWidgets(ids, dx, dy) {
+          const idSet = new Set(ids)
+          patchScreen((sc) => ({
+            ...sc,
+            widgets: sc.widgets.map((w) => (idSet.has(w.id) ? { ...w, x: w.x + dx, y: w.y + dy } : w)),
+          }))
+        },
+
+        addHmiPipe(partial) {
+          const id = ulid()
+          patchScreen((sc) => ({ ...sc, pipes: [...sc.pipes, { ...partial, id }] }))
+          return id
+        },
+
+        updateHmiPipe(id, patch) {
+          patchScreen((sc) => ({ ...sc, pipes: sc.pipes.map((p) => (p.id === id ? { ...p, ...patch } : p)) }))
+        },
+
+        deleteHmiIds(ids) {
+          const idSet = new Set(ids)
+          patchScreen((sc) => ({
+            ...sc,
+            widgets: sc.widgets.filter((w) => !idSet.has(w.id)),
+            pipes: sc.pipes.filter((p) => !idSet.has(p.id)),
+          }))
         },
 
         markSaved() {
