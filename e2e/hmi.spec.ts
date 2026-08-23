@@ -74,6 +74,40 @@ test('operate a hand-built screen: start pump, watch it fill, alarm, ack', async
   await page.getByTestId('hmi-run-toggle').click()
 })
 
+test('marquee select, duplicate, and navigate a running plant', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.goto('/')
+  await page.getByTestId('open-hmi').click()
+  await page.getByRole('button', { name: 'New screen' }).click()
+  await page.getByText('Tank', { exact: true }).dblclick()
+  await page.getByText('Pump', { exact: true }).dblclick()
+  const canvas = page.getByTestId('hmi-canvas')
+  await expect(canvas.locator('g.hmi-widget')).toHaveCount(2)
+  const box = (await canvas.boundingBox())!
+  const at = (wx: number, wy: number) => ({ x: box.x + (wx / 1600) * box.width, y: box.y + (wy / 1000) * box.height })
+  // rubber-band from an empty corner over both widgets
+  let p = at(80, 60)
+  await page.mouse.move(p.x, p.y)
+  await page.mouse.down()
+  p = at(900, 700)
+  await page.mouse.move(p.x, p.y, { steps: 6 })
+  await page.mouse.up()
+  await expect(page.getByRole('heading', { name: '2 selected' })).toBeVisible()
+  // duplicate the pair from the keyboard
+  await page.keyboard.press('ControlOrMeta+d')
+  await expect(canvas.locator('g.hmi-widget')).toHaveCount(4)
+  // second screen, then RUN plant-wide and navigate back while running
+  await page.getByTitle('Add screen').click()
+  await expect(page.locator('.hmi-tab.active')).toContainText('Screen 2')
+  await page.getByTestId('hmi-run-toggle').click()
+  await page.locator('.hmi-tab', { hasText: 'Screen 1' }).click()
+  await expect(canvas.locator('g.hmi-widget')).toHaveCount(4)
+  // still running: navigation did not stop the sim
+  await expect(page.getByTestId('hmi-run-toggle')).toContainText('Stop')
+  await expect(page.getByTestId('sim-clock')).toBeVisible()
+  await page.getByTestId('hmi-run-toggle').click()
+})
+
 test('build an HMI screen by hand and keep it across reload', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.goto('/')

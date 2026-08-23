@@ -109,24 +109,26 @@ function endPoint(end: PlantEdge['source'], nodes: Map<string, PlantNode>): { x:
   return { x: node.x + w / 2, y: node.y + h / 2 }
 }
 
-/** ≤2-hop neighborhood walk from an instrument node over ALL edges: first
- *  vessel found wins as bindTank; else the first process edge as bindPipe. */
-function findBinding(sheet: Sheet, nodeId: string, ctx: ImportCtx): { bindTank?: string; bindPipe?: string } {
+/** ≤2-hop neighborhood walk from an instrument node over ALL edges, looking
+ *  for what this instrument's ISA family actually measures: 'tank' walks to
+ *  the nearest vessel (level), 'pipe' to the nearest process run (flow). */
+function findBinding(sheet: Sheet, nodeId: string, ctx: ImportCtx, want: 'tank' | 'pipe'): { bindTank?: string; bindPipe?: string } {
   const nodesById = new Map(sheet.nodes.map((n) => [n.id, n]))
   let frontier = [nodeId]
   const seen = new Set(frontier)
-  let processEdge: string | undefined
   for (let hop = 0; hop < 2; hop++) {
     const next: string[] = []
     for (const edge of sheet.edges) {
       const ids = [edge.source, edge.target].filter(isPortEnd).map((e) => e.nodeId)
       if (!ids.some((id) => frontier.includes(id))) continue
-      if (isProcess(edge.lineClass) && !processEdge) processEdge = edge.id
+      // only edges that became HMI pipes can be flow-bound — an impulse line
+      // would fail the retarget and leave the instrument silently unbound
+      if (want === 'pipe' && isPipeWorthy(edge.lineClass)) return { bindPipe: edge.id }
       for (const id of ids) {
         if (seen.has(id)) continue
         seen.add(id)
         const n = nodesById.get(id)
-        if (n && n.kind === 'equipment' && categoryOf(n) === 'vessels') {
+        if (want === 'tank' && n && n.kind === 'equipment' && categoryOf(n) === 'vessels') {
           const tank = ctx.nameOf.get(id)
           if (tank) return { bindTank: tank }
         }
@@ -135,7 +137,7 @@ function findBinding(sheet: Sheet, nodeId: string, ctx: ImportCtx): { bindTank?:
     }
     frontier = next
   }
-  return processEdge ? { bindPipe: processEdge } : {}
+  return {}
 }
 
 /** Full import: widgets + pipes + measurement bindings, scaled into HMI_WORLD. */
@@ -145,13 +147,19 @@ export function importSheet(doc: ProjectDoc, sheetId: string): HmiScreen {
   const { widgets, ctx } = mapNodes(sheet, doc.settings.tagSeparator)
   const nodesById = new Map(sheet.nodes.map((n) => [n.id, n]))
 
-  // transmitter bindings
+  // measurement bindings: transmitters, indicators, and primary elements all
+  // read the process (a controller gets its PV from loop pairing instead).
+  // Family decides the physics: L measures a vessel's level, F a pipe's flow;
+  // other families (T, P, …) have no bulk model and keep demo values.
   for (const node of sheet.nodes) {
-    if (node.kind !== 'instrument' || !(node.tag?.letters ?? '').endsWith('T')) continue
+    const letters = node.tag?.letters ?? ''
+    if (node.kind !== 'instrument' || !/[TIE]$/.test(letters)) continue
+    const want = letters.startsWith('L') ? 'tank' as const : letters.startsWith('F') ? 'pipe' as const : null
+    if (!want) continue
     const name = ctx.nameOf.get(node.id)
     const widget = widgets.find((w) => w.tag === name)
     if (!widget) continue
-    const binding = findBinding(sheet, node.id, ctx)
+    const binding = findBinding(sheet, node.id, ctx, want)
     if (binding.bindTank ?? binding.bindPipe) widget.props = { ...widget.props, ...binding }
   }
 

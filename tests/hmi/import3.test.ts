@@ -49,6 +49,30 @@ describe('import professionalism', () => {
     expect(by['FT-3']!.props?.unit).toBe('m³/h')
     expect(by['ZS-4']!.props?.unit).toBeUndefined()
   })
+  it('binding is ISA-family-aware: F binds flow through the impulse hop, T stays unbound', () => {
+    const end = (nodeId: string) => ({ nodeId, portId: 'c' })
+    const sh = sheet(
+      [
+        N('ft', BUBBLE, 'instrument', 100, 0, { tag: { letters: 'FT', loop: '1' } }),
+        N('tt', BUBBLE, 'instrument', 400, 0, { tag: { letters: 'TT', loop: '2' } }),
+        N('gv', 'valve.gate', 'valve', 100, 100),
+      ],
+      [
+        { id: 'imp', lineClass: 'process.impulse', source: end('ft'), target: end('gv') },
+        { id: 'imp2', lineClass: 'process.impulse', source: end('tt'), target: end('gv') },
+        { id: 'run', lineClass: 'process', source: end('gv'), target: { x: 500, y: 100 } },
+      ] as Sheet['edges'],
+    )
+    const screen = importSheet(docWith(sh), 'sh1')
+    const by = Object.fromEntries(screen.widgets.map((w) => [w.tag, w]))
+    // FT walked through the impulse line to the process run; the ref was
+    // retargeted to the imported pipe id
+    expect(by['FT-1']!.props?.bindPipe).toBe(screen.pipes[0]!.id)
+    // TT has no bulk model: no binding at all
+    expect(by['TT-2']!.props?.bindPipe).toBeUndefined()
+    expect(by['TT-2']!.props?.bindTank).toBeUndefined()
+  })
+
   it('imported process pipes carry the artery width', () => {
     const sh = sheet(
       [N('1', VESSEL, 'equipment', 0, 0, { tag: { letters: 'TK', loop: '1' } })],
