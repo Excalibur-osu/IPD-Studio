@@ -25,7 +25,7 @@ function defFor(w: HmiWidget): TagDef | null {
     case 'tank':
       return {
         name: w.tag, kind: 'tank', unit: '%', min: 0, max: 100,
-        capacity: num(p.capacity) ?? (w.w * w.h) / 75,
+        capacity: num(p.capacity) ?? (w.w * w.h) / 40,
         level0: num(p.level0) ?? 40,
         limits: { LL: num(p.LL) ?? 5, L: num(p.L) ?? 10, H: num(p.H) ?? 90, HH: num(p.HH) ?? 95 },
       }

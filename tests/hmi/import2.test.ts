@@ -63,6 +63,34 @@ describe('importSheet', () => {
     expect(w.x + w.w).toBeLessThanOrEqual(1600)
     expect(w.y + w.h).toBeLessThanOrEqual(1000)
   })
+  it('imported pipes are orthogonal (no diagonal segments)', () => {
+    const doc = docWith(
+      [N('pu', PUMP, 'equipment', 100, 100), N('tk', VESSEL, 'equipment', 500, 300)],
+      [{ id: 'e1', lineClass: 'process.major', source: { nodeId: 'pu', portId: 'discharge' }, target: { nodeId: 'tk', portId: 'w' } }],
+    )
+    const screen = importSheet(doc, doc.sheets[0]!.id)
+    for (const p of screen.pipes) {
+      for (let i = 0; i + 1 < p.points.length; i++) {
+        const a = p.points[i]!, b = p.points[i + 1]!
+        expect(Math.abs(a.x - b.x) <= 6 || Math.abs(a.y - b.y) <= 6).toBe(true)
+      }
+    }
+  })
+  it('display widgets are nudged off equipment they overlap', () => {
+    const doc = docWith(
+      [
+        N('tk', VESSEL, 'equipment', 500, 60, { tag: { letters: 'TK', loop: '1' } }),
+        N('lt', BUBBLE, 'instrument', 510, 80, { tag: { letters: 'LT', loop: '1' } }), // bubble ON the vessel
+      ],
+      [],
+    )
+    const screen = importSheet(doc, doc.sheets[0]!.id)
+    const tank = screen.widgets.find((w) => w.type === 'tank')!
+    const lt = screen.widgets.find((w) => w.tag === 'LT-1')!
+    const overlap =
+      lt.x < tank.x + tank.w && lt.x + lt.w > tank.x && lt.y < tank.y + tank.h && lt.y + lt.h > tank.y
+    expect(overlap).toBe(false)
+  })
   it('imports the shipped sample plant end-to-end', () => {
     const doc = loadDoc(samplePlant)
     const screen = importSheet(doc, doc.sheets[0]!.id)

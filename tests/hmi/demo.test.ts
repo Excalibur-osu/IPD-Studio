@@ -15,7 +15,7 @@ describe('HMI demo template', () => {
   it('compiles to a working control loop: pump on -> LIC holds level at SP', () => {
     const doc = loadDoc(demo)
     const model = buildSimModel(doc.hmiScreens[0]!)
-    expect(model.controllers).toEqual([{ tag: 'LIC-101', pvTag: 'LT-101', outTag: 'LV-101' }])
+    expect(model.controllers).toEqual([{ tag: 'LIC-101', pvTag: 'LT-101', outTag: 'LV-101', action: 1 }])
     expect(model.net.branches.length).toBeGreaterThanOrEqual(2)
     let tags = initTags(model)
     tags['P-101']!.RUN = 1

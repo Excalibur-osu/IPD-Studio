@@ -12,9 +12,11 @@ export default function Valve({ widget, theme, sim }: WidgetView) {
       <polygon points={`2,2 ${midX},${h / 2} 2,${botY}`} fill={fill} stroke={theme.equipStroke} strokeWidth={2} />
       <polygon points={`${w - 2},2 ${midX},${h / 2} ${w - 2},${botY}`} fill={fill} stroke={theme.equipStroke} strokeWidth={2} />
       {throttle && (
-        <text x={midX} y={-4} textAnchor="middle" fill={theme.text} fontSize={11}>{fmt(sim.OP, 0)}%</text>
+        <text x={midX} y={-4} textAnchor="middle" fill={theme.text} fontSize={11} fontWeight={600}
+          stroke={theme.bg} strokeWidth={3} paintOrder="stroke">{fmt(sim.OP, 0)}%</text>
       )}
-      <text x={midX} y={h + 14} textAnchor="middle" fill={theme.textDim} fontSize={11}>{widget.tag ?? ''}</text>
+      <text x={midX} y={h + 14} textAnchor="middle" fill={theme.text} fontSize={11} fontWeight={600}
+        stroke={theme.bg} strokeWidth={3} paintOrder="stroke">{widget.tag ?? ''}</text>
     </g>
   )
 }

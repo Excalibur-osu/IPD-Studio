@@ -1,5 +1,6 @@
 import './hmi.css'
 import { useEffect, useState } from 'react'
+import { THEMES } from './theme'
 import { useStore, activeHmiScreen } from '../store/store'
 import { useSimStore, useSimEngine } from './simStore'
 import HmiToolbar from './HmiToolbar'
@@ -75,7 +76,8 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
       <div className="hmi-center">
         {screen ? (
           <>
-            <div className="hmi-canvas-wrap">
+            {mode === 'run' && <AlarmBanner />}
+            <div className="hmi-canvas-wrap" style={{ background: THEMES[screen.theme].bg }}>
               <HmiCanvas
                 screen={screen}
                 selection={selection}
@@ -90,7 +92,6 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
                 onWidgetClick={(w) => setFaceplate(w.id)}
               />
             </div>
-            {mode === 'run' && <AlarmBanner />}
             {mode === 'run' && faceplate && (() => {
               const w = screen.widgets.find((x) => x.id === faceplate)
               return w ? <Faceplate widget={w} onClose={() => setFaceplate(null)} /> : null
@@ -109,7 +110,9 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
       <div className="hmi-props"><HmiPropertyPanel selection={selection} /></div>
       <div className="hmi-status">
         <span>HMI workspace</span>
-        {mode === 'run' && <span>RUNNING — click equipment to operate</span>}
+        {mode === 'run'
+          ? <span>RUNNING — click equipment to operate</span>
+          : screen && <span>EDIT — preview values shown; press ▶ RUN to simulate</span>}
       </div>
     </div>
   )

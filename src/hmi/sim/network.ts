@@ -6,6 +6,10 @@ export interface Branch {
   id: string
   from: EndRef
   to: EndRef
+  /** For tank-sourced branches: does the pipe leave the tank's bottom half?
+   *  Only bottom connections gravity-drain; a top (vent/relief/overflow)
+   *  line must not siphon the liquid out. */
+  fromBottom?: boolean
   pumps: string[]
   valves: string[]
   pipeIds: string[]
@@ -59,10 +63,12 @@ export function buildNetwork(screen: HmiScreen): FlowNetwork {
     // and simply carry no flow (the v1 solver is single-path per chain).
     if (inline(a) && hasInflow.has(a.id)) continue
 
+    const fromTank = !!a && a.type === 'tank' && a.tag !== undefined
     const branch: Branch = {
       id: `B${++n}`,
-      from: a && a.type === 'tank' && a.tag ? { kind: 'tank', tag: a.tag } : { kind: 'source' },
+      from: fromTank ? { kind: 'tank', tag: a.tag! } : { kind: 'source' },
       to: { kind: 'sink' },
+      ...(fromTank ? { fromBottom: p.points[0]!.y > a.y + a.h * 0.55 } : {}),
       pumps: [], valves: [], pipeIds: [],
     }
     if (inline(a)) {

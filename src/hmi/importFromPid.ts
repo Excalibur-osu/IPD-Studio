@@ -172,6 +172,18 @@ export function importSheet(doc: ProjectDoc, sheetId: string): HmiScreen {
     }
   }
 
+  // orthogonalize: a diagonal segment reads as sloppy on an HMI — insert an
+  // elbow (horizontal-first) so imported runs look drawn, not rubber-banded
+  for (const p of pipes) {
+    const out: { x: number; y: number }[] = [p.points[0]!]
+    for (let i = 1; i < p.points.length; i++) {
+      const a = out[out.length - 1]!, b = p.points[i]!
+      if (Math.abs(b.x - a.x) > 6 && Math.abs(b.y - a.y) > 6) out.push({ x: b.x, y: a.y })
+      out.push(b)
+    }
+    p.points = out
+  }
+
   // uniform scale-to-fit with a 40px margin (never upscales)
   const xs = [...widgets.flatMap((w) => [w.x, w.x + w.w]), ...pipes.flatMap((p) => p.points.map((q) => q.x))]
   const ys = [...widgets.flatMap((w) => [w.y, w.y + w.h]), ...pipes.flatMap((p) => p.points.map((q) => q.y))]
@@ -185,5 +197,35 @@ export function importSheet(doc: ProjectDoc, sheetId: string): HmiScreen {
     for (const p of pipes) p.points = p.points.map((q) => ({ x: tx(q.x), y: ty(q.y) }))
   }
 
+  deoverlap(widgets)
+
   return { id: ulid(), name: `${sheet.name} HMI`, theme: 'classic', widgets, pipes, fromSheetId: sheetId }
+}
+
+const MOVABLE = new Set<string>(['display', 'gauge', 'trend', 'lamp', 'button', 'switch'])
+const MARGIN = 8
+
+function intersects(a: HmiWidget, b: HmiWidget): boolean {
+  return a.x < b.x + b.w + MARGIN && a.x + a.w + MARGIN > b.x && a.y < b.y + b.h + MARGIN && a.y + a.h + MARGIN > b.y
+}
+
+/** Imported instrument boxes land at bubble positions and pile onto equipment
+ *  and each other; nudge each movable widget to the nearest free spot. */
+export function deoverlap(widgets: HmiWidget[]): void {
+  const placed: HmiWidget[] = widgets.filter((w) => !MOVABLE.has(w.type))
+  for (const w of widgets) {
+    if (!MOVABLE.has(w.type)) continue
+    const collides = (cand: HmiWidget) => placed.some((o) => intersects(cand, o))
+    if (collides(w)) {
+      outer: for (let r = 1; r <= 15; r++) {
+        const step = r * 16
+        for (const [dx, dy] of [[step, 0], [-step, 0], [0, -step], [0, step], [step, -step], [step, step], [-step, -step], [-step, step]] as const) {
+          const cand = { ...w, x: w.x + dx, y: w.y + dy }
+          if (cand.x < 0 || cand.y < 0 || cand.x + cand.w > HMI_WORLD.w || cand.y + cand.h > HMI_WORLD.h) continue
+          if (!collides(cand)) { w.x = cand.x; w.y = cand.y; break outer }
+        }
+      }
+    }
+    placed.push(w)
+  }
 }

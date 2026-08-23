@@ -19,7 +19,10 @@ export default function SymbolGraphic({ widget, theme, sim }: WidgetView) {
   const color = on ? theme.running : theme.equipStroke
   const scale = Math.min(widget.w / sw, widget.h / sh)
   return (
-    <g data-hmi-symbol={id} color={color} transform={`scale(${scale})`}
-      dangerouslySetInnerHTML={{ __html: inner }} />
+    <g data-hmi-symbol={id}>
+      <g color={color} transform={`scale(${scale})`} dangerouslySetInnerHTML={{ __html: inner }} />
+      <text x={widget.w / 2} y={widget.h + 12} textAnchor="middle" fill={theme.text} fontSize={10} fontWeight={600}
+        stroke={theme.bg} strokeWidth={3} paintOrder="stroke">{widget.tag ?? widget.label ?? ''}</text>
+    </g>
   )
 }

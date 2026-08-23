@@ -26,23 +26,25 @@
 .hmi-tab { padding: 3px 12px; font-size: 12px; color: #9db4cc; background: #16324e; border-radius: 4px 4px 0 0; cursor: pointer; display: flex; gap: 6px; align-items: center; }
 .hmi-tab.active { background: #2b6cb0; color: #fff; }
 .hmi-tab .sheet-close { background: none; border: none; color: inherit; cursor: pointer; padding: 0 2px; }
-.hmi-pal-item { padding: 6px 8px; margin: 2px 0; background: #fff; border: 1px solid #d5d5d5; border-radius: 4px; cursor: grab; font-size: 12px; }
-.hmi-pal-item:hover { border-color: #2b6cb0; }
+.hmi-pal-item { display: flex; align-items: center; gap: 8px; padding: 4px 6px; margin: 3px 0; background: #fff; border: 1px solid #d5d5d5; border-radius: 5px; cursor: grab; font-size: 12px; }
+.hmi-pal-item:hover { border-color: #2b6cb0; box-shadow: 0 1px 4px #2b6cb030; }
 .hmi-faceplate { position: absolute; right: 16px; top: 56px; width: 240px; background: #1d314e; color: #e8f0fa; border: 1px solid #35567c; border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px #0008; z-index: 20; }
 .hmi-faceplate header { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
 .hmi-faceplate .fp-row { display: flex; gap: 6px; margin-top: 8px; }
 .hmi-faceplate button { flex: 1; background: #24405f; color: inherit; border: 1px solid #35567c; border-radius: 4px; padding: 5px; cursor: pointer; }
 .hmi-faceplate button.active { background: #2b6cb0; }
 .hmi-faceplate .fp-state { font-size: 16px; font-weight: 700; margin: 6px 0; }
-.hmi-alarms { position: absolute; left: 12px; top: 8px; z-index: 15; display: flex; flex-direction: column; gap: 3px; }
-.hmi-alarm-row { display: flex; gap: 8px; align-items: center; font-size: 12px; padding: 4px 8px; border-radius: 4px; color: #fff; background: #b02a2a; }
-.hmi-alarm-row.cleared { background: #8a6d00; }
-.hmi-alarm-row.acked { background: #7a3a3a; opacity: 0.85; }
-.hmi-alarm-row button, .al-all { background: #0006; color: #fff; border: 1px solid #fff5; border-radius: 3px; cursor: pointer; font-size: 11px; }
-.al-all { align-self: flex-start; padding: 3px 10px; }
+.hmi-alarmbar { display: flex; align-items: center; gap: 8px; padding: 5px 10px; background: #43111d; border-bottom: 2px solid #ff4d4d; color: #fff; font-size: 12px; flex-wrap: wrap; }
+.hmi-alarmbar .al-count { font-weight: 700; color: #ff8f8f; }
+.al-chip { display: inline-flex; gap: 6px; align-items: center; padding: 2px 8px; border-radius: 4px; background: #b02a2a; white-space: nowrap; }
+.al-chip.cleared { background: #8a6d00; }
+.al-chip.acked { background: #6c3040; opacity: 0.9; }
+.al-chip .al-time { opacity: 0.75; }
+.al-chip button, .al-all { background: #0006; color: #fff; border: 1px solid #fff5; border-radius: 3px; cursor: pointer; font-size: 11px; padding: 1px 8px; }
+.al-more { opacity: 0.8; }
 @keyframes hmi-spin { to { transform: rotate(360deg); } }
 .hmi-spin { animation: hmi-spin 1.2s linear infinite; }
 @keyframes hmi-dash { to { stroke-dashoffset: -24; } }
 .hmi-flow { animation: hmi-dash 1s linear infinite; }
-@keyframes hmi-blink { 50% { opacity: 0.15; } }
+@keyframes hmi-blink { 50% { opacity: 0.35; } }
 .hmi-blink { animation: hmi-blink 0.9s step-start infinite; }

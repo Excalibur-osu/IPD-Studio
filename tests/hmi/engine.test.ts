@@ -59,6 +59,27 @@ describe('engine tick', () => {
     const { tags } = run((t) => { t['P-1']!.RUN = 1; t['LV-1']!.OP = 0; t['HV-1']!.OPEN = 0 })
     expect(tags['TK-1']!.PV).toBeCloseTo(40, 0)
   })
+  it('free-end sources are passive: an open path with no pump moves nothing', () => {
+    // screen: source -> open on/off valve -> tank, NO pump anywhere
+    const passive: HmiScreen = {
+      id: 's2', name: 'S2', theme: 'classic',
+      widgets: [
+        { id: 'v', type: 'valve', x: 200, y: 95, w: 48, h: 32, tag: 'HV-2' },
+        { id: 't', type: 'tank', x: 500, y: 40, w: 96, h: 128, tag: 'TK-2', props: { capacity: 100, level0: 40 } },
+      ],
+      pipes: [
+        { id: 'a', points: [{ x: 0, y: 111 }, { x: 210, y: 111 }] },
+        { id: 'b', points: [{ x: 240, y: 111 }, { x: 510, y: 100 }] },
+      ],
+    }
+    const model = buildSimModel(passive)
+    let tags = initTags(model)
+    const rng = makeRng(1)
+    let flows: Record<string, number> = {}
+    for (let i = 0; i < 25; i++) { const r = tick(model, tags, 0.2, rng); tags = r.tags; flows = r.branchFlows }
+    expect(Object.values(flows).every((f) => f === 0)).toBe(true)
+    expect(tags['TK-2']!.PV).toBe(40)
+  })
   it('tank clamps at 0 and never goes negative', () => {
     const { tags } = run((t) => { t['TK-1']!.PV = 1 }, 60)
     expect(tags['TK-1']!.PV).toBeGreaterThanOrEqual(0)

@@ -36,7 +36,7 @@ const runFor = (seconds: number, mut?: (t: ReturnType<typeof initTags>) => void)
 describe('auto-wired control loops', () => {
   it('wires LIC-101 to LT-101 (PV) and LV-101 (OP)', () => {
     const { model } = runFor(1)
-    expect(model.controllers).toEqual([{ tag: 'LIC-101', pvTag: 'LT-101', outTag: 'LV-101' }])
+    expect(model.controllers).toEqual([{ tag: 'LIC-101', pvTag: 'LT-101', outTag: 'LV-101', action: 1 }])
   })
   it('holds level at SP against a constant drain (AUTO)', () => {
     const { tags } = runFor(240)
@@ -45,6 +45,37 @@ describe('auto-wired control loops', () => {
   it('tracks an SP change', () => {
     const { tags } = runFor(300, (t) => { t['LIC-101']!.SP = 70 })
     expect(Math.abs(tags['TK-101']!.PV! - 70)).toBeLessThan(5)
+  })
+  it('outlet-valve level loops are direct-acting: drain modulates to hold level against inflow', () => {
+    // source -> P-201 -> FV-201 (fixed 30%) -> TK-201 -> LV-201 -> sink
+    // LIC-201 controls the OUTLET, so its action must invert (level low -> close drain)
+    const outlet: HmiScreen = {
+      id: 'o', name: 'O', theme: 'classic',
+      widgets: [
+        { id: 'p', type: 'pump', x: 0, y: 130, w: 56, h: 56, tag: 'P-201' },
+        { id: 'fv', type: 'valve', x: 150, y: 140, w: 48, h: 32, tag: 'FV-201', props: { throttle: true } },
+        { id: 't', type: 'tank', x: 300, y: 40, w: 96, h: 128, tag: 'TK-201', props: { capacity: 100, level0: 30 } },
+        { id: 'v', type: 'valve', x: 500, y: 150, w: 48, h: 32, tag: 'LV-201', props: { throttle: true } },
+        { id: 'lt', type: 'display', x: 700, y: 40, w: 96, h: 40, tag: 'LT-201', props: { bindTank: 'TK-201' } },
+        { id: 'lic', type: 'display', x: 700, y: 90, w: 96, h: 40, tag: 'LIC-201', props: { controller: true } },
+      ],
+      pipes: [
+        { id: 'i0', points: [{ x: -40, y: 158 }, { x: 10, y: 158 }] },
+        { id: 'i1', points: [{ x: 60, y: 158 }, { x: 160, y: 156 }] },
+        { id: 'i2', points: [{ x: 200, y: 156 }, { x: 310, y: 100 }] },
+        { id: 'a', points: [{ x: 360, y: 160 }, { x: 510, y: 166 }] },
+        { id: 'b', points: [{ x: 540, y: 166 }, { x: 700, y: 300 }] },
+      ],
+    }
+    const model = buildSimModel(outlet)
+    const lic = model.controllers.find((c) => c.tag === 'LIC-201')!
+    expect(lic.action).toBe(-1)
+    let tags = initTags(model)
+    tags['P-201']!.RUN = 1
+    tags['FV-201']!.OP = 30   // fixed 3 u/s inflow < max 4 u/s gravity drain
+    const rng = makeRng(4)
+    for (let i = 0; i < 180 * 5; i++) tags = tick(model, tags, 0.2, rng).tags
+    expect(Math.abs(tags['TK-201']!.PV! - 50)).toBeLessThan(4)
   })
   it('MAN mode passes operator OP through to the valve', () => {
     const { tags } = runFor(2, (t) => { t['LIC-101']!.MODE = 0; t['LIC-101']!.OP = 77 })

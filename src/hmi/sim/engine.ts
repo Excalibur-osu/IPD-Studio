@@ -4,18 +4,39 @@ import { buildTagDefs } from './tags'
 import type { Branch, FlowNetwork } from './network'
 import { buildNetwork } from './network'
 
-export interface ControllerSpec { tag: string; pvTag: string; outTag: string }
+export interface ControllerSpec {
+  tag: string
+  pvTag: string
+  outTag?: string
+  /** +1 = reverse-acting (valve feeds the tank: open on low PV); -1 = direct
+   *  (valve drains the tank: close on low PV). Derived from the flow network. */
+  action?: 1 | -1
+}
 export interface SimModel { defs: TagDef[]; net: FlowNetwork; controllers: ControllerSpec[] }
 export type Tags = Record<string, Record<string, number>>
 
 const PUMP_RATED = 10
-const SOURCE_HEAD = 6
+/** Tank-sourced branch with no pump: modest gravity drain. */
+const GRAVITY = 4
 const KP = 1.5
 const KI = 0.4
 
 export function buildSimModel(screen: HmiScreen): SimModel {
   const defs = buildTagDefs(screen)
-  return { defs, net: buildNetwork(screen), controllers: wireControllers(defs) }
+  const net = buildNetwork(screen)
+  const controllers = wireControllers(defs).map((c) => ({ ...c, action: controllerAction(c, defs, net) }))
+  return { defs, net, controllers }
+}
+
+/** A level controller whose valve sits on the measured tank's OUTLET must be
+ *  direct-acting (low level -> close the drain), not reverse-acting. */
+function controllerAction(c: ControllerSpec, defs: TagDef[], net: FlowNetwork): 1 | -1 {
+  if (!c.outTag) return 1
+  const pvDef = defs.find((d) => d.name === c.pvTag)
+  const tank = pvDef?.kind === 'tank' ? pvDef.name : pvDef?.bindTank
+  if (!tank) return 1
+  const br = net.branches.find((b) => b.valves.includes(c.outTag!))
+  return br && br.from.kind === 'tank' && br.from.tag === tank ? -1 : 1
 }
 
 /** Family+loop matching: LIC-101 pairs with LT-101 (PV) and LV-101 (OP target). */
@@ -34,7 +55,9 @@ export function wireControllers(defs: TagDef[]): ControllerSpec[] {
       })
     const pv = partner((d) => d.kind === 'display' || d.kind === 'tank')
     const valve = partner((d) => d.kind === 'valve')
-    if (pv && valve) out.push({ tag: c.name, pvTag: pv.name, outTag: valve.name })
+    // PV-only wiring is valid: the controller tracks its measurement even
+    // when no throttling valve shares the loop (its PI just has no output).
+    if (pv) out.push(valve ? { tag: c.name, pvTag: pv.name, outTag: valve.name } : { tag: c.name, pvTag: pv.name })
   }
   return out
 }
@@ -57,9 +80,12 @@ export function initTags(model: SimModel): Tags {
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
 function branchFlow(b: Branch, tags: Tags, tankLevel: (t: string) => number): number {
-  let driver = b.pumps.length > 0
-    ? (b.pumps.every((p) => (tags[p]?.RUN ?? 0) >= 0.5) ? PUMP_RATED : 0)
-    : SOURCE_HEAD
+  // Calm-start physics: free-end sources are PASSIVE — flow needs a running
+  // pump on the branch. Only tank-sourced branches move without one (gravity).
+  let driver: number
+  if (b.pumps.length > 0) driver = b.pumps.every((p) => (tags[p]?.RUN ?? 0) >= 0.5) ? PUMP_RATED : 0
+  else if (b.from.kind === 'tank') driver = b.fromBottom ? GRAVITY : 0 // top lines (vent/relief) don't siphon liquid
+  else driver = 0
   for (const v of b.valves) {
     const t = tags[v]
     const frac = t?.OP !== undefined ? clamp(t.OP / 100, 0, 1) : (t?.OPEN ?? 1) >= 0.5 ? 1 : 0
@@ -80,14 +106,22 @@ export function tick(model: SimModel, prev: Tags, dt: number, rng: () => number)
     if (!t) continue
     const pv = tags[c.pvTag]?.PV ?? 0
     t.PV = pv
+    if (!c.outTag) continue // PV-only controller: nothing to drive
     if ((t.MODE ?? 0) < 0.5) {
       const manValve = tags[c.outTag]
       if (manValve && manValve.OP !== undefined) manValve.OP = t.OP ?? manValve.OP
       continue
     }
-    const e = (t.SP ?? 50) - pv
-    t.I = clamp((t.I ?? 0) + KI * e * dt, -100, 100)
-    const op = clamp(KP * e + t.I, 0, 100)
+    const e = ((t.SP ?? 50) - pv) * (c.action ?? 1)
+    // conditional integration (anti-windup): freeze I while the output is
+    // saturated in the error's direction, else overshoot on big transitions
+    let I = t.I ?? 0
+    let op = clamp(KP * e + I, 0, 100)
+    if (!((op >= 100 && e > 0) || (op <= 0 && e < 0))) {
+      I = clamp(I + KI * e * dt, -100, 100)
+      op = clamp(KP * e + I, 0, 100)
+    }
+    t.I = I
     t.OP = op
     const valve = tags[c.outTag]
     if (valve && valve.OP !== undefined) valve.OP = op

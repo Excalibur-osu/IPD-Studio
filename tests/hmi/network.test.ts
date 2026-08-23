@@ -35,6 +35,17 @@ describe('buildNetwork', () => {
     expect(net.branches[0]!.to).toEqual({ kind: 'sink' })
     expect(net.branches[0]!.valves).toEqual(['HV-1'])
   })
+  it('marks tank connections as bottom or top (vent lines must not drain)', () => {
+    const screen = S(
+      [W('t', 'tank', 0, 0, 96, 128, 'TK-1')],
+      [P('bot', [48, 120], [300, 200]), P('top', [48, 8], [300, 8])],
+    )
+    const net = buildNetwork(screen)
+    const bot = net.branches.find((b) => b.pipeIds.includes('bot'))!
+    const top = net.branches.find((b) => b.pipeIds.includes('top'))!
+    expect(bot.fromBottom).toBe(true)
+    expect(top.fromBottom).toBe(false)
+  })
   it('a second pipe leaving a pump joins no branch instead of fabricating a source', () => {
     const screen = S(
       [W('t0', 'tank', 0, 80, 96, 128, 'TK-T'), W('p', 'pump', 200, 110, 56, 56, 'P-1'), W('ta', 'tank', 400, 0, 96, 128, 'TK-A'), W('tb', 'tank', 400, 300, 96, 128, 'TK-B')],

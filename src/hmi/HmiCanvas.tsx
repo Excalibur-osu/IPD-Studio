@@ -40,6 +40,21 @@ interface WidgetGProps {
   oy: number
 }
 
+/** Edit-mode preview values so the screen reads as a design, not a void. */
+const PREVIEW_TREND = Array.from({ length: 40 }, (_, i) => 50 + Math.sin(i / 4.5) * 18 + (i % 3) * 2)
+function previewSim(w: HmiWidget): Record<string, number> {
+  switch (w.type) {
+    case 'tank': return { PV: 42 }
+    case 'valve': return { OP: 40, OPEN: 1 }
+    case 'pump': return { RUN: 0 }
+    case 'display': case 'gauge': case 'trend': {
+      const min = Number(w.props?.min ?? 0), max = Number(w.props?.max ?? 100)
+      return { PV: (min + max) / 2, ...(w.props?.controller === true ? { SP: (min + max) / 2 } : {}) }
+    }
+    default: return {}
+  }
+}
+
 const shallowEq = (a: Record<string, number>, b: Record<string, number>) => {
   const ka = Object.keys(a), kb = Object.keys(b)
   return ka.length === kb.length && ka.every((k) => a[k] === b[k])
@@ -223,6 +238,12 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
       onDragOver={(e) => { if (e.dataTransfer.types.includes(HMI_DRAG_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' } }}
       onDrop={onDrop}
     >
+      <defs>
+        <pattern id="hmi-grid-dots" width={32} height={32} patternUnits="userSpaceOnUse">
+          <circle cx={1.5} cy={1.5} r={1.2} fill={theme.grid} />
+        </pattern>
+      </defs>
+      {mode === 'edit' && <rect width={HMI_WORLD.w} height={HMI_WORLD.h} fill="url(#hmi-grid-dots)" />}
       {screen.pipes.map((p) => {
         const pts = p.points.map((q) => `${q.x},${q.y}`).join(' ')
         const flow = flows?.[p.id] ?? 0
@@ -244,16 +265,17 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
       {screen.widgets.map((raw) => {
         const w = drag?.kind === 'resize' && drag.id === raw.id && drag.live ? { ...raw, ...drag.live } : raw
         const o = offset(w.id)
-        const values: Record<string, number> = { ...(sim?.[w.tag ?? ''] ?? {}) }
+        const values: Record<string, number> = sim ? { ...(sim[w.tag ?? ''] ?? {}) } : previewSim(w)
         const signal = typeof w.props?.signal === 'string' ? w.props.signal : ''
-        if (signal.includes('.')) {
+        if (sim && signal.includes('.')) {
           const i = signal.lastIndexOf('.')
-          values[signal] = sim?.[signal.slice(0, i)]?.[signal.slice(i + 1)] ?? 0
+          values[signal] = sim[signal.slice(0, i)]?.[signal.slice(i + 1)] ?? 0
         }
         const recs = (alarms ?? []).filter((a) => a.tag === w.tag)
         const alarm = recs.some((a) => a.phase === 'active' || a.phase === 'cleared') ? 'unacked' as const : recs.length > 0 ? 'acked' as const : 'none' as const
+        const hist = history?.[w.tag ?? ''] ?? (!sim && w.type === 'trend' ? PREVIEW_TREND : undefined)
         return (
-          <WidgetG key={w.id} widget={w} theme={theme} values={values} history={history?.[w.tag ?? '']}
+          <WidgetG key={w.id} widget={w} theme={theme} values={values} history={hist}
             alarm={alarm} selected={selection.includes(w.id)} editing={mode === 'edit'} ox={o.dx} oy={o.dy} />
         )
       })}
