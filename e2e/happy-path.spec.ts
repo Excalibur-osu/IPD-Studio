@@ -37,7 +37,8 @@ test('place, connect, tag, validate, export', async ({ page }) => {
   // Instrument index CSV contains the tagged row
   await page.locator('.props').click() // move focus out of input
   const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Index' }).click()
+  await page.getByRole('button', { name: 'Export ▾' }).click()
+  await page.getByRole('menuitem', { name: 'Instrument index' }).click()
   const download = await downloadPromise
   const stream = await download.createReadStream()
   const chunks: Buffer[] = []

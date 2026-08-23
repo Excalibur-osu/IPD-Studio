@@ -6,13 +6,7 @@ import { createEmptyDoc } from '../model/doc'
 import { canvasRef, zoomAt } from '../canvas/paperSetup'
 import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
 import type { LineClass } from '../model/types'
-import { exportSvgFile } from '../export/svg'
-import { printPdf } from '../export/printPdf'
-import { printAllSheets } from '../export/printAll'
-import { downloadDatasheetMatrix, downloadInstrumentIndex, downloadLineList } from '../export/csv'
-import { downloadDexpi } from '../export/dexpi'
-import { downloadDxf } from '../export/dxf'
-import { exportPng } from '../export/png'
+import ExportMenu from './ExportMenu'
 import templateBlank from '../../examples/template-blank-a3.pnid.json'
 import templateUtility from '../../examples/template-utility-a1.pnid.json'
 import { loadDoc } from '../model/migrate'
@@ -132,15 +126,7 @@ export default function Toolbar({ onOpenHmi }: { onOpenHmi?: () => void } = {}) 
       <span className="tb-sep" />
       <button onClick={onOpenHmi} title="Switch to the HMI workspace" data-testid="open-hmi">HMI ⇄</button>
       <span className="tb-grow" />
-      <button onClick={() => exportSvgFile()}>SVG</button>
-      <button onClick={() => printPdf()}>PDF</button>
-      <button onClick={() => void printAllSheets()} title="Print every sheet">PDF all</button>
-      <button onClick={() => exportPng()}>PNG</button>
-      <button onClick={() => downloadDexpi()}>DEXPI</button>
-      <button onClick={() => downloadDxf()}>DXF</button>
-      <button onClick={() => downloadInstrumentIndex()}>Index</button>
-      <button onClick={() => downloadLineList()}>Lines</button>
-      <button onClick={() => downloadDatasheetMatrix()} title="Datasheet matrix CSV">Data</button>
+      <ExportMenu />
     </header>
   )
 }
