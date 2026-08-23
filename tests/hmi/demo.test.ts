@@ -19,6 +19,7 @@ describe('HMI demo template', () => {
     expect(model.net.branches.length).toBeGreaterThanOrEqual(2)
     let tags = initTags(model)
     tags['P-101']!.RUN = 1
+    tags['HV-101']!.OPEN = 1 // line up the drain — calm start ships it closed
     const rng = makeRng(3)
     for (let i = 0; i < 240 * 5; i++) tags = tick(model, tags, 0.2, rng).tags
     expect(Math.abs(tags['TK-101']!.PV! - 50)).toBeLessThan(4)

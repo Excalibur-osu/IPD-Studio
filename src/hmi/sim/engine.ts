@@ -71,13 +71,22 @@ export function wireControllers(defs: TagDef[]): ControllerSpec[] {
 }
 
 export function initTags(model: SimModel): Tags {
+  // Calm start: a professional screen comes up with nothing moving and no
+  // alarms until an operator (or a live control loop) acts. Every hand valve
+  // that actually sits in a flow path starts CLOSED (lining up the valves IS
+  // the operator's job — and an open drain stub or transfer line would
+  // silently empty its tank before anyone touched a thing); a throttling
+  // valve no controller drives starts at 0%. Unpiped decorative valves stay
+  // open so they don't read as faults.
+  const piped = new Set(model.net.branches.flatMap((b) => b.valves))
+  const driven = new Set(model.controllers.map((c) => c.outTag).filter(Boolean))
   const tags: Tags = {}
   for (const d of model.defs) {
     switch (d.kind) {
       case 'tank': tags[d.name] = { PV: d.level0 ?? 40 }; break
       case 'motor': tags[d.name] = { RUN: 0 }; break
-      case 'valve': tags[d.name] = { OP: 40 }; break
-      case 'valveOnOff': tags[d.name] = { OPEN: 1 }; break
+      case 'valve': tags[d.name] = { OP: driven.has(d.name) ? 40 : 0 }; break
+      case 'valveOnOff': tags[d.name] = { OPEN: piped.has(d.name) ? 0 : 1 }; break
       case 'display': tags[d.name] = { PV: d.base ?? (d.min + d.max) / 2 }; break
       case 'controller': tags[d.name] = { PV: 0, SP: 50, OP: 40, MODE: 1, I: 0 }; break
     }
@@ -89,10 +98,16 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 
 function branchFlow(b: Branch, tags: Tags, tankLevel: (t: string) => number): number {
   // Calm-start physics: free-end sources are PASSIVE — flow needs a running
-  // pump on the branch. Only tank-sourced branches move without one (gravity).
+  // pump on the branch. Only tank-sourced branches move without one (gravity),
+  // and gravity to a dead end needs a valve in the path: an unvalved stub
+  // (a line ending in an off-page arrow) must not drain a tank forever with
+  // no way for the operator to stop it.
   let driver: number
   if (b.pumps.length > 0) driver = b.pumps.every((p) => (tags[p]?.RUN ?? 0) >= 0.5) ? PUMP_RATED : 0
-  else if (b.from.kind === 'tank') driver = b.fromBottom ? GRAVITY : 0 // top lines (vent/relief) don't siphon liquid
+  else if (b.from.kind === 'tank') {
+    const uncontrollableStub = b.to.kind === 'sink' && b.valves.length === 0
+    driver = b.fromBottom && !uncontrollableStub ? GRAVITY : 0 // top lines (vent/relief) don't siphon liquid
+  }
   else driver = 0
   for (const v of b.valves) {
     const t = tags[v]

@@ -11,14 +11,16 @@ const screenA: HmiScreen = {
     { id: 'p', type: 'pump', x: 100, y: 90, w: 56, h: 56, tag: 'P-1' },
     { id: 'v', type: 'valve', x: 300, y: 95, w: 48, h: 32, tag: 'LV-1', props: { throttle: true } },
     { id: 't', type: 'tank', x: 500, y: 40, w: 96, h: 128, tag: 'LT-1', props: { capacity: 60, level0: 20 } },
+    { id: 'hd', type: 'valve', x: 680, y: 330, w: 48, h: 32, tag: 'HV-D' },
   ],
   pipes: [
     { id: 'a1', points: [{ x: 0, y: 118 }, { x: 110, y: 118 }] },
     { id: 'a2', points: [{ x: 150, y: 118 }, { x: 310, y: 111 }] },
     { id: 'a3', points: [{ x: 340, y: 111 }, { x: 510, y: 100 }] },
-    // gravity drain off the tank bottom: a fill-only loop could never correct
-    // an overshoot back down to SP
-    { id: 'a4', points: [{ x: 560, y: 160 }, { x: 800, y: 400 }] },
+    // valved gravity drain off the tank bottom: a fill-only loop could never
+    // correct an overshoot back down to SP
+    { id: 'a4', points: [{ x: 560, y: 160 }, { x: 700, y: 344 }] },
+    { id: 'a5', points: [{ x: 730, y: 346 }, { x: 900, y: 500 }] },
   ],
 }
 
@@ -61,6 +63,7 @@ describe('plant-wide sim model', () => {
     const model = buildSimModel([screenA, screenB])
     let tags = initTags(model)
     tags['P-1']!.RUN = 1
+    tags['HV-D']!.OPEN = 1 // operator lines up the drain (calm start ships it closed)
     tags['LIC-1']!.SP = 50
     const rng = makeRng(7)
     for (let i = 0; i < 60 * 5; i++) tags = tick(model, tags, 0.2, rng).tags

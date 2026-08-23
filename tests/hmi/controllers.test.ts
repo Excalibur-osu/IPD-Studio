@@ -27,6 +27,7 @@ const runFor = (seconds: number, mut?: (t: ReturnType<typeof initTags>) => void)
   const model = buildSimModel(screen)
   let tags = initTags(model)
   tags['P-101']!.RUN = 1
+  tags['HV-101']!.OPEN = 1 // operator lines up the drain (calm start ships it closed)
   if (mut) mut(tags)
   const rng = makeRng(2)
   for (let i = 0; i < seconds * 5; i++) tags = tick(model, tags, 0.2, rng).tags

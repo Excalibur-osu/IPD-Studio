@@ -1,7 +1,35 @@
 import { test } from '@playwright/test'
+import fs from 'node:fs'
 
 // Not a test — a design-verification harness. Run explicitly:
 //   npx playwright test e2e/screenshot.spec.ts
+
+/** Load any real .pnid through the dev store hook and capture its HMI:
+ *  HMI_CAPTURE_DOC=/path/to/doc.pnid npx playwright test e2e/screenshot.spec.ts */
+const USER_DOC = process.env.HMI_CAPTURE_DOC
+test('capture a real user document', async ({ page }) => {
+  test.skip(!USER_DOC, 'set HMI_CAPTURE_DOC to a .pnid path')
+  const text = fs.readFileSync(USER_DOC!, 'utf8')
+  page.on('dialog', (d) => void d.accept())
+  await page.setViewportSize({ width: 1680, height: 1000 })
+  await page.goto('/')
+  await page.evaluate((t) => {
+    const pid = (window as unknown as { __pid: { useStore: { getState(): { loadIntoStore(d: unknown): void } } } }).__pid
+    pid.useStore.getState().loadIntoStore(JSON.parse(t))
+  }, text)
+  await page.getByTestId('open-hmi').click()
+  // build a fresh screen from the sheet with the current importer
+  await page.waitForSelector('[data-testid="hmi-import"], [data-testid="hmi-import-empty"]')
+  const importBtn = page.getByTestId('hmi-import')
+  if (await importBtn.count()) await importBtn.click()
+  else await page.getByTestId('hmi-import-empty').click()
+  await page.waitForTimeout(400)
+  await page.screenshot({ path: '/tmp/hmi-user-edit.png' })
+  await page.getByTestId('hmi-run-toggle').click()
+  await page.getByTestId('hmi-speed').click()
+  await page.waitForTimeout(9000) // ~45 sim-seconds at 5×
+  await page.screenshot({ path: '/tmp/hmi-user-run.png' })
+})
 test('capture imported sample-plant HMI', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })

@@ -53,7 +53,11 @@ switches bind to a fully-qualified signal like `P-101.RUN`.
 
 The physics is deliberately simple and honest about it: pumps deliver rated
 flow through open valves, tanks integrate level, sources feed by pressure,
-measurements drift realistically. Alarm limits (LL/L/H/HH) on tanks and
+measurements drift realistically. RUN starts **calm**, the way a real plant
+hands over: pumps stopped, every hand valve in a flow path closed, undriven
+throttling valves at 0% — nothing moves and nothing alarms until the
+operator lines up valves and starts pumps (or a control loop acts). Lines
+that dead-end without any valve can never drain a tank. Alarm limits (LL/L/H/HH) on tanks and
 displays drive a blinking, acknowledgeable alarm banner with an
 ISA-18.2-style lifecycle (active → acked / cleared) and priorities: HH/LL
 are critical (red ■), H/L are warnings (amber ▲) — shape *and* color, so

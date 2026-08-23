@@ -2,6 +2,7 @@ import { ulid } from 'ulid'
 import type { PlantEdge, PlantNode, ProjectDoc, Sheet } from '../model/types'
 import { isPortEnd } from '../model/types'
 import { portWorld, scalesOf } from '../canvas/alignment'
+import { segInRect } from './editGeometry'
 import type { HmiPipe, HmiScreen, HmiWidget, WidgetType } from './model'
 import { HMI_WORLD, WIDGET_DEFAULT_SIZE } from './model'
 import { formatTag } from '../isa/tag'
@@ -23,11 +24,21 @@ function widgetTypeFor(node: PlantNode, category: string): { type: WidgetType; p
   if (node.kind === 'annotation') return null
   const letters = node.tag?.letters ?? ''
   if (node.kind === 'equipment' && category === 'vessels') return { type: 'tank', props: undefined }
-  if (category === 'rotating') return { type: 'pump', props: undefined }
-  if (category === 'control-valves') return { type: 'valve', props: { throttle: true } }
-  if (category === 'safety') return { type: 'symbol', props: { symbolId: node.symbolId } }
-  if (node.kind === 'valve') return { type: 'valve', props: undefined }
+  // instruments are decided by their tag, never by category — a VFD box is
+  // category 'rotating' but it is not a pump you can start
+  if (node.kind !== 'instrument') {
+    if (category === 'rotating') return { type: 'pump', props: undefined }
+    if (category === 'control-valves') return { type: 'valve', props: { throttle: true } }
+    if (category === 'safety') return { type: 'symbol', props: { symbolId: node.symbolId } }
+    if (node.kind === 'valve') return { type: 'valve', props: undefined }
+  }
   if (node.kind === 'instrument') {
+    // Hardware without a measurable ISA tag — VFDs, sight glasses, I/P
+    // converters (…Y), anything untagged — stays a graphic: a value display
+    // for it would invent numbers that mean nothing.
+    if (!/^[A-Z]{1,4}$/.test(letters) || letters.endsWith('Y')) {
+      return { type: 'symbol', props: { symbolId: node.symbolId } }
+    }
     // sensible demo units per measured family so imported displays read real
     const unit = ({ L: '%', T: '°C', P: 'bar', F: 'm³/h' } as Record<string, string>)[letters[0] ?? '']
     const u: HmiWidget['props'] = unit === undefined ? undefined : { unit }
@@ -67,12 +78,17 @@ export function mapNodes(sheet: Sheet, separator: '-' | ''): { widgets: HmiWidge
       ;({ w, h } = nodeSize(node))
       if (w <= 0 || h <= 0) ({ w, h } = WIDGET_DEFAULT_SIZE[mapped.type])
       if (mapped.type === 'tank') { w = Math.max(w, 64); h = Math.max(h, 80) }
+      if (mapped.type === 'pump') { w = Math.max(w, 40); h = Math.max(h, 40) }
       if (mapped.type === 'symbol') { w = Math.max(w, 12); h = Math.max(h, 12) }
     }
+    // a graphic with no real identity (junction dots, untagged hardware)
+    // carries no tag text — auto names like "X-3" are bookkeeping, not labels
+    const hasIdentity = node.tag !== undefined || !!node.label?.trim()
     widgets.push({
       id: `imp-${node.id}`,
       type: mapped.type, x: node.x, y: node.y, w, h,
-      tag: name, label: node.label, props: mapped.props,
+      tag: mapped.type === 'symbol' && !hasIdentity ? undefined : name,
+      label: node.label, props: mapped.props,
     })
   }
   return { widgets, ctx: { nameOf } }
@@ -209,7 +225,7 @@ export function importSheet(doc: ProjectDoc, sheetId: string): HmiScreen {
     for (const p of pipes) p.points = p.points.map((q) => ({ x: tx(q.x), y: ty(q.y) }))
   }
 
-  deoverlap(widgets)
+  deoverlap(widgets, pipes)
 
   return { id: ulid(), name: `${sheet.name} HMI`, theme: 'classic', widgets, pipes, fromSheetId: sheetId }
 }
@@ -221,13 +237,24 @@ function intersects(a: HmiWidget, b: HmiWidget): boolean {
   return a.x < b.x + b.w + MARGIN && a.x + a.w + MARGIN > b.x && a.y < b.y + b.h + MARGIN && a.y + a.h + MARGIN > b.y
 }
 
-/** Imported instrument boxes land at bubble positions and pile onto equipment
- *  and each other; nudge each movable widget to the nearest free spot. */
-export function deoverlap(widgets: HmiWidget[]): void {
+/** Imported instrument boxes land at bubble positions and pile onto
+ *  equipment, each other, AND pipe runs; nudge each movable widget to the
+ *  nearest spot clear of all three. */
+export function deoverlap(widgets: HmiWidget[], pipes: HmiPipe[] = []): void {
+  const PAD = 6
+  const onPipe = (cand: HmiWidget) => {
+    const r = { x: cand.x - PAD, y: cand.y - PAD, w: cand.w + 2 * PAD, h: cand.h + 2 * PAD }
+    for (const p of pipes) {
+      for (let k = 0; k + 1 < p.points.length; k++) {
+        if (segInRect(p.points[k]!, p.points[k + 1]!, r)) return true
+      }
+    }
+    return false
+  }
   const placed: HmiWidget[] = widgets.filter((w) => !MOVABLE.has(w.type))
   for (const w of widgets) {
     if (!MOVABLE.has(w.type)) continue
-    const collides = (cand: HmiWidget) => placed.some((o) => intersects(cand, o))
+    const collides = (cand: HmiWidget) => placed.some((o) => intersects(cand, o)) || onPipe(cand)
     if (collides(w)) {
       outer: for (let r = 1; r <= 15; r++) {
         const step = r * 16

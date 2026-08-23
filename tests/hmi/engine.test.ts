@@ -36,18 +36,38 @@ const run = (mut?: (tags: ReturnType<typeof initTags>) => void, seconds = 10) =>
 }
 
 describe('engine tick', () => {
-  it('initTags seeds defaults', () => {
+  it('initTags seeds a CALM plant: pumps off, undriven valves shut, drains closed', () => {
     const model = buildSimModel(screen)
     const tags = initTags(model)
     expect(tags['TK-1']!.PV).toBe(40)
     expect(tags['P-1']!.RUN).toBe(0)
-    expect(tags['LV-1']!.OP).toBe(40)
-    expect(tags['HV-1']!.OPEN).toBe(1)
+    // no controller drives LV-1 here, so it must not leak at 40%
+    expect(tags['LV-1']!.OP).toBe(0)
+    // HV-1's only branch dead-ends (a drain): starts closed so the tank
+    // doesn't silently empty itself at RUN start
+    expect(tags['HV-1']!.OPEN).toBe(0)
   })
-  it('nothing flows while the pump is stopped, but the drain still empties the tank', () => {
+  it('a calm start moves nothing at all', () => {
+    const { tags, flows } = run(undefined, 5)
+    expect(Object.values(flows).every((f) => f === 0)).toBe(true)
+    expect(tags['TK-1']!.PV).toBe(40)
+  })
+  it('an unvalved stub off a tank bottom never drains it (no way to stop it)', () => {
+    const stubbed: HmiScreen = {
+      id: 's3', name: 'S3', theme: 'classic',
+      widgets: [{ id: 't', type: 'tank', x: 0, y: 0, w: 96, h: 128, tag: 'TK-9', props: { level0: 40 } }],
+      pipes: [{ id: 'p', points: [{ x: 48, y: 120 }, { x: 300, y: 300 }] }],
+    }
+    const model = buildSimModel(stubbed)
+    let tags = initTags(model)
+    const rng = makeRng(1)
+    for (let i = 0; i < 25; i++) tags = tick(model, tags, 0.2, rng).tags
+    expect(tags['TK-9']!.PV).toBe(40)
+  })
+  it('opening the drain valve empties the tank by gravity', () => {
     // 5 s: tank has drained 40% -> 10% and the drain branch is still flowing
     // (by 10 s it would be empty and the flow correctly stops)
-    const { tags, flows } = run(undefined, 5)
+    const { tags, flows } = run((t) => { t['HV-1']!.OPEN = 1 }, 5)
     expect(Object.values(flows).some((f) => f > 0)).toBe(true)
     expect(tags['TK-1']!.PV).toBeLessThan(40)
   })

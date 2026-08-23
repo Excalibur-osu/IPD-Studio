@@ -47,7 +47,7 @@ function segsIntersect(p1: { x: number; y: number }, p2: { x: number; y: number 
   return ccw(p1, p3, p4) !== ccw(p2, p3, p4) && ccw(p1, p2, p3) !== ccw(p1, p2, p4)
 }
 
-function segInRect(a: { x: number; y: number }, b: { x: number; y: number }, r: Rect): boolean {
+export function segInRect(a: { x: number; y: number }, b: { x: number; y: number }, r: Rect): boolean {
   if (inRect(a, r) || inRect(b, r)) return true
   const c1 = { x: r.x, y: r.y }, c2 = { x: r.x + r.w, y: r.y }
   const c3 = { x: r.x + r.w, y: r.y + r.h }, c4 = { x: r.x, y: r.y + r.h }
