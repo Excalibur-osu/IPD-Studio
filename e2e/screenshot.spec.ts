@@ -23,6 +23,29 @@ test('capture imported sample-plant HMI', async ({ page }) => {
   }
 })
 
+test('capture alarm summary and journal', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.setViewportSize({ width: 1680, height: 1000 })
+  await page.goto('/')
+  await page.getByTestId('open-hmi').click()
+  await page.getByRole('button', { name: 'New screen' }).click()
+  await page.getByText('Tank', { exact: true }).dblclick()
+  const canvas = page.getByTestId('hmi-canvas')
+  const b = (await canvas.boundingBox())!
+  await page.mouse.click(b.x + (360 / 1600) * b.width, b.y + (300 / 1000) * b.height)
+  await page.getByPlaceholder('e.g. LT-101').fill('TK-1')
+  await page.locator('label', { hasText: 'Start level %' }).locator('input').fill('96')
+  await page.getByTestId('hmi-run-toggle').click()
+  await page.waitForTimeout(1200) // HH at 95 trips on the first ticks
+  await page.getByTestId('alarm-summary-toggle').click()
+  await page.waitForTimeout(200)
+  await page.screenshot({ path: '/tmp/hmi-alarm-summary.png' })
+  await page.getByRole('button', { name: '▾ Journal' }).click()
+  await page.getByTestId('alarm-ack').click()
+  await page.waitForTimeout(200)
+  await page.screenshot({ path: '/tmp/hmi-alarm-journal.png' })
+})
+
 test('capture new widgets on a hand-built screen', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })

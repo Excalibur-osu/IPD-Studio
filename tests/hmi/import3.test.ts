@@ -60,7 +60,7 @@ describe('import professionalism', () => {
       [
         { id: 'imp', lineClass: 'process.impulse', source: end('ft'), target: end('gv') },
         { id: 'imp2', lineClass: 'process.impulse', source: end('tt'), target: end('gv') },
-        { id: 'run', lineClass: 'process', source: end('gv'), target: { x: 500, y: 100 } },
+        { id: 'run', lineClass: 'process.major', source: end('gv'), target: { x: 500, y: 100 } },
       ] as Sheet['edges'],
     )
     const screen = importSheet(docWith(sh), 'sh1')
@@ -77,7 +77,7 @@ describe('import professionalism', () => {
     const sh = sheet(
       [N('1', VESSEL, 'equipment', 0, 0, { tag: { letters: 'TK', loop: '1' } })],
       [{
-        id: 'e1', lineClass: 'process',
+        id: 'e1', lineClass: 'process.major',
         source: { x: 300, y: 300 }, target: { x: 500, y: 300 },
       } as Sheet['edges'][number]],
     )

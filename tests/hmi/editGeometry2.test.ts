@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { hitWidget, marqueeHits, normRect, rectsOverlap } from '../../src/hmi/editGeometry'
-import type { HmiScreen, HmiWidget } from '../../src/hmi/model'
+import type { HmiScreen } from '../../src/hmi/model'
 
 const screen: HmiScreen = {
   id: 's', name: 'S', theme: 'classic',
