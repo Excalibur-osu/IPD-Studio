@@ -3,12 +3,13 @@ import { useEffect } from 'react'
 import type { HmiScreen } from './model'
 import type { SimModel, Tags } from './sim/engine'
 import { buildSimModel, initTags, tick } from './sim/engine'
-import type { AlarmRecord } from './sim/alarms'
-import { ackAlarms, evalAlarms } from './sim/alarms'
+import type { AlarmEvent, AlarmRecord } from './sim/alarms'
+import { ackAlarms, alarmEvents, evalAlarms } from './sim/alarms'
 import { pipeFlowMap } from './sim/network'
 import { makeRng } from './sim/noise'
 
 const HISTORY_CAP = 600
+const JOURNAL_CAP = 200
 const SEED = 1234
 let model: SimModel | null = null
 let rng = makeRng(SEED)
@@ -25,8 +26,11 @@ interface SimStoreState {
   tags: Tags
   pipeFlows: Record<string, number>
   alarms: AlarmRecord[]
+  /** Newest-first alarm journal (raise / return / ack), capped. */
+  journal: AlarmEvent[]
   history: Record<string, number[]>
-  enterRun(screen: HmiScreen): void
+  /** Pass every screen for a plant-wide run (navigation keeps simulating). */
+  enterRun(screens: HmiScreen | HmiScreen[]): void
   exitRun(): void
   playPause(): void
   setSpeed(s: 1 | 5): void
@@ -38,23 +42,23 @@ interface SimStoreState {
 
 export const useSimStore = create<SimStoreState>()((set, get) => ({
   mode: 'edit', playing: false, speed: 1, t: 0,
-  tags: {}, pipeFlows: {}, alarms: [], history: {},
+  tags: {}, pipeFlows: {}, alarms: [], journal: [], history: {},
 
-  enterRun: (screen) => {
-    model = buildSimModel(screen)
+  enterRun: (screens) => {
+    model = buildSimModel(screens)
     rng = makeRng(SEED)
-    set({ mode: 'run', playing: true, t: 0, tags: initTags(model), pipeFlows: {}, alarms: [], history: {} })
+    set({ mode: 'run', playing: true, t: 0, tags: initTags(model), pipeFlows: {}, alarms: [], journal: [], history: {} })
   },
   exitRun: () => {
     model = null
-    set({ mode: 'edit', playing: false, t: 0, tags: {}, pipeFlows: {}, alarms: [], history: {} })
+    set({ mode: 'edit', playing: false, t: 0, tags: {}, pipeFlows: {}, alarms: [], journal: [], history: {} })
   },
   playPause: () => set((s) => ({ playing: !s.playing })),
   setSpeed: (speed) => set({ speed }),
   reset: () => {
     if (!model) return
     rng = makeRng(SEED)
-    set({ t: 0, tags: initTags(model), pipeFlows: {}, alarms: [], history: {}, playing: true })
+    set({ t: 0, tags: initTags(model), pipeFlows: {}, alarms: [], journal: [], history: {}, playing: true })
   },
   tickOnce: (dt) => {
     if (!model) return
@@ -67,7 +71,9 @@ export const useSimStore = create<SimStoreState>()((set, get) => ({
       if (pv === undefined) continue
       history[d.name] = [...(history[d.name] ?? []), pv].slice(-HISTORY_CAP)
     }
-    set({ t, tags, pipeFlows: pipeFlowMap(model.net, branchFlows), alarms: evalAlarms(model.defs, tags, s.alarms, t), history })
+    const alarms = evalAlarms(model.defs, tags, s.alarms, t)
+    const journal = [...alarmEvents(s.alarms, alarms, t).reverse(), ...s.journal].slice(0, JOURNAL_CAP)
+    set({ t, tags, pipeFlows: pipeFlowMap(model.net, branchFlows), alarms, journal, history })
   },
   writeTag: (tag, signal, value) => {
     let tg = tag, sig = signal
@@ -79,7 +85,11 @@ export const useSimStore = create<SimStoreState>()((set, get) => ({
     }
     set((s) => ({ tags: { ...s.tags, [tg]: { ...s.tags[tg], [sig]: value } } }))
   },
-  ack: (id) => set((s) => ({ alarms: ackAlarms(s.alarms, id) })),
+  ack: (id) =>
+    set((s) => {
+      const alarms = ackAlarms(s.alarms, id)
+      return { alarms, journal: [...alarmEvents(s.alarms, alarms, s.t).reverse(), ...s.journal].slice(0, JOURNAL_CAP) }
+    }),
 }))
 
 /** Drives the sim while mounted: 5 Hz wall clock, dt scaled by speed. */

@@ -11,9 +11,15 @@ import PushButton from './button'
 import ToggleSwitch from './switchw'
 import Trend from './trend'
 import SymbolGraphic from './symbol'
+import BarIndicator from './bar'
+import PanelFrame from './panel'
+import NavButton from './nav'
 
 export function renderWidget(view: WidgetView): React.ReactElement {
   switch (view.widget.type) {
+    case 'bar': return <BarIndicator {...view} />
+    case 'panel': return <PanelFrame {...view} />
+    case 'nav': return <NavButton {...view} />
     case 'tank': return <Tank {...view} />
     case 'pump': return <Pump {...view} />
     case 'valve': return <Valve {...view} />

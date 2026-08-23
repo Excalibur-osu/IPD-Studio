@@ -65,7 +65,10 @@ export interface StoreState {
   deleteScreen(id: string): void
   setScreenTheme(id: string, theme: HmiTheme): void
   addWidget(partial: Omit<HmiWidget, 'id'>): string
+  addWidgets(partials: Omit<HmiWidget, 'id'>[]): string[]
   updateWidget(id: string, patch: Partial<Omit<HmiWidget, 'id'>>): void
+  updateWidgets(entries: { id: string; patch: Partial<Omit<HmiWidget, 'id'>> }[]): void
+  reorderWidgets(ids: string[], to: 'front' | 'back'): void
   moveWidgets(ids: string[], dx: number, dy: number): void
   addHmiPipe(partial: Omit<HmiPipe, 'id'>): string
   updateHmiPipe(id: string, patch: Partial<Omit<HmiPipe, 'id'>>): void
@@ -447,15 +450,42 @@ export const useStore = create<StoreState>()(
           return id
         },
 
+        addWidgets(partials) {
+          const ids = partials.map(() => ulid())
+          patchScreen((sc) => ({ ...sc, widgets: [...sc.widgets, ...partials.map((p, i) => ({ ...p, id: ids[i]! }))] }))
+          return ids
+        },
+
         updateWidget(id, patch) {
           patchScreen((sc) => ({ ...sc, widgets: sc.widgets.map((w) => (w.id === id ? { ...w, ...patch } : w)) }))
         },
 
+        updateWidgets(entries) {
+          const byId = new Map(entries.map((e) => [e.id, e.patch]))
+          patchScreen((sc) => ({
+            ...sc,
+            widgets: sc.widgets.map((w) => (byId.has(w.id) ? { ...w, ...byId.get(w.id) } : w)),
+          }))
+        },
+
+        reorderWidgets(ids, to) {
+          const idSet = new Set(ids)
+          patchScreen((sc) => {
+            const picked = sc.widgets.filter((w) => idSet.has(w.id))
+            const rest = sc.widgets.filter((w) => !idSet.has(w.id))
+            return { ...sc, widgets: to === 'front' ? [...rest, ...picked] : [...picked, ...rest] }
+          })
+        },
+
         moveWidgets(ids, dx, dy) {
+          // selection ids may mix widgets and pipes; both translate together
           const idSet = new Set(ids)
           patchScreen((sc) => ({
             ...sc,
             widgets: sc.widgets.map((w) => (idSet.has(w.id) ? { ...w, x: w.x + dx, y: w.y + dy } : w)),
+            pipes: sc.pipes.map((p) =>
+              idSet.has(p.id) ? { ...p, points: p.points.map((q) => ({ x: q.x + dx, y: q.y + dy })) } : p,
+            ),
           }))
         },
 

@@ -28,7 +28,9 @@ export default function HmiToolbar({ onExit, tool, setTool, onImport }: {
   const toggleRun = () => {
     if (!screen) return
     if (mode === 'run') sim().exitRun()
-    else sim().enterRun(screen)
+    // plant-wide: every screen compiles into one model, so navigating
+    // between pages while running keeps the same live plant
+    else sim().enterRun(doc.hmiScreens)
   }
   return (
     <header className="hmi-toolbar">

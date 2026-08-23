@@ -26,6 +26,18 @@ export default function Tank({ widget, theme, sim }: WidgetView) {
         <line key={tk} x1={w - 12} x2={w - 5} y1={4 + (h - 8) * (1 - tk / 100)} y2={4 + (h - 8) * (1 - tk / 100)}
           stroke={theme.equipStroke} strokeWidth={1.5} opacity={0.8} />
       ))}
+      {/* alarm-limit markers (same defaults the sim applies) */}
+      {([['LL', 5, theme.alarm], ['L', 10, theme.warn], ['H', 90, theme.warn], ['HH', 95, theme.alarm]] as const).map(([key, dflt, color]) => {
+        const raw = widget.props?.[key]
+        const v = typeof raw === 'number' && Number.isFinite(raw) ? raw : dflt
+        const y = 4 + (h - 8) * (1 - Math.max(0, Math.min(100, v)) / 100)
+        return (
+          <g key={key}>
+            <line x1={2} x2={10} y1={y} y2={y} stroke={color} strokeWidth={2} />
+            <text x={12} y={y + 2.5} fill={color} fontSize={7} fontWeight={700}>{key}</text>
+          </g>
+        )
+      })}
       <text x={w / 2} y={h / 2 + 5} textAnchor="middle" fill={theme.text} fontSize={14} fontWeight={700}
         stroke={theme.bg} strokeWidth={3} paintOrder="stroke">{fmt(sim.PV, 0)}%</text>
       <text x={w / 2} y={h + 14} textAnchor="middle" fill={theme.text} fontSize={11} fontWeight={600}

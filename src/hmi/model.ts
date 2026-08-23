@@ -5,6 +5,7 @@ export type HmiTheme = 'classic' | 'hp'
 export type WidgetType =
   | 'tank' | 'pump' | 'valve' | 'display' | 'gauge' | 'trend'
   | 'lamp' | 'button' | 'switch' | 'label' | 'symbol'
+  | 'bar' | 'panel' | 'nav'
 
 export interface HmiWidget {
   id: string
@@ -20,7 +21,8 @@ export interface HmiWidget {
   /**
    * Per-type extras. Keys used by the sim/import (all optional):
    * capacity, level0, throttle, LL, L, H, HH, unit, min, max, base, bindTank,
-   * bindPipe, controller, symbolId, signal, writeValue, onLabel, offLabel.
+   * bindPipe, controller, symbolId, signal, writeValue, onLabel, offLabel,
+   * screen (nav target id).
    */
   props?: Record<string, string | number | boolean>
 }
@@ -59,6 +61,9 @@ export const WIDGET_DEFAULT_SIZE: Record<WidgetType, { w: number; h: number }> =
   switch: { w: 64, h: 32 },
   label: { w: 96, h: 24 },
   symbol: { w: 64, h: 64 },
+  bar: { w: 56, h: 144 },
+  panel: { w: 320, h: 208 },
+  nav: { w: 120, h: 32 },
 }
 
 export function createScreen(number: number): HmiScreen {

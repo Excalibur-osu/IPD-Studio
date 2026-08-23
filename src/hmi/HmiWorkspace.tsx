@@ -48,8 +48,8 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
     setSelection([])
     setTool('select')
     setFaceplate(null)
-    // switching screens mid-RUN would leave the sim ticking a stale model
-    useSimStore.getState().exitRun()
+    // In RUN the sim is compiled plant-wide (every screen), so switching
+    // screens is navigation, not a model change — keep simulating.
   }, [activeScreenId])
   useEffect(() => { setFaceplate(null) }, [mode])
   // leaving the workspace (unmount) stops any running simulation
@@ -107,13 +107,38 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
           </div>
         )}
       </div>
-      <div className="hmi-props"><HmiPropertyPanel selection={selection} /></div>
-      <div className="hmi-status">
-        <span>HMI workspace</span>
-        {mode === 'run'
-          ? <span>RUNNING — click equipment to operate</span>
-          : screen && <span>EDIT — preview values shown; press ▶ RUN to simulate</span>}
-      </div>
+      <div className="hmi-props"><HmiPropertyPanel selection={selection} onSelect={setSelection} /></div>
+      <StatusBar screenName={screen?.name} selection={selection.length} />
+    </div>
+  )
+}
+
+const mmss = (t: number) => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}`
+
+function StatusBar({ screenName, selection }: { screenName?: string; selection: number }) {
+  const mode = useSimStore((s) => s.mode)
+  const t = useSimStore((s) => s.t)
+  const playing = useSimStore((s) => s.playing)
+  const alarms = useSimStore((s) => s.alarms)
+  const unacked = alarms.filter((a) => a.phase !== 'acked').length
+  return (
+    <div className="hmi-status">
+      <span>HMI workspace</span>
+      {screenName && <span>· {screenName}</span>}
+      {mode === 'run' ? (
+        <>
+          <span data-testid="sim-clock">⏱ {mmss(t)}{playing ? '' : ' (paused)'}</span>
+          <span>{unacked > 0 ? `⚠ ${unacked} unacked alarm${unacked === 1 ? '' : 's'}` : 'no unacked alarms'}</span>
+          <span style={{ marginLeft: 'auto' }}>RUNNING plant-wide — tabs navigate, click equipment to operate</span>
+        </>
+      ) : (
+        screenName && (
+          <>
+            {selection > 0 && <span>{selection} selected</span>}
+            <span style={{ marginLeft: 'auto' }}>EDIT — preview values shown; press ▶ RUN to simulate</span>
+          </>
+        )
+      )}
     </div>
   )
 }

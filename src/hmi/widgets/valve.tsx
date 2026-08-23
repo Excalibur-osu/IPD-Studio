@@ -9,10 +9,17 @@ export default function Valve({ widget, theme, sim }: WidgetView) {
   const midX = w / 2, botY = h - 2
   return (
     <g>
+      {/* actuator stem + bonnet on throttling valves */}
+      {throttle && (
+        <>
+          <line x1={midX} y1={h / 2} x2={midX} y2={-4} stroke={theme.equipStroke} strokeWidth={2} />
+          <line x1={midX - 8} y1={-4} x2={midX + 8} y2={-4} stroke={theme.equipStroke} strokeWidth={3} strokeLinecap="round" />
+        </>
+      )}
       <polygon points={`2,2 ${midX},${h / 2} 2,${botY}`} fill={fill} stroke={theme.equipStroke} strokeWidth={2} />
       <polygon points={`${w - 2},2 ${midX},${h / 2} ${w - 2},${botY}`} fill={fill} stroke={theme.equipStroke} strokeWidth={2} />
       {throttle && (
-        <text x={midX} y={-4} textAnchor="middle" fill={theme.text} fontSize={11} fontWeight={600}
+        <text x={midX} y={-10} textAnchor="middle" fill={theme.text} fontSize={11} fontWeight={600}
           stroke={theme.bg} strokeWidth={3} paintOrder="stroke">{fmt(sim.OP, 0)}%</text>
       )}
       <text x={midX} y={h + 14} textAnchor="middle" fill={theme.text} fontSize={11} fontWeight={600}

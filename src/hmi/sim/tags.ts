@@ -35,6 +35,7 @@ function defFor(w: HmiWidget): TagDef | null {
       return { name: w.tag, kind: p.throttle === true ? 'valve' : 'valveOnOff', min: 0, max: 100 }
     case 'display':
     case 'gauge':
+    case 'bar':
     case 'trend': {
       const limits = [p.LL, p.L, p.H, p.HH].some((v) => num(v) !== undefined)
         ? { LL: num(p.LL), L: num(p.L), H: num(p.H), HH: num(p.HH) }
@@ -55,15 +56,19 @@ function defFor(w: HmiWidget): TagDef | null {
 
 /** One TagDef per distinct widget tag. Physical kinds (tank/motor/valve/
  *  controller) outrank plain displays, so a Trend placed before its Tank
- *  cannot demote the tag to a drifting display. */
-export function buildTagDefs(screen: HmiScreen): TagDef[] {
+ *  cannot demote the tag to a drifting display. Accepts one screen or the
+ *  whole plant (all screens) — tags are global across screens. */
+export function buildTagDefs(screens: Pick<HmiScreen, 'widgets'> | Pick<HmiScreen, 'widgets'>[]): TagDef[] {
+  const list = Array.isArray(screens) ? screens : [screens]
   const rank = (k: TagKind) => (k === 'display' ? 1 : 2)
   const out = new Map<string, TagDef>()
-  for (const w of screen.widgets) {
-    const d = defFor(w)
-    if (!d) continue
-    const existing = out.get(d.name)
-    if (!existing || rank(d.kind) > rank(existing.kind)) out.set(d.name, d)
+  for (const screen of list) {
+    for (const w of screen.widgets) {
+      const d = defFor(w)
+      if (!d) continue
+      const existing = out.get(d.name)
+      if (!existing || rank(d.kind) > rank(existing.kind)) out.set(d.name, d)
+    }
   }
   return [...out.values()]
 }

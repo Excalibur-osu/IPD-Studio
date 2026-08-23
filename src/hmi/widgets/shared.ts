@@ -13,3 +13,6 @@ export interface WidgetView {
 
 export const fmt = (v: number | undefined, digits = 1): string =>
   v === undefined || Number.isNaN(v) ? '—' : v.toFixed(digits)
+
+export const num = (v: unknown): number | undefined =>
+  typeof v === 'number' && Number.isFinite(v) ? v : undefined

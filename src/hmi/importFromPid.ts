@@ -1,7 +1,7 @@
 import { ulid } from 'ulid'
 import type { PlantEdge, PlantNode, ProjectDoc, Sheet } from '../model/types'
 import { isPortEnd } from '../model/types'
-import { portWorld } from '../canvas/alignment'
+import { portWorld, scalesOf } from '../canvas/alignment'
 import type { HmiPipe, HmiScreen, HmiWidget, WidgetType } from './model'
 import { HMI_WORLD, WIDGET_DEFAULT_SIZE } from './model'
 import { formatTag } from '../isa/tag'
@@ -28,9 +28,12 @@ function widgetTypeFor(node: PlantNode, category: string): { type: WidgetType; p
   if (category === 'safety') return { type: 'symbol', props: { symbolId: node.symbolId } }
   if (node.kind === 'valve') return { type: 'valve', props: undefined }
   if (node.kind === 'instrument') {
-    if (letters.endsWith('T')) return { type: 'display', props: undefined }
-    if (letters.includes('C') && !letters.endsWith('V')) return { type: 'display', props: { controller: true } }
-    return { type: 'display', props: undefined }
+    // sensible demo units per measured family so imported displays read real
+    const unit = ({ L: '%', T: '°C', P: 'bar', F: 'm³/h' } as Record<string, string>)[letters[0] ?? '']
+    const u: HmiWidget['props'] = unit === undefined ? undefined : { unit }
+    if (letters.endsWith('T')) return { type: 'display', props: u } // transmitters (incl. CT) are plain measurements
+    if (letters.includes('C') && !letters.endsWith('V')) return { type: 'display', props: { controller: true, ...u } }
+    return { type: 'display', props: u }
   }
   return { type: 'symbol', props: { symbolId: node.symbolId } }
 }
@@ -61,15 +64,10 @@ export function mapNodes(sheet: Sheet, separator: '-' | ''): { widgets: HmiWidge
     if (mapped.type === 'display') {
       ;({ w, h } = WIDGET_DEFAULT_SIZE.display)
     } else {
-      const scale = node.scale ?? 1
-      try {
-        const g = getSymbol(node.symbolId).gridSize
-        w = g.w * 8 * scale
-        h = g.h * 8 * scale
-      } catch {
-        ;({ w, h } = WIDGET_DEFAULT_SIZE[mapped.type])
-      }
+      ;({ w, h } = nodeSize(node))
+      if (w <= 0 || h <= 0) ({ w, h } = WIDGET_DEFAULT_SIZE[mapped.type])
       if (mapped.type === 'tank') { w = Math.max(w, 64); h = Math.max(h, 80) }
+      if (mapped.type === 'symbol') { w = Math.max(w, 12); h = Math.max(h, 12) }
     }
     widgets.push({
       id: `imp-${node.id}`,
@@ -86,11 +84,16 @@ const isProcess = (lc: PlantEdge['lineClass']) => lc.startsWith('process') || lc
  *  an imported impulse stub would read as a free-ended flow source. */
 const isPipeWorthy = (lc: PlantEdge['lineClass']) => isProcess(lc) && lc !== 'process.impulse'
 
+/** Footprint honoring per-axis stretch AND rotation (a 90°-rotated pump is
+ *  tall, not wide). */
 function nodeSize(node: PlantNode): { w: number; h: number } {
-  const scale = node.scale ?? 1
+  const { sx, sy } = scalesOf(node)
   try {
     const g = getSymbol(node.symbolId).gridSize
-    return { w: g.w * 8 * scale, h: g.h * 8 * scale }
+    const w = g.w * 8 * sx
+    const h = g.h * 8 * sy
+    const rot = (((node.rotation ?? 0) % 360) + 360) % 360
+    return rot === 90 || rot === 270 ? { w: h, h: w } : { w, h }
   } catch {
     return { w: 32, h: 32 }
   }
@@ -155,6 +158,7 @@ export function importSheet(doc: ProjectDoc, sheetId: string): HmiScreen {
   const pipes: HmiPipe[] = sheet.edges.filter((e) => isPipeWorthy(e.lineClass)).map((e) => ({
     id: ulid(),
     flowRef: e.id,
+    width: 5, // process runs read as the main arteries of the mimic
     points: [endPoint(e.source, nodesById), ...(e.vertices ?? []), endPoint(e.target, nodesById)],
   }))
 

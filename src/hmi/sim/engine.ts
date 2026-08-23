@@ -21,9 +21,17 @@ const GRAVITY = 4
 const KP = 1.5
 const KI = 0.4
 
-export function buildSimModel(screen: HmiScreen): SimModel {
-  const defs = buildTagDefs(screen)
-  const net = buildNetwork(screen)
+/** Compile one screen — or the whole plant (every screen) so RUN keeps
+ *  simulating while the operator navigates between pages. Tag defs merge
+ *  globally; flow networks stay per-screen (pipe coordinates are page-local),
+ *  branch ids are re-namespaced so concatenation cannot collide. */
+export function buildSimModel(screens: HmiScreen | HmiScreen[]): SimModel {
+  const list = Array.isArray(screens) ? screens : [screens]
+  const defs = buildTagDefs(list)
+  const branches = list.flatMap((sc, i) =>
+    buildNetwork(sc).branches.map((b) => ({ ...b, id: `S${i}:${b.id}` })),
+  )
+  const net: FlowNetwork = { branches }
   const controllers = wireControllers(defs).map((c) => ({ ...c, action: controllerAction(c, defs, net) }))
   return { defs, net, controllers }
 }
