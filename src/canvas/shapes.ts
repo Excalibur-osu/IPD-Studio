@@ -2,7 +2,7 @@ import { dia, shapes } from '@joint/core'
 import type { PlantEdge, PlantNode } from '../model/types'
 import { isPortEnd } from '../model/types'
 import { getSymbol } from '../symbols/registry'
-import { portWorld } from './alignment'
+import { portWorld, scalesOf } from './alignment'
 import { strokeFor } from './lineStyle'
 import { parseSvgToMarkup, type MarkupNode } from './markupParser'
 
@@ -41,7 +41,8 @@ function markupFor(node: PlantNode): (MarkupNode | string)[] {
   const def = getSymbol(node.symbolId)
   const svg = def.render(node.config ?? def.defaultConfig ?? {})
   const sym = parseSvgToMarkup(svg)
-  const s = node.scale ?? 1
+  const { sx, sy } = scalesOf(node)
+  const s = Math.sqrt(sx * sy)
   if (s !== 1) normalizeStrokes(sym, s)
   return [
     // Transparent body so the whole symbol (not just its hairline strokes)
@@ -64,11 +65,11 @@ function markupFor(node: PlantNode): (MarkupNode | string)[] {
   ]
 }
 
-/** Scaled pixel dims for a node (scale defaults to 1). */
-function dimsFor(node: PlantNode): { w: number; h: number; s: number } {
+/** Scaled pixel dims for a node. */
+function dimsFor(node: PlantNode): { w: number; h: number; sx: number; sy: number } {
   const def = getSymbol(node.symbolId)
-  const s = node.scale ?? 1
-  return { w: def.gridSize.w * 8 * s, h: def.gridSize.h * 8 * s, s }
+  const { sx, sy } = scalesOf(node)
+  return { w: def.gridSize.w * 8 * sx, h: def.gridSize.h * 8 * sy, sx, sy }
 }
 
 function tagAttrs(node: PlantNode): Record<string, Record<string, unknown>> {
@@ -131,9 +132,9 @@ function tagAttrs(node: PlantNode): Record<string, Record<string, unknown>> {
 
 /** Full attrs bundle: symbol color/scale transform, hit body size, tag texts. */
 function baseAttrs(node: PlantNode): Record<string, Record<string, unknown>> {
-  const { w, h, s } = dimsFor(node)
+  const { w, h, sx, sy } = dimsFor(node)
   return {
-    sym: { color: '#111', transform: `scale(${s})` },
+    sym: { color: '#111', transform: sx === sy ? `scale(${sx})` : `scale(${sx} ${sy})` },
     hit: { width: w, height: h },
     ...tagAttrs(node),
   }
@@ -141,11 +142,11 @@ function baseAttrs(node: PlantNode): Record<string, Record<string, unknown>> {
 
 function portItems(node: PlantNode) {
   const def = getSymbol(node.symbolId)
-  const s = node.scale ?? 1
+  const { sx, sy } = scalesOf(node)
   return def.ports.map((p) => ({
     id: p.id,
     group: 'p',
-    args: { x: p.x * s, y: p.y * s },
+    args: { x: p.x * sx, y: p.y * sy },
   }))
 }
 
@@ -175,7 +176,9 @@ export function updateElement(cell: dia.Element, node: PlantNode, prev: PlantNod
   if (node.x !== prev.x || node.y !== prev.y) cell.set('position', { x: node.x, y: node.y })
   if (node.rotation !== prev.rotation) cell.set('angle', node.rotation)
   if (node.config !== prev.config) cell.set('markup', markupFor(node) as unknown as dia.MarkupJSON)
-  const rescaled = (node.scale ?? 1) !== (prev.scale ?? 1)
+  const ps = scalesOf(node)
+  const pp = scalesOf(prev)
+  const rescaled = ps.sx !== pp.sx || ps.sy !== pp.sy
   if (rescaled) {
     const { w, h } = dimsFor(node)
     cell.resize(w, h)

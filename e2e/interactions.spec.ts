@@ -222,6 +222,80 @@ test('polish: grouped undo, label drag, line re-attach, .pnid save name', async 
   await expect(page.locator('.doc-name')).toContainText('Dropped Drawing')
 })
 
+test('stretch, duplicate, live group drag, branch tap into a pipe', async ({ page }) => {
+  await page.goto('/')
+  await page.waitForFunction(() => Boolean(window.__pid))
+  const ids = await page.evaluate(() => {
+    const s = window.__pid.useStore.getState()
+    const a = s.addNode({ symbolId: 'vessel.tank', kind: 'equipment', x: 96, y: 96, rotation: 0 })
+    const b = s.addNode({ symbolId: 'vessel.tank', kind: 'equipment', x: 400, y: 96, rotation: 0 })
+    const c = s.addNode({ symbolId: 'vessel.tank', kind: 'equipment', x: 200, y: 320, rotation: 0 })
+    const pipe = s.addEdge({ lineClass: 'process.major', source: { nodeId: a, portId: 'e' }, target: { nodeId: b, portId: 'w' } })
+    s.setSelection([])
+    return { a, b, c, pipe }
+  })
+  await expect(page.locator('[model-id]')).toHaveCount(4)
+  const cp = (x, y) => page.evaluate(([lx, ly]) => window.__pid.canvasRef.paper.localToClientPoint({ x: lx, y: ly }), [x, y]) as Promise<{ x: number; y: number }>
+
+  // --- stretch: widen tank A from the panel ------------------------------
+  await page.mouse.click(...Object.values(await cp(128, 124)) as [number, number])
+  await page.locator('.props button[title="Wider"]').click()
+  const sxA = await page.evaluate((id) =>
+    window.__pid.useStore.getState().doc.sheets[0].nodes.find((n: any) => n.id === id).scaleX, ids.a)
+  expect(sxA).toBe(1.25)
+
+  // --- duplicate with Ctrl+D ---------------------------------------------
+  await page.keyboard.press('ControlOrMeta+d')
+  await expect(page.locator('[model-id]')).toHaveCount(5)
+
+  // --- live group drag: select two tanks, drag one, both move ------------
+  await page.evaluate((ids) => window.__pid.useStore.getState().setSelection([ids.b, ids.c]), ids)
+  const from = await cp(432, 124) // inside tank B
+  const to = await cp(432, 204)
+  await page.mouse.move(from.x, from.y)
+  await page.mouse.down()
+  await page.mouse.move(to.x, to.y, { steps: 10 })
+  await page.mouse.up()
+  const moved = await page.evaluate((ids) => {
+    const nodes = window.__pid.useStore.getState().doc.sheets[0].nodes
+    return { b: nodes.find((n: any) => n.id === ids.b).y, c: nodes.find((n: any) => n.id === ids.c).y }
+  }, ids)
+  expect(moved.b).toBe(176) // 96 + 80
+  expect(moved.c).toBe(400) // 320 + 80
+
+  // --- branch tap: drop a line from tank C onto the A->B pipe ------------
+  // pipe runs horizontally at y=128... after B moved, reroute happened; use
+  // a fresh straight pipe between two fixed points instead
+  const tap = await page.evaluate(() => {
+    const s = window.__pid.useStore.getState()
+    const d = s.addNode({ symbolId: 'vessel.tank', kind: 'equipment', x: 96, y: 480, rotation: 0 })
+    const e = s.addNode({ symbolId: 'vessel.tank', kind: 'equipment', x: 400, y: 480, rotation: 0 })
+    s.addEdge({ lineClass: 'process.major', source: { nodeId: d, portId: 'e' }, target: { nodeId: e, portId: 'w' } })
+    s.setSelection([])
+    return { d, e }
+  })
+  await page.waitForTimeout(400)
+  const edgesBefore = await page.evaluate(() => window.__pid.useStore.getState().doc.sheets[0].edges.length)
+  // drag from tank C bottom port down... use tank C's s port -> drop on the new pipe (midpoint ~ (280,512))
+  const start = await cp(232, 400 + 56) // C moved to y=400; s port at (232,456)
+  const drop = await cp(280, 512)
+  await page.mouse.move(start.x, start.y)
+  await page.mouse.down()
+  await page.mouse.move(drop.x, drop.y, { steps: 12 })
+  await page.mouse.up()
+  const after = await page.evaluate(() => {
+    const sheet = window.__pid.useStore.getState().doc.sheets[0]
+    return {
+      junctions: sheet.nodes.filter((n: any) => n.symbolId === 'fit.junction').length,
+      edges: sheet.edges.length,
+      classes: sheet.edges.map((e: any) => e.lineClass),
+    }
+  })
+  expect(after.junctions).toBe(1)
+  expect(after.edges).toBe(edgesBefore + 2) // pipe -> two halves + branch
+  expect(after.classes.every((c: string) => c === 'process.major')).toBe(true)
+})
+
 test('port dots show only on hover or while linking; nodes resize from the panel', async ({ page }) => {
   await page.goto('/')
   await page.waitForFunction(() => Boolean(window.__pid))

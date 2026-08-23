@@ -47,6 +47,10 @@ export interface PlantNode {
   rotation: 0 | 90 | 180 | 270
   /** Uniform display scale (1 = catalog size). Ports and glyph scale with it. */
   scale?: number
+  /** Per-axis stretch factors (e.g. a longer horizontal vessel). When set,
+   *  they override `scale` on their axis. */
+  scaleX?: number
+  scaleY?: number
   flipH?: boolean
   config?: Record<string, string>
   tag?: Tag

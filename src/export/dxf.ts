@@ -3,6 +3,7 @@ import { isPortEnd } from '../model/types'
 import { sheetPx } from '../model/doc'
 import { formatTag } from '../isa/tag'
 import { getSymbol } from '../symbols/registry'
+import { scalesOf } from '../canvas/alignment'
 import { parseSvgToMarkup, type MarkupNode } from '../canvas/markupParser'
 import { isProcessClass } from '../canvas/lineStyle'
 import { activeSheet, useStore } from '../store/store'
@@ -56,16 +57,17 @@ interface Xform {
   rotation: number
   w: number
   h: number
-  scale: number
+  sx: number
+  sy: number
   flipY: (y: number) => number
 }
 
 /** Local symbol point -> sheet DXF point (scale, rotation about center, y-flip). */
 function tx(p: { x: number; y: number }, t: Xform): { x: number; y: number } {
-  const cx = (t.w * t.scale) / 2
-  const cy = (t.h * t.scale) / 2
-  let dx = p.x * t.scale - cx
-  let dy = p.y * t.scale - cy
+  const cx = (t.w * t.sx) / 2
+  const cy = (t.h * t.sy) / 2
+  let dx = p.x * t.sx - cx
+  let dy = p.y * t.sy - cy
   const turns = ((t.rotation % 360) + 360) % 360
   for (let i = 0; i < turns / 90; i++) {
     const nd = { x: -dy, y: dx }
@@ -137,7 +139,7 @@ function nodeEntities(node: PlantNode, flipY: (y: number) => number): string {
   }
   const t: Xform = {
     nx: node.x, ny: node.y, rotation: node.rotation,
-    w: def.gridSize.w * 8, h: def.gridSize.h * 8, scale: node.scale ?? 1, flipY,
+    w: def.gridSize.w * 8, h: def.gridSize.h * 8, ...scalesOf(node), flipY,
   }
   const walk = (nodes: (MarkupNode | string)[]) => {
     for (const mk of nodes) {
@@ -149,7 +151,7 @@ function nodeEntities(node: PlantNode, flipY: (y: number) => number): string {
           break
         case 'circle': {
           const c = tx({ x: Number(a.cx), y: Number(a.cy) }, t)
-          out += circleEnt('SYMBOLS', c.x, c.y, Number(a.r) * t.scale)
+          out += circleEnt('SYMBOLS', c.x, c.y, Number(a.r) * ((t.sx + t.sy) / 2))
           break
         }
         case 'rect': {
@@ -187,16 +189,16 @@ function nodeEntities(node: PlantNode, flipY: (y: number) => number): string {
   const cfg = node.config ?? def.defaultConfig ?? {}
   walk(parseSvgToMarkup(def.render(cfg)))
 
-  const w = def.gridSize.w * 8 * t.scale
+  const w = def.gridSize.w * 8 * t.sx
   if (node.tag) {
     out += textEnt('TEXT', node.x + w / 2 - 12, flipY(node.y - 8), 8, formatTag(node.tag, '-'))
   }
   if (node.label) {
     if (node.labelPos === 'center') {
-      const h = def.gridSize.h * 8 * t.scale
+      const h = def.gridSize.h * 8 * t.sy
       out += textEnt('TEXT', node.x + w / 2 - node.label.length * 2.2, flipY(node.y + h / 2 + 3), 8, node.label)
     } else {
-      out += textEnt('TEXT', node.x, flipY(node.y + def.gridSize.h * 8 * t.scale + 14), 8, node.label)
+      out += textEnt('TEXT', node.x, flipY(node.y + def.gridSize.h * 8 * t.sy + 14), 8, node.label)
     }
   }
   return out
@@ -213,7 +215,7 @@ function edgeEntities(edge: PlantEdge, nodes: Map<string, PlantNode>, flipY: (y:
       if (!port) return { x: node.x, y: node.y }
       const t: Xform = {
         nx: node.x, ny: node.y, rotation: node.rotation,
-        w: def.gridSize.w * 8, h: def.gridSize.h * 8, scale: node.scale ?? 1, flipY: (y) => y,
+        w: def.gridSize.w * 8, h: def.gridSize.h * 8, ...scalesOf(node), flipY: (y) => y,
       }
       return tx({ x: port.x, y: port.y }, t)
     } catch {

@@ -4,7 +4,7 @@ import { activeSheet, pauseHistory, resumeHistory, useStore } from '../store/sto
 import type { LineClass, PlantEdge, PlantNode, SheetSize } from '../model/types'
 import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
 import TagEditor from './TagEditor'
-import { applyAlignment } from '../canvas/interactions'
+import { applyAlignment, duplicateSelection } from '../canvas/interactions'
 import { nextLineSeq } from '../isa/autonumber'
 import DatasheetEditor from './DatasheetEditor'
 
@@ -97,9 +97,10 @@ function NodeProps({ node }: { node: PlantNode }) {
   const setTagOffset = useStore((s) => s.setTagOffset)
   const setLabelOffset = useStore((s) => s.setLabelOffset)
   const rotateNode = useStore((s) => s.rotateNode)
-  const setNodeScale = useStore((s) => s.setNodeScale)
+  const setNodeStretch = useStore((s) => s.setNodeStretch)
   const [datasheetOpen, setDatasheetOpen] = useState(false)
-  const scale = node.scale ?? 1
+  const sx = node.scaleX ?? node.scale ?? 1
+  const sy = node.scaleY ?? node.scale ?? 1
   return (
     <>
       <div className="prop-title">{def.name}</div>
@@ -134,14 +135,27 @@ function NodeProps({ node }: { node: PlantNode }) {
       )}
       <div className="prop-row">
         <button onClick={() => rotateNode(node.id)}>Rotate 90°</button>
+        <button onClick={duplicateSelection} title="Ctrl+D">Duplicate</button>
         <span className="prop-hint">{node.rotation}°</span>
       </div>
       <div className="prop-row">
         <span className="prop-hint">Size</span>
-        <button title="Smaller" disabled={scale <= 0.5} onClick={() => setNodeScale(node.id, scale - 0.25)}>−</button>
-        <span className="scale-value">{scale}×</span>
-        <button title="Larger" disabled={scale >= 3} onClick={() => setNodeScale(node.id, scale + 0.25)}>＋</button>
-        {scale !== 1 && <button title="Reset size" onClick={() => setNodeScale(node.id, 1)}>reset</button>}
+        <button title="Smaller" disabled={sx <= 0.5 && sy <= 0.5} onClick={() => setNodeStretch(node.id, sx - 0.25, sy - 0.25)}>−</button>
+        <span className="scale-value">{sx === sy ? `${sx}×` : `${sx}/${sy}×`}</span>
+        <button title="Larger" disabled={sx >= 4 || sy >= 4} onClick={() => setNodeStretch(node.id, sx + 0.25, sy + 0.25)}>＋</button>
+        {(sx !== 1 || sy !== 1) && <button title="Reset size" onClick={() => setNodeStretch(node.id, 1, 1)}>reset</button>}
+      </div>
+      <div className="prop-row">
+        <span className="prop-hint">Width</span>
+        <button title="Narrower" disabled={sx <= 0.5} onClick={() => setNodeStretch(node.id, sx - 0.25, sy)}>−</button>
+        <span className="scale-value">{sx}×</span>
+        <button title="Wider" disabled={sx >= 4} onClick={() => setNodeStretch(node.id, sx + 0.25, sy)}>＋</button>
+      </div>
+      <div className="prop-row">
+        <span className="prop-hint">Height</span>
+        <button title="Shorter" disabled={sy <= 0.5} onClick={() => setNodeStretch(node.id, sx, sy - 0.25)}>−</button>
+        <span className="scale-value">{sy}×</span>
+        <button title="Taller" disabled={sy >= 4} onClick={() => setNodeStretch(node.id, sx, sy + 0.25)}>＋</button>
       </div>
       {(node.tagOffset || node.labelOffset) && (
         <div className="prop-row">
@@ -230,7 +244,10 @@ export default function PropertyPanel({ onCollapse }: { onCollapse?: () => void 
           <button onClick={() => applyAlignment('distribute-h')}>↔ Distribute</button>
           <button onClick={() => applyAlignment('distribute-v')}>↕ Distribute</button>
         </div>
-        <button onClick={deleteSelected}>Delete selection</button>
+        <div className="prop-row">
+          <button onClick={duplicateSelection} title="Ctrl+D">Duplicate</button>
+          <button onClick={deleteSelected}>Delete selection</button>
+        </div>
       </>
     )
   }
