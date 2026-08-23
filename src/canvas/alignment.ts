@@ -8,13 +8,18 @@ export interface NodeMove {
   y: number
 }
 
+/** Effective per-axis scale factors for a node. */
+export function scalesOf(node: Pick<PlantNode, 'scale' | 'scaleX' | 'scaleY'>): { sx: number; sy: number } {
+  return { sx: node.scaleX ?? node.scale ?? 1, sy: node.scaleY ?? node.scale ?? 1 }
+}
+
 function sizeOf(node: PlantNode): { w: number; h: number } {
   try {
     const def = getSymbol(node.symbolId)
     const rotated = node.rotation === 90 || node.rotation === 270
-    const s = node.scale ?? 1
-    const w = def.gridSize.w * 8 * s
-    const h = def.gridSize.h * 8 * s
+    const { sx, sy } = scalesOf(node)
+    const w = def.gridSize.w * 8 * sx
+    const h = def.gridSize.h * 8 * sy
     return rotated ? { w: h, h: w } : { w, h }
   } catch {
     return { w: 32, h: 32 }
@@ -27,11 +32,11 @@ export function portWorld(node: PlantNode, portId: string): { x: number; y: numb
     const def = getSymbol(node.symbolId)
     const port = def.ports.find((p) => p.id === portId)
     if (!port) return null
-    const s = node.scale ?? 1
-    const w = def.gridSize.w * 8 * s
-    const h = def.gridSize.h * 8 * s
-    let dx = port.x * s - w / 2
-    let dy = port.y * s - h / 2
+    const { sx, sy } = scalesOf(node)
+    const w = def.gridSize.w * 8 * sx
+    const h = def.gridSize.h * 8 * sy
+    let dx = port.x * sx - w / 2
+    let dy = port.y * sy - h / 2
     const turns = (((node.rotation % 360) + 360) % 360) / 90
     for (let i = 0; i < turns; i++) {
       const r = { x: -dy, y: dx }

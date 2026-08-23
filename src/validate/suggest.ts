@@ -135,6 +135,16 @@ export function runSuggestions(doc: ProjectDoc): Suggestion[] {
       }
     }
 
+    // 8. two lines connecting exactly the same two points
+    const pairSeen = new Set<string>()
+    for (const e of sheet.edges) {
+      if (!isPortEnd(e.source) || !isPortEnd(e.target)) continue
+      const key = [`${e.source.nodeId}:${e.source.portId}`, `${e.target.nodeId}:${e.target.portId}`].sort().join('|')
+      if (pairSeen.has(key)) {
+        add('duplicate-line', sheet, 'Two identical lines connect the same two points — delete one?', e.id)
+      } else pairSeen.add(key)
+    }
+
     // 4. electric signal straight into a pneumatic actuator — offer the I/P fix
     for (const e of sheet.edges) {
       if (e.lineClass !== 'signal.electric') continue

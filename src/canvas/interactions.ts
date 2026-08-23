@@ -1,4 +1,5 @@
 import { dia, g, highlighters, linkTools } from '@joint/core'
+import { ulid } from 'ulid'
 import type { PlantEdge, PlantNode } from '../model/types'
 import { isPortEnd } from '../model/types'
 import type { PortKind } from '../symbols/types'
@@ -59,6 +60,86 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     return null
   }
 
+  /** Find a committed line under a sheet point (for branch taps). */
+  const pipeAt = (pt: { x: number; y: number }): { edge: PlantEdge; point: { x: number; y: number } } | null => {
+    const sheet = activeSheet(store())
+    for (const e of sheet.edges) {
+      const cell = graph.getCell(e.id) as dia.Link | undefined
+      const view = cell ? (cell.findView(paper) as dia.LinkView | null) : null
+      const conn = view?.getConnection()
+      if (!conn) continue
+      const cp = conn.closestPoint(new g.Point(pt.x, pt.y))
+      if (cp && Math.hypot(cp.x - pt.x, cp.y - pt.y) <= 10) {
+        return { edge: e, point: { x: cp.x, y: cp.y } }
+      }
+    }
+    return null
+  }
+
+  /**
+   * Dropping a line onto an existing pipe taps into it: a junction dot is
+   * inserted at the drop point, the pipe splits into two halves through it,
+   * and the new line lands on the junction — all as one undo step. The
+   * branch inherits the tapped line's class.
+   */
+  const commitBranchTap = (
+    portEnd: PlantEdge['source'],
+    tap: { edge: PlantEdge; point: { x: number; y: number } },
+  ): void => {
+    const sheet = activeSheet(store())
+    const tapped = tap.edge
+    const resolve = (end: PlantEdge['source']): { x: number; y: number } | null => {
+      if (!isPortEnd(end)) return { x: end.x, y: end.y }
+      const n = sheet.nodes.find((nd) => nd.id === end.nodeId)
+      return n ? portWorld(n, end.portId) : null
+    }
+    const a = resolve(tapped.source)
+    const b = resolve(tapped.target)
+    if (!a || !b) return
+    const horizontal = Math.abs(b.x - a.x) >= Math.abs(b.y - a.y)
+    // snap along the pipe only; stay exactly ON the line across it
+    const px = horizontal ? snap8(tap.point.x) : Math.round(tap.point.x)
+    const py = horizontal ? Math.round(tap.point.y) : snap8(tap.point.y)
+    const jx = px - 4
+    const jy = py - 4
+    const jn: PlantNode = {
+      id: ulid(),
+      symbolId: 'fit.junction',
+      kind: 'fitting',
+      x: jx,
+      y: jy,
+      rotation: 0,
+    }
+    const inPort = horizontal ? (a.x <= b.x ? 'w' : 'e') : a.y <= b.y ? 'n' : 's'
+    const outPort = horizontal ? (a.x <= b.x ? 'e' : 'w') : a.y <= b.y ? 's' : 'n'
+    // branch takes the perpendicular side nearest the drawn line's start
+    const other = resolve(portEnd)
+    const branchPort = horizontal
+      ? (other?.y ?? 0) < tap.point.y ? 'n' : 's'
+      : (other?.x ?? 0) < tap.point.x ? 'w' : 'e'
+    const half1: PlantEdge = {
+      id: ulid(),
+      lineClass: tapped.lineClass,
+      source: tapped.source,
+      target: { nodeId: jn.id, portId: inPort },
+      ...(tapped.lineNumber ? { lineNumber: tapped.lineNumber } : {}),
+    }
+    const half2: PlantEdge = {
+      id: ulid(),
+      lineClass: tapped.lineClass,
+      source: { nodeId: jn.id, portId: outPort },
+      target: tapped.target,
+      ...(tapped.arrow ? { arrow: tapped.arrow } : {}),
+    }
+    const branch: PlantEdge = {
+      id: ulid(),
+      lineClass: tapped.lineClass,
+      source: portEnd,
+      target: { nodeId: jn.id, portId: branchPort },
+    }
+    store().addBatch([jn], [half1, half2, branch], [tapped.id])
+  }
+
   const commitDraft = (link: dia.Link) => {
     if (!String(link.id).startsWith('draft-')) return
     const src = link.source()
@@ -84,6 +165,14 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     // A free-ended stub shorter than ~3 grid squares is a failed drag near a
     // port, not a drawing intention — dropping it prevents ghost lines.
     if ((!isPortEnd(source) || !isPortEnd(target)) && a && b && Math.hypot(a.x - b.x, a.y - b.y) < 24) return
+    // A free end dropped onto an existing line becomes a branch tap.
+    if (isPortEnd(source) && !isPortEnd(target)) {
+      const tap = pipeAt(target)
+      if (tap) return commitBranchTap(source, tap)
+    } else if (isPortEnd(target) && !isPortEnd(source)) {
+      const tap = pipeAt(source)
+      if (tap) return commitBranchTap(target, tap)
+    }
     const id = store().addEdge({
       lineClass: pickLineClass(srcKind, tgtKind, store().activeLineClass),
       source,
@@ -219,19 +308,37 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
   }
   const onElementPointerMove = (view: dia.ElementView) => {
     const id = String(view.model.id)
-    if (!dragStart.has(id)) return
+    const start = dragStart.get(id)
+    if (!start) return
     clearGuides()
     const sheet = activeSheet(store())
     const node = sheet.nodes.find((n) => n.id === id)
     if (!node) return
     const p = view.model.position()
+    // a multi-selection moves together live, not just at drop
+    if (dragStart.size > 1) {
+      const dx = p.x - start.x
+      const dy = p.y - start.y
+      for (const [nid, s0] of dragStart) {
+        if (nid === id) continue
+        const cell = graph.getCell(nid) as dia.Element | undefined
+        if (cell?.isElement()) cell.position(s0.x + dx, s0.y + dy)
+      }
+    }
     const hit = snapGuides({ ...node, x: p.x, y: p.y }, sheet.nodes, 4, sheet.edges)
     if (hit.guideX !== undefined) drawGuide(true, hit.guideX)
     if (hit.guideY !== undefined) drawGuide(false, hit.guideY)
   }
   const onElementPointerDownPos = (view: dia.ElementView) => {
-    const p = view.model.position()
-    dragStart.set(String(view.model.id), { x: p.x, y: p.y })
+    dragStart.clear()
+    const id = String(view.model.id)
+    const sel = store().selection
+    const ids = sel.includes(id) && sel.length > 1 ? sel : [id]
+    for (const nid of ids) {
+      const cell = graph.getCell(nid) as dia.Element | undefined
+      if (cell?.isElement()) dragStart.set(nid, cell.position())
+    }
+    dragStart.set(id, view.model.position())
   }
   const onElementPointerUp = (view: dia.ElementView) => {
     clearGuides()
@@ -255,6 +362,7 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     } else {
       store().setNodePos(id, nx, ny)
     }
+    dragStart.clear()
   }
 
   // --- vertex editing on selected links ----------------------------------
@@ -320,6 +428,11 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
       if (clipboard && clipboard.nodes.length) s.pasteNodes(clipboard.nodes, clipboard.edges)
       return
     }
+    if (mod && e.key.toLowerCase() === 'd') {
+      e.preventDefault()
+      duplicateSelection()
+      return
+    }
     if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); s.deleteSelected(); return }
     if (e.key === 'Escape') { s.setSelection([]); return }
     if (e.key.toLowerCase() === 'r' && s.selection.length) {
@@ -363,6 +476,22 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     paper.off('blank:pointerdown')
     graph.off('change:vertices')
   }
+}
+
+/** Duplicate the selected components (and the lines between them), offset 16px. */
+export function duplicateSelection(): void {
+  const s = useStore.getState()
+  const selSet = new Set(s.selection)
+  if (selSet.size === 0) return
+  const sheet = activeSheet(s)
+  const nodes = sheet.nodes.filter((n) => selSet.has(n.id))
+  if (nodes.length === 0) return
+  const edges = sheet.edges.filter(
+    (e) =>
+      isPortEnd(e.source) && selSet.has(e.source.nodeId) &&
+      isPortEnd(e.target) && selSet.has(e.target.nodeId),
+  )
+  s.pasteNodes(nodes, edges)
 }
 
 /** Marquee selection on blank-drag. */

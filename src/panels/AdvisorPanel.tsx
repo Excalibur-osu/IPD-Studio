@@ -12,6 +12,7 @@ const RULE_LABELS: Record<string, string> = {
   'no-relief': 'Vessels without relief',
   'no-fail-position': 'Valve failure positions',
   'valve-tag-on-bubble': 'Tag / symbol mismatches',
+  'duplicate-line': 'Duplicate lines',
 }
 
 export function useSuggestions() {

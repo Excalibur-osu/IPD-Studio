@@ -20,6 +20,8 @@ export interface StoreState {
   moveNodes(ids: string[], dx: number, dy: number): void
   rotateNode(id: string): void
   setNodeScale(id: string, scale: number): void
+  /** Per-axis stretch (longer horizontal vessel etc.). 1/1 clears all scaling. */
+  setNodeStretch(id: string, sx: number, sy: number): void
   setNodeConfig(id: string, config: Record<string, string>): void
   setTag(id: string, tag: Tag | undefined): void
   setLabel(id: string, label: string): void
@@ -160,6 +162,22 @@ export const useStore = create<StoreState>()(
               if (n.id !== id) return n
               const { scale: _drop, ...rest } = n
               return clamped === 1 ? rest : { ...rest, scale: clamped }
+            }),
+          }))
+        },
+
+        setNodeStretch(id, sx, sy) {
+          const clamp = (v: number) => Math.min(4, Math.max(0.5, Math.round(v * 4) / 4))
+          const cx = clamp(sx)
+          const cy = clamp(sy)
+          patchSheet((sh) => ({
+            ...sh,
+            nodes: sh.nodes.map((n) => {
+              if (n.id !== id) return n
+              const { scale: _s, scaleX: _x, scaleY: _y, ...rest } = n
+              if (cx === 1 && cy === 1) return rest
+              if (cx === cy) return { ...rest, scale: cx }
+              return { ...rest, scaleX: cx, scaleY: cy }
             }),
           }))
         },
