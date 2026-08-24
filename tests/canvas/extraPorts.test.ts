@@ -59,13 +59,15 @@ describe('control valve positioner', () => {
     const def = getSymbol('cv.globe')
     const plain = def.render({ actuator: 'diaphragm', fail: 'none', positioner: 'none' })
     const withPos = def.render({ actuator: 'diaphragm', fail: 'none', positioner: 'yes' })
-    expect(plain).not.toContain('M-2 2 h12 v12')
-    expect(withPos).toContain('M-2 2 h12 v12')
+    expect(plain).not.toContain('M-10 2 h12 v12')
+    expect(withPos).toContain('M-10 2 h12 v12')
+    // the connecting line reaches the diaphragm edge, never inside it
+    expect(withPos).toContain('M2 8 H7.5')
     expect(def.configOptions?.positioner).toEqual(['none', 'yes'])
-    // the sw signal port sits inside the positioner box
+    // the sw signal port sits on the positioner box (right portion)
     const sw = def.ports.find((p) => p.id === 'sw')!
-    expect(sw.x).toBeGreaterThanOrEqual(-2)
-    expect(sw.x).toBeLessThanOrEqual(10)
+    expect(sw.x).toBeGreaterThanOrEqual(-10)
+    expect(sw.x).toBeLessThanOrEqual(2)
     expect(sw.y).toBeGreaterThanOrEqual(2)
     expect(sw.y).toBeLessThanOrEqual(14)
   })

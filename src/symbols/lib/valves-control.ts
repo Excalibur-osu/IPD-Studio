@@ -44,6 +44,21 @@ function failMark(fail: string): string {
   }
 }
 
+/**
+ * ISA valve positioner: a square box standing clear of the actuator, joined
+ * by a short line that lands exactly on the actuator's edge at mid-height —
+ * never poking inside it. The sw signal port (0,8) sits on the box, so
+ * signal lines attach to the positioner like the standard drawing.
+ */
+function positionerGlyph(actuator: string): string {
+  // where the actuator's left edge sits at y=8, per glyph geometry
+  const edge: Record<string, number> = {
+    diaphragm: 7.5, piston: 8, motor: 10.5, solenoid: 10,
+    manual: 16, digital: 10, 'electro-hydraulic': 6,
+  }
+  return path('M-10 2 h12 v12 h-12 Z') + path(`M2 8 H${edge[actuator] ?? 7.5}`)
+}
+
 function bodyAt(bodyMarkup: string): string {
   // Body drawn in a group translated to y24.
   return `<g transform="translate(0 24)">${bodyMarkup}</g>`
@@ -78,16 +93,15 @@ export const controlValves: SymbolDef[] = Object.entries(CV_BODIES).map(([id, bo
     actuatorGlyph(cfg.actuator ?? 'diaphragm') +
     path('M16 12 V24') +
     failMark(cfg.fail ?? 'none') +
-    // ISA valve positioner: a square box mounted beside the actuator; the
-    // signal line lands on it (the sw port sits inside the box)
-    (cfg.positioner === 'yes' ? path('M-2 2 h12 v12 h-12 Z') + path('M10 8 H13') : '') +
+    (cfg.positioner === 'yes' ? positionerGlyph(cfg.actuator ?? 'diaphragm') : '') +
     bodyAt(body.markup),
   ports: [
     { id: 'w', x: 0, y: 32, kind: 'process' },
     { id: 'e', x: 32, y: 32, kind: 'process' },
     { id: 'sig', x: 16, y: 0, kind: 'signal' },
-    // Actuator flanks: positioner input one side, feedback/limit switches the other.
-    { id: 'sw', x: 4, y: 8, kind: 'signal' },
+    // Actuator flanks: positioner input one side, feedback/limit switches the
+    // other. sw sits on the positioner box when one is drawn.
+    { id: 'sw', x: 0, y: 8, kind: 'signal' },
     { id: 'se', x: 28, y: 8, kind: 'signal' },
   ],
   tagRule: 'valve',
