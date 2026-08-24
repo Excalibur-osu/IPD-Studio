@@ -18,13 +18,47 @@ export interface HmiWidget {
   /** Primary tag, e.g. 'LT-101' or 'P-101'. Widgets read derived signals (.PV/.RUN/.OP). */
   tag?: string
   label?: string
-  /**
-   * Per-type extras. Keys used by the sim/import (all optional):
-   * capacity, level0, throttle, LL, L, H, HH, unit, min, max, base, bindTank,
-   * bindPipe, controller, symbolId, signal, writeValue, onLabel, offLabel,
-   * screen (nav target id).
-   */
+  /** Per-type extras. The legal keys per type live in WIDGET_SCHEMA below —
+   *  register every new key there (and in tests/hmi/schema.test.ts's ledger). */
   props?: Record<string, string | number | boolean>
+}
+
+export type PropKind =
+  | 'number' | 'boolean' | 'string'
+  | 'tagRef' | 'signalRef' | 'screenRef' | 'symbolRef' | 'tankRef' | 'pipeRef'
+
+const LIMITS = { LL: 'number', L: 'number', H: 'number', HH: 'number' } as const
+/** display/gauge/bar/trend share the full measurement bundle (sim/tags.ts
+ *  treats the four identically). */
+const MEASURE = {
+  ...LIMITS, unit: 'string', min: 'number', max: 'number',
+  controller: 'boolean', base: 'number', bindTank: 'tankRef', bindPipe: 'pipeRef',
+} as const
+
+/** The prop registry: drives the property panel + pickers and gives loads a
+ *  spec to check against. Unknown keys are WARNED about, never dropped — an
+ *  older build must not eat a newer document's props. */
+export const WIDGET_SCHEMA: Record<WidgetType, Record<string, PropKind>> = {
+  tank: { capacity: 'number', level0: 'number', ...LIMITS },
+  pump: {},
+  valve: { throttle: 'boolean' },
+  display: { ...MEASURE },
+  gauge: { ...MEASURE },
+  trend: { ...MEASURE },
+  bar: { ...MEASURE },
+  lamp: { signal: 'signalRef' },
+  button: { signal: 'signalRef', writeValue: 'number' },
+  switch: { signal: 'signalRef', onLabel: 'string', offLabel: 'string' },
+  label: {},
+  symbol: { symbolId: 'symbolRef' },
+  panel: {},
+  nav: { screen: 'screenRef' },
+}
+
+/** Prop keys this widget carries that its type's schema doesn't know. */
+export function checkWidgetProps(w: HmiWidget): string[] {
+  const schema = (WIDGET_SCHEMA[w.type] ?? {}) as Record<string, PropKind>
+  return Object.keys(w.props ?? {}).filter((k) => !(k in schema))
 }
 
 export interface HmiPipe {

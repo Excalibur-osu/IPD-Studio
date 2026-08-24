@@ -57,6 +57,14 @@
 .al-chip .al-time { opacity: 0.75; }
 .al-chip button, .al-all { background: #0006; color: #fff; border: 1px solid #fff5; border-radius: 3px; cursor: pointer; font-size: 11px; padding: 1px 8px; }
 .al-more { opacity: 0.8; }
+.hmi-combo { position: relative; display: inline-block; }
+.hmi-combo input { width: 130px; }
+.hmi-combo-list { position: absolute; right: 0; top: 100%; z-index: 30; width: 220px; max-height: 210px; overflow-y: auto; margin: 2px 0 0; padding: 2px; list-style: none; background: #fff; border: 1px solid #c8ccd4; border-radius: 5px; box-shadow: 0 6px 16px #0003; font-size: 12px; }
+.hmi-combo-group { padding: 4px 6px 1px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #889; }
+.hmi-combo-item { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 3px 6px; border-radius: 3px; cursor: pointer; }
+.hmi-combo-item.hi { background: #dbeafe; }
+.hmi-combo-item .hint { color: #889; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px; }
+.hmi-notice { color: #1d4f8a; background: #dbeafe; border-radius: 3px; padding: 0 8px; }
 /* imported P&ID symbols shrink with scale-to-fit; keep their line weight readable */
 g[data-hmi-symbol] path, g[data-hmi-symbol] circle, g[data-hmi-symbol] rect,
 g[data-hmi-symbol] line, g[data-hmi-symbol] polyline, g[data-hmi-symbol] polygon,

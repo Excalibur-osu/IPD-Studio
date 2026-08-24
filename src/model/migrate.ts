@@ -1,5 +1,6 @@
 import { ulid } from 'ulid'
 import type { PlantEdge, PlantNode, ProjectDoc, Sheet, SheetSize } from './types'
+import { checkWidgetProps } from '../hmi/model'
 
 export class DocError extends Error {}
 
@@ -75,6 +76,14 @@ export function loadDoc(raw: unknown): ProjectDoc {
       for (const s of doc.hmiScreens) {
         if (typeof s.id !== 'string' || !Array.isArray(s.widgets) || !Array.isArray(s.pipes)) {
           throw new DocError('hmiScreens is malformed')
+        }
+        // warn-only: unknown props usually mean the doc came from a NEWER
+        // build — keep them intact so nothing is lost on a round-trip
+        for (const w of s.widgets) {
+          const unknown = checkWidgetProps(w)
+          if (unknown.length > 0) {
+            console.warn(`HMI widget ${w.tag ?? w.id} (${w.type}) carries unknown props: ${unknown.join(', ')}`)
+          }
         }
       }
     }

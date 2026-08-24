@@ -51,6 +51,19 @@ signals: `.PV` (value), `.RUN` (motor), `.OP` (valve/controller output %),
 `.OPEN` (on/off valve), `.SP`, `.MODE` (AUTO/MAN). Lamps, buttons and
 switches bind to a fully-qualified signal like `P-101.RUN`.
 
+**You never have to type a tag.** The Tag field is a picker: it lists every
+identity in your P&ID — instruments with their ISA meaning spelled out
+("FIC-101 · Flow Indicating Controller"), equipment, valves — plus tags
+already used on other screens, filtered as you type (hyphens optional). The
+Signal field offers every `TAG.SIGNAL` the runtime can actually serve. Free
+text still works for tags that exist nowhere else.
+
+Value displays, gauges, bars and trends also expose their **value source** in
+the panel: tick **Controller** to make the widget a faceplate-capable
+controller, or bind the value to the live plant with **Bind tank** / **Bind
+pipe** — press **⊙ pick**, then click the tank or pipe right on the canvas
+(Esc cancels). Unbound displays wander gently around their **Idle value**.
+
 The physics is deliberately simple and honest about it: pumps deliver rated
 flow through open valves, tanks integrate level, sources feed by pressure,
 measurements drift realistically. RUN starts **calm**, the way a real plant

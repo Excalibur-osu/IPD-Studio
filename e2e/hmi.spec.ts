@@ -108,6 +108,59 @@ test('marquee select, duplicate, and navigate a running plant', async ({ page })
   await page.getByTestId('hmi-run-toggle').click()
 })
 
+test('bind with the tag picker and pick-on-canvas', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.goto('/')
+  // the sample plant fills the picker with real P&ID tags
+  await page.locator('select.tb-template').selectOption('sample')
+  await page.getByTestId('open-hmi').click()
+  await page.getByRole('button', { name: 'New screen' }).click()
+  const canvas = page.getByTestId('hmi-canvas')
+  const world = async (wx: number, wy: number) => {
+    const b = (await canvas.boundingBox())!
+    return { x: b.x + (wx / 1600) * b.width, y: b.y + (wy / 1000) * b.height }
+  }
+  // tank out of the way, tagged by typing (free text stays legal)
+  await page.getByText('Tank', { exact: true }).dblclick()
+  let p = await world(360, 280)
+  await page.mouse.move(p.x, p.y)
+  await page.mouse.down()
+  p = await world(800, 300)
+  await page.mouse.move(p.x, p.y, { steps: 5 })
+  await page.mouse.up()
+  await page.getByPlaceholder('e.g. LT-101').fill('TK-9')
+  await page.keyboard.press('Enter')
+  // a display bound through the picker dropdown
+  await page.getByText('Value display', { exact: true }).dblclick()
+  p = await world(350, 255)
+  await page.mouse.click(p.x, p.y)
+  await page.getByTestId('prop-tag').click()
+  const list = page.locator('.hmi-combo-list')
+  await expect(list).toBeVisible()
+  const first = list.locator('.hmi-combo-item').first()
+  const picked = (await first.locator('span').first().textContent())!
+  // the option commits on pointerdown (and the list closes mid-gesture), so
+  // dispatch the event directly instead of a full click sequence
+  await first.dispatchEvent('pointerdown')
+  await expect(page.getByTestId('prop-tag')).toHaveValue(picked)
+  // pick-on-canvas: arm, status hint shows, click the tank, binding lands
+  await page.getByTestId('pick-bindTank').click()
+  await expect(page.getByTestId('hmi-notice')).toContainText('tank')
+  p = await world(800, 320)
+  await page.mouse.click(p.x, p.y)
+  await expect(page.getByTestId('hmi-notice')).toBeHidden()
+  const bound = await page.evaluate(() => {
+    const s = (window as never as { __pid: { useStore: { getState(): { doc: { hmiScreens: { widgets: { type: string; props?: Record<string, unknown> }[] }[] } } } } }).__pid
+    return s.useStore.getState().doc.hmiScreens[0]!.widgets.find((w) => w.type === 'display')?.props?.bindTank
+  })
+  expect(bound).toBe('TK-9')
+  // Esc cancels an armed pick from anywhere
+  await page.getByTestId('pick-bindPipe').click()
+  await expect(page.getByTestId('hmi-notice')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('hmi-notice')).toBeHidden()
+})
+
 test('build an HMI screen by hand and keep it across reload', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.goto('/')

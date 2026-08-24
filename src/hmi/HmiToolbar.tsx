@@ -1,14 +1,19 @@
 import { useStore, activeHmiScreen } from '../store/store'
 import { useSimStore } from './simStore'
 
-export default function HmiToolbar({ onExit, tool, setTool, onImport }: {
+export default function HmiToolbar({ onExit, tool, setTool, onImport, onUndo, onRedo }: {
   onExit(): void
   tool: 'select' | 'pipe'
   setTool(t: 'select' | 'pipe'): void
   onImport(): void
+  /** Workspace-provided undo/redo (adds the shared-history notice). */
+  onUndo?(): void
+  onRedo?(): void
 }) {
-  const undo = useStore((s) => s.undo)
-  const redo = useStore((s) => s.redo)
+  const storeUndo = useStore((s) => s.undo)
+  const storeRedo = useStore((s) => s.redo)
+  const undo = onUndo ?? storeUndo
+  const redo = onRedo ?? storeRedo
   const name = useStore((s) => s.doc.meta.name)
   const doc = useStore((s) => s.doc)
   const screen = useStore(activeHmiScreen)

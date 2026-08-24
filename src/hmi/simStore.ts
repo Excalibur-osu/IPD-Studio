@@ -7,6 +7,7 @@ import type { AlarmEvent, AlarmRecord } from './sim/alarms'
 import { ackAlarms, alarmEvents, evalAlarms } from './sim/alarms'
 import { pipeFlowMap } from './sim/network'
 import { makeRng } from './sim/noise'
+import { parseSignalRef } from './tagIndex'
 
 const HISTORY_CAP = 600
 const JOURNAL_CAP = 200
@@ -78,10 +79,10 @@ export const useSimStore = create<SimStoreState>()((set, get) => ({
   writeTag: (tag, signal, value) => {
     let tg = tag, sig = signal
     if (sig === '') {
-      const i = tag.lastIndexOf('.')
-      if (i < 0) return
-      tg = tag.slice(0, i)
-      sig = tag.slice(i + 1)
+      const ref = parseSignalRef(tag)
+      if (!ref) return
+      tg = ref.tag
+      sig = ref.signal
     }
     set((s) => ({ tags: { ...s.tags, [tg]: { ...s.tags[tg], [sig]: value } } }))
   },

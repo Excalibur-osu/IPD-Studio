@@ -2,6 +2,10 @@ import { useStore, activeHmiScreen, pauseHistory, resumeHistory } from '../store
 import type { HmiWidget } from './model'
 import type { AlignMode } from './align'
 import { alignPatches, distributePatches, duplicateWidgets } from './align'
+import { SignalPicker, TagPicker } from './TagPicker'
+
+/** One armed pick-on-canvas request: the next canvas click binds, not selects. */
+export interface ArmedPick { kind: 'tank' | 'pipe'; widgetId: string }
 
 /** Group a typing burst into one undo step (same pattern as the P&ID panels). */
 const burst = (apply: () => void) => { apply(); pauseHistory() }
@@ -101,7 +105,42 @@ function AlignTools({ ids }: { ids: string[] }) {
   )
 }
 
-export default function HmiPropertyPanel({ selection, onSelect }: { selection: string[]; onSelect?(ids: string[]): void }) {
+/** Bind-to-model row: shows the bound target, arms a pick-on-canvas click. */
+function BindRow({ w, k, label, armedPick, onArmPick }: {
+  w: HmiWidget; k: 'bindTank' | 'bindPipe'; label: string
+  armedPick?: ArmedPick | null; onArmPick?(pick: ArmedPick | null): void
+}) {
+  const updateWidget = useStore((s) => s.updateWidget)
+  const bound = typeof w.props?.[k] === 'string' ? String(w.props[k]) : ''
+  const kind = k === 'bindTank' ? 'tank' as const : 'pipe' as const
+  const armed = armedPick?.widgetId === w.id && armedPick.kind === kind
+  return (
+    <Row label={label}>
+      <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <span style={{ fontSize: 11, maxWidth: 64, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: bound ? '#1a1a1a' : '#889' }}>
+          {bound ? (k === 'bindPipe' ? 'pipe ✓' : bound) : '—'}
+        </span>
+        <button style={{ ...btnStyle, ...(armed ? { background: '#dbeafe', border: '1px solid #2b6cb0' } : {}) }}
+          data-testid={`pick-${k}`}
+          title={`Click a ${kind} on the canvas to bind this widget`}
+          onClick={() => onArmPick?.(armed ? null : { kind, widgetId: w.id })}>
+          {armed ? '… click canvas' : '⊙ pick'}
+        </button>
+        {bound && (
+          <button style={btnStyle} title="Clear binding"
+            onClick={() => { const props = { ...w.props }; delete props[k]; updateWidget(w.id, { props }) }}>✕</button>
+        )}
+      </span>
+    </Row>
+  )
+}
+
+export default function HmiPropertyPanel({ selection, onSelect, armedPick, onArmPick }: {
+  selection: string[]
+  onSelect?(ids: string[]): void
+  armedPick?: ArmedPick | null
+  onArmPick?(pick: ArmedPick | null): void
+}) {
   const screen = useStore(activeHmiScreen)
   const screens = useStore((s) => s.doc.hmiScreens)
   const updateWidget = useStore((s) => s.updateWidget)
@@ -166,9 +205,8 @@ export default function HmiPropertyPanel({ selection, onSelect }: { selection: s
       <h4>{w.type}</h4>
       {w.type !== 'nav' && w.type !== 'panel' && w.type !== 'label' && (
         <Row label="Tag">
-          <input style={{ width: 110 }} value={w.tag ?? ''} placeholder="e.g. LT-101"
-            onBlur={resumeHistory}
-            onChange={(e) => burst(() => updateWidget(w.id, { tag: e.target.value || undefined }))} />
+          <TagPicker value={w.tag ?? ''} testid="prop-tag"
+            onCommit={(tag) => updateWidget(w.id, { tag })} />
         </Row>
       )}
       <Row label={w.type === 'panel' ? 'Title' : 'Label'}>
@@ -208,7 +246,36 @@ export default function HmiPropertyPanel({ selection, onSelect }: { selection: s
         </>
       )}
       {(w.type === 'display' || w.type === 'gauge' || w.type === 'trend' || w.type === 'bar') && (
-        <><StrProp w={w} k="unit" label="Unit" placeholder="%" /><NumProp w={w} k="min" label="Min" /><NumProp w={w} k="max" label="Max" /></>
+        <>
+          <StrProp w={w} k="unit" label="Unit" placeholder="%" /><NumProp w={w} k="min" label="Min" /><NumProp w={w} k="max" label="Max" />
+          <h5 style={{ margin: '10px 0 2px' }}>Value source</h5>
+          <Row label="Controller">
+            <input type="checkbox" data-testid="prop-controller" checked={w.props?.controller === true}
+              onChange={(e) => {
+                const props = { ...w.props }
+                if (e.target.checked) props.controller = true
+                else delete props.controller
+                updateWidget(w.id, { props })
+              }} />
+          </Row>
+          {w.props?.controller !== true && (
+            <>
+              <BindRow w={w} k="bindTank" label="Bind tank" armedPick={armedPick} onArmPick={onArmPick} />
+              <BindRow w={w} k="bindPipe" label="Bind pipe" armedPick={armedPick} onArmPick={onArmPick} />
+              {typeof w.props?.bindTank !== 'string' && typeof w.props?.bindPipe !== 'string' && (
+                <NumProp w={w} k="base" label="Idle value" />
+              )}
+              <p style={{ fontSize: 10, color: '#889', margin: '2px 0' }}>
+                Bound values read the live plant model; unbound ones wander near the idle value.
+              </p>
+            </>
+          )}
+          {w.props?.controller === true && (
+            <p style={{ fontSize: 10, color: '#889', margin: '2px 0' }}>
+              Controllers pair with their loop by tag (LIC-101 finds LT-101 / LV-101) and expose SP, OP and AUTO/MAN.
+            </p>
+          )}
+        </>
       )}
       {w.type === 'valve' && (
         <Row label="Throttling">
@@ -217,7 +284,15 @@ export default function HmiPropertyPanel({ selection, onSelect }: { selection: s
         </Row>
       )}
       {(w.type === 'lamp' || w.type === 'switch' || w.type === 'button') && (
-        <StrProp w={w} k="signal" label="Signal" placeholder="P-101.RUN" />
+        <Row label="Signal">
+          <SignalPicker value={typeof w.props?.signal === 'string' ? String(w.props.signal) : ''} testid="prop-signal"
+            onCommit={(signal) => {
+              const props = { ...w.props }
+              if (signal === undefined) delete props.signal
+              else props.signal = signal
+              updateWidget(w.id, { props })
+            }} />
+        </Row>
       )}
       {w.type === 'button' && <NumProp w={w} k="writeValue" label="Write value" />}
       {w.type === 'switch' && (<><StrProp w={w} k="onLabel" label="On label" /><StrProp w={w} k="offLabel" label="Off label" /></>)}

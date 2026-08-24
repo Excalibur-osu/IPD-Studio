@@ -10,6 +10,7 @@ import { duplicateWidgets } from './align'
 import { useStore } from '../store/store'
 import { useSimStore } from './simStore'
 import { HMI_DRAG_MIME } from './HmiPalette'
+import { parseSignalRef } from './tagIndex'
 
 /** Structural subset of sim/alarms' AlarmRecord that the canvas needs. */
 export interface AlarmView { tag: string; phase: 'active' | 'acked' | 'cleared' }
@@ -21,6 +22,10 @@ export interface HmiCanvasProps {
   mode: 'edit' | 'run'
   tool: 'select' | 'pipe'
   onToolDone(): void
+  /** Armed pick-on-canvas: the next click binds a tank/pipe to this widget
+   *  instead of selecting. Selection must NOT change while picking. */
+  armedPick?: { kind: 'tank' | 'pipe'; widgetId: string } | null
+  onPicked?(): void
   /** Runtime bindings (absent in edit mode). */
   sim?: Record<string, Record<string, number>>
   flows?: Record<string, number>
@@ -101,7 +106,7 @@ type DragState =
   | { kind: 'vertex'; pipeId: string; index: number; live?: { x: number; y: number } }
   | null
 
-export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onToolDone, sim, flows, history, alarms, onWidgetClick }: HmiCanvasProps) {
+export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onToolDone, armedPick, onPicked, sim, flows, history, alarms, onWidgetClick }: HmiCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [drag, setDrag] = useState<DragState>(null)
   const [ghost, setGhost] = useState<{ dx: number; dy: number } | null>(null)
@@ -147,6 +152,26 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
 
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     const pt = toWorld(e)
+    if (mode === 'edit' && armedPick) {
+      // binding pick: consume the click entirely — a miss keeps the arm so the
+      // user can try again (Esc or the panel button cancels)
+      const target = screen.widgets.find((x) => x.id === armedPick.widgetId)
+      if (!target) { onPicked?.(); return }
+      if (armedPick.kind === 'tank') {
+        const t = hitWidget(screen, pt)
+        if (t && t.type === 'tank' && t.tag) {
+          st().updateWidget(target.id, { props: { ...target.props, bindTank: t.tag } })
+          onPicked?.()
+        }
+      } else {
+        const p = hitPipe(screen, pt)
+        if (p) {
+          st().updateWidget(target.id, { props: { ...target.props, bindPipe: p.id } })
+          onPicked?.()
+        }
+      }
+      return
+    }
     if (mode === 'run') {
       const w = hitWidget(screen, pt, { operate: true })
       if (!w) return
@@ -161,9 +186,9 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
         return
       }
       if (w.type === 'switch') {
-        if (sig.includes('.')) {
-          const i = sig.lastIndexOf('.')
-          const cur = useSimStore.getState().tags[sig.slice(0, i)]?.[sig.slice(i + 1)] ?? 0
+        const ref = parseSignalRef(sig)
+        if (ref) {
+          const cur = useSimStore.getState().tags[ref.tag]?.[ref.signal] ?? 0
           useSimStore.getState().writeTag(sig, '', cur >= 0.5 ? 0 : 1)
         }
         return
@@ -324,7 +349,7 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
       ref={svgRef}
       data-testid="hmi-canvas"
       viewBox={`0 0 ${HMI_WORLD.w} ${HMI_WORLD.h}`}
-      style={{ background: theme.bg, touchAction: 'none', cursor: mode === 'edit' && tool === 'pipe' ? 'crosshair' : undefined }}
+      style={{ background: theme.bg, touchAction: 'none', cursor: mode === 'edit' && (tool === 'pipe' || armedPick) ? 'crosshair' : undefined }}
       tabIndex={0}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -366,9 +391,9 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
         const o = offset(w.id)
         const values: Record<string, number> = sim ? { ...(sim[w.tag ?? ''] ?? {}) } : previewSim(w)
         const signal = typeof w.props?.signal === 'string' ? w.props.signal : ''
-        if (sim && signal.includes('.')) {
-          const i = signal.lastIndexOf('.')
-          values[signal] = sim[signal.slice(0, i)]?.[signal.slice(i + 1)] ?? 0
+        const sigRef = sim ? parseSignalRef(signal) : null
+        if (sim && sigRef) {
+          values[signal] = sim[sigRef.tag]?.[sigRef.signal] ?? 0
         }
         const recs = (alarms ?? []).filter((a) => a.tag === w.tag)
         const alarm = recs.some((a) => a.phase === 'active' || a.phase === 'cleared') ? 'unacked' as const : recs.length > 0 ? 'acked' as const : 'none' as const

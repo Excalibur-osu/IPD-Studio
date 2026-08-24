@@ -112,15 +112,19 @@ export const useStore = create<StoreState>()(
         }))
       }
 
-      /** Immutably replace the active HMI screen via an updater. */
+      /** Immutably replace the active HMI screen via an updater. Resolves the
+       *  target exactly like activeHmiScreen() — a stale activeScreenId (e.g.
+       *  after an undo removed that screen) must fall back, not silently drop
+       *  the edit. With no screens at all this returns the state unchanged so
+       *  neither subscribers nor undo history record anything. */
       const patchScreen = (updater: (screen: HmiScreen) => HmiScreen) => {
         set((s) => {
-          const id = s.activeScreenId
-          if (!id) return s
+          const target = activeHmiScreen(s)
+          if (!target) return s
           return {
             doc: touched({
               ...s.doc,
-              hmiScreens: s.doc.hmiScreens.map((sc) => (sc.id === id ? updater(sc) : sc)),
+              hmiScreens: s.doc.hmiScreens.map((sc) => (sc.id === target.id ? updater(sc) : sc)),
             }),
             dirty: true,
           }

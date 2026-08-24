@@ -102,3 +102,24 @@ test('capture new widgets on a hand-built screen', async ({ page }) => {
   await page.waitForTimeout(300)
   await page.screenshot({ path: '/tmp/hmi-new-widgets.png' })
 })
+
+test('capture the tag picker and value-source rows', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.setViewportSize({ width: 1680, height: 1000 })
+  await page.goto('/')
+  await page.locator('select.tb-template').selectOption('sample')
+  await page.getByTestId('open-hmi').click()
+  await page.getByRole('button', { name: 'New screen' }).click()
+  const canvas = page.getByTestId('hmi-canvas')
+  await page.getByText('Value display', { exact: true }).dblclick()
+  const b = (await canvas.boundingBox())!
+  await page.mouse.click(b.x + (350 / 1600) * b.width, b.y + (255 / 1000) * b.height)
+  await page.getByTestId('prop-tag').click()
+  await page.waitForTimeout(200)
+  await page.screenshot({ path: '/tmp/hmi-tag-picker.png' })
+  // armed pick-on-canvas state
+  await page.keyboard.press('Escape')
+  await page.getByTestId('pick-bindTank').click()
+  await page.waitForTimeout(150)
+  await page.screenshot({ path: '/tmp/hmi-bind-pick.png' })
+})
