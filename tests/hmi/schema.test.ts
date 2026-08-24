@@ -15,6 +15,7 @@ const LEDGER = [
   'unit', 'min', 'max', 'base',
   'bindTank', 'bindPipe', 'controller',
   'symbolId', 'signal', 'writeValue', 'onLabel', 'offLabel', 'screen',
+  'spark', 'span',
 ] as const
 
 describe('WIDGET_SCHEMA', () => {

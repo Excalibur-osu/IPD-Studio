@@ -43,12 +43,13 @@ export function distributePatches(widgets: HmiWidget[], axis: 'h' | 'v'): Widget
   return out
 }
 
-/** Clones for paste/duplicate: same geometry, nudged, fresh ids added by the store. */
+/** Clones for paste/duplicate: same geometry, nudged, fresh ids added by the
+ *  store. Deep copy — props objects and pens arrays must never be shared
+ *  between the clone and the original. */
 export function duplicateWidgets(widgets: HmiWidget[], offset = 16): Omit<HmiWidget, 'id'>[] {
   return widgets.map(({ id: _id, ...w }) => ({
-    ...w,
+    ...structuredClone(w),
     x: w.x + offset,
     y: w.y + offset,
-    props: w.props ? { ...w.props } : undefined,
   }))
 }

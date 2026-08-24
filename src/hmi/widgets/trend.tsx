@@ -1,27 +1,86 @@
+import { useState } from 'react'
 import type { WidgetView } from './shared'
 import { fmt, num } from './shared'
 
-const CAP = 600
+/** Muted pen palette (pen 1 first); ISA-101-friendly, distinct at 1.5px. */
+export const PEN_COLORS = ['#38a8e8', '#e8a838', '#63c88f', '#c58fff']
 
-/** Mini-trend with scale labels, gridlines, alarm-limit lines, and the SP —
- *  the embedded trend professional displays put next to every loop. */
-export default function Trend({ widget, theme, sim, history = [] }: WidgetView) {
+/** First index inside the [endT − span, endT] window (series are
+ *  index-aligned with ts). Samples are not uniform in sim time — speed
+ *  changes mid-run — so the window is found by time, never by count. */
+export function trendWindow(ts: number[], spanS: number, endT: number): number {
+  const t0 = endT - spanS
+  for (let i = 0; i < ts.length; i++) if (ts[i]! >= t0) return i
+  return ts.length
+}
+
+const mmss = (t: number) =>
+  `${String(Math.max(0, Math.floor(t / 60))).padStart(2, '0')}:${String(Math.max(0, Math.floor(t % 60))).padStart(2, '0')}`
+
+/** Multi-pen trend with a real time axis, limit/SP lines, and a hover cursor
+ *  that freezes the window and reads out every pen at that instant. */
+export default function Trend({ widget, theme, sim, hist }: WidgetView) {
+  const [hover, setHover] = useState<{ fx: number; endT: number } | null>(null)
   const { w, h } = widget
   const min = num(widget.props?.min) ?? 0
   const max = num(widget.props?.max) ?? 100
-  const unit = typeof widget.props?.unit === 'string' ? widget.props.unit : ''
   const span = max - min || 1
-  const px0 = 4, px1 = w - 30 // right gutter for scale labels
-  const py0 = 16, py1 = h - 6
+  const spanS = num(widget.props?.span) ?? 120
+  const px0 = 4, px1 = w - 30
+  const py0 = 16, py1 = h - 14
   const yOf = (v: number) => py1 - (py1 - py0) * Math.max(0, Math.min(1, (v - min) / span))
-  const pts = history.slice(-CAP)
-  const step = pts.length > 1 ? (px1 - px0) / (pts.length - 1) : 0
-  const path = pts.map((v, i) => `${px0 + i * step},${yOf(v)}`).join(' ')
+
+  const primary = widget.tag ? `${widget.tag}.PV` : 'PV'
+  const pens = [
+    { ref: primary, color: PEN_COLORS[0]! },
+    ...(widget.pens ?? []).slice(0, 3).map((p, i) => ({ ref: p.ref, color: p.color ?? PEN_COLORS[i + 1]! })),
+  ]
+
+  const ts = hist?.t ?? []
+  const endT = hover?.endT ?? ts[ts.length - 1] ?? 0
+  const t0 = endT - spanS
+  const i0 = trendWindow(ts, spanS, endT)
+  let i1 = ts.length - 1
+  while (i1 >= 0 && ts[i1]! > endT) i1--
+  const xOf = (t: number) => px0 + (px1 - px0) * Math.max(0, Math.min(1, (t - t0) / spanS))
+
+  const penPath = (ref: string): string => {
+    const series = hist?.series[ref]
+    if (!series) return ''
+    const pts: string[] = []
+    for (let i = i0; i <= i1; i++) {
+      const v = series[i]
+      if (v === undefined) continue
+      pts.push(`${xOf(ts[i]!).toFixed(1)},${yOf(v).toFixed(1)}`)
+    }
+    return pts.join(' ')
+  }
+
+  /** Pen value at the cursor (nearest sample ≤ cursor time), else live. */
+  const readout = (ref: string): number | undefined => {
+    const series = hist?.series[ref]
+    if (hover && series) {
+      const tc = t0 + hover.fx * spanS
+      let idx = -1
+      for (let i = i0; i <= i1; i++) if (ts[i]! <= tc) idx = i
+      return idx >= 0 ? series[idx] : undefined
+    }
+    if (ref === primary) return sim.PV
+    return series ? series[i1] : undefined
+  }
 
   const limitLines: { v: number | undefined; color: string }[] = [
     { v: num(widget.props?.HH), color: theme.alarm }, { v: num(widget.props?.H), color: theme.warn },
     { v: num(widget.props?.L), color: theme.warn }, { v: num(widget.props?.LL), color: theme.alarm },
   ]
+
+  const onMove = (e: React.MouseEvent<SVGRectElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    if (r.width <= 0) return
+    const fx = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))
+    // freeze the right edge on hover entry so the readout doesn't scroll away
+    setHover((prev) => ({ fx, endT: prev?.endT ?? endT }))
+  }
 
   return (
     <g>
@@ -40,14 +99,37 @@ export default function Trend({ widget, theme, sim, history = [] }: WidgetView) 
         ),
       )}
       {sim.SP !== undefined && (
-        <line x1={px0} x2={px1} y1={yOf(sim.SP)} y2={yOf(sim.SP)} stroke={theme.sp} strokeWidth={1.5} strokeDasharray="6 4" />
+        <line x1={px0} x2={px1} y1={yOf(sim.SP)} y2={yOf(sim.SP)} stroke={theme.sp} strokeWidth={1} strokeDasharray="8 3" />
       )}
-      {pts.length > 1 && <polyline points={path} fill="none" stroke={theme.liquid} strokeWidth={2} />}
-      <text x={px1 + 3} y={py0 + 4} fill={theme.textDim} fontSize={8}>{fmt(max, 0)}</text>
-      <text x={px1 + 3} y={py1} fill={theme.textDim} fontSize={8}>{fmt(min, 0)}</text>
-      <text x={6} y={12} fill={theme.textDim} fontSize={10}>
-        {widget.tag ?? ''} <tspan fill={theme.text} fontWeight={700}>{fmt(sim.PV)}</tspan>{unit ? ` ${unit}` : ''}
-      </text>
+      {pens.map((p) => {
+        const d = penPath(p.ref)
+        return d ? <polyline key={p.ref} points={d} fill="none" stroke={p.color} strokeWidth={1.6} /> : null
+      })}
+      {/* legend: pen name + value (cursor value while hovering) */}
+      {pens.map((p, i) => (
+        <text key={p.ref} x={px0 + 2 + i * ((px1 - px0) / Math.max(2, pens.length))} y={11}
+          fontSize={8} fill={p.color}>
+          {p.ref.replace(/\.PV$/, '')} {fmt(readout(p.ref))}
+        </text>
+      ))}
+      {/* value scale (right gutter) + time axis */}
+      <text x={w - 4} y={py0 + 6} textAnchor="end" fill={theme.textDim} fontSize={8}>{max}</text>
+      <text x={w - 4} y={py1} textAnchor="end" fill={theme.textDim} fontSize={8}>{min}</text>
+      {[0, 0.5, 1].map((f) => {
+        const tt = t0 + f * spanS
+        if (endT <= 0 || tt < 0) return null
+        return (
+          <text key={f} x={xOf(tt)} y={h - 4} fontSize={7} fill={theme.textDim}
+            textAnchor={f === 0 ? 'start' : f === 1 ? 'end' : 'middle'}>{mmss(tt)}</text>
+        )
+      })}
+      {hover && (
+        <line x1={px0 + hover.fx * (px1 - px0)} x2={px0 + hover.fx * (px1 - px0)} y1={py0} y2={py1}
+          stroke={theme.text} strokeWidth={1} strokeDasharray="2 2" />
+      )}
+      {/* hover surface (run mode value cursor; freezes the window) */}
+      <rect x={px0} y={py0} width={px1 - px0} height={py1 - py0} fill="transparent"
+        onMouseMove={onMove} onMouseLeave={() => setHover(null)} />
     </g>
   )
 }

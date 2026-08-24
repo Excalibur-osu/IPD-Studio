@@ -250,6 +250,40 @@ test('author tools: zoom, cross-screen clipboard, segment editing', async ({ pag
   expect(pts.map((q) => q.y)).toEqual([776, 696])
 })
 
+test('multi-pen trend with a time axis', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.goto('/')
+  await page.getByTestId('open-hmi').click()
+  await page.getByRole('button', { name: 'New screen' }).click()
+  const canvas = page.getByTestId('hmi-canvas')
+  const world = async (wx: number, wy: number) => {
+    const b = (await canvas.boundingBox())!
+    return { x: b.x + (wx / 1600) * b.width, y: b.y + (wy / 1000) * b.height }
+  }
+  // a controller so SP gets recorded as its own series
+  await page.getByText('Value display', { exact: true }).dblclick()
+  let p = await world(350, 255)
+  await page.mouse.click(p.x, p.y)
+  await page.getByTestId('prop-tag').fill('LIC-1')
+  await page.getByTestId('prop-controller').check()
+  // trend on LIC-1 with the SP as pen 2
+  await page.getByText('Trend', { exact: true }).dblclick()
+  p = await world(370, 270)
+  await page.mouse.move(p.x, p.y)
+  await page.mouse.down()
+  p = await world(700, 500)
+  await page.mouse.move(p.x, p.y, { steps: 4 })
+  await page.mouse.up()
+  await page.getByTestId('prop-tag').fill('LIC-1')
+  await page.getByTestId('prop-pen-0').fill('LIC-1.SP')
+  await page.getByTestId('hmi-run-toggle').click()
+  await page.waitForTimeout(1500)
+  // legend shows both pens; the time axis renders mm:ss
+  await expect(canvas).toContainText('LIC-1.SP')
+  await expect(canvas).toContainText('00:0')
+  await page.getByTestId('hmi-run-toggle').click()
+})
+
 test('build an HMI screen by hand and keep it across reload', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.goto('/')

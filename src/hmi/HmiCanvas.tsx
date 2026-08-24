@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import type { ThemeTokens } from './theme'
+import type { TrendData } from './widgets/shared'
 import type { HmiScreen, HmiWidget, WidgetType } from './model'
 import { HMI_WORLD, WIDGET_DEFAULT_SIZE } from './model'
 import { THEMES } from './theme'
@@ -37,6 +38,7 @@ export interface HmiCanvasProps {
   sim?: Record<string, Record<string, number>>
   flows?: Record<string, number>
   history?: Record<string, number[]>
+  historyT?: number[]
   alarms?: AlarmView[]
   onWidgetClick?(w: HmiWidget): void
 }
@@ -45,7 +47,8 @@ interface WidgetGProps {
   widget: HmiWidget
   theme: ThemeTokens
   values: Record<string, number>
-  history?: number[]
+  /** Only trend/sparkline widgets receive this (memo stays effective). */
+  hist?: TrendData
   alarm: 'none' | 'unacked' | 'acked'
   selected: boolean
   editing: boolean
@@ -55,6 +58,18 @@ interface WidgetGProps {
 
 /** Edit-mode preview values so the screen reads as a design, not a void. */
 const PREVIEW_TREND = Array.from({ length: 40 }, (_, i) => 50 + Math.sin(i / 4.5) * 18 + (i % 3) * 2)
+const PREVIEW_T = Array.from({ length: 40 }, (_, i) => i * 3)
+// stable identities per tag so memoized widgets don't re-render while editing
+const previewHistCache = new Map<string, TrendData>()
+function previewHist(w: HmiWidget): TrendData {
+  const ref = w.tag ? `${w.tag}.PV` : 'PV'
+  let hit = previewHistCache.get(ref)
+  if (!hit) {
+    hit = { t: PREVIEW_T, series: { [ref]: PREVIEW_TREND } }
+    previewHistCache.set(ref, hit)
+  }
+  return hit
+}
 function previewSim(w: HmiWidget): Record<string, number> {
   switch (w.type) {
     case 'tank': return { PV: 42 }
@@ -76,10 +91,10 @@ const shallowEq = (a: Record<string, number>, b: Record<string, number>) => {
 /** Memoized widget group: a 5 Hz tick only re-renders widgets whose values,
  *  history, alarm state, or geometry actually changed. */
 const WidgetG = memo(
-  function WidgetG({ widget, theme, values, history, alarm, selected, editing, ox, oy }: WidgetGProps) {
+  function WidgetG({ widget, theme, values, hist, alarm, selected, editing, ox, oy }: WidgetGProps) {
     return (
       <g data-wid={widget.id} className="hmi-widget" transform={`translate(${widget.x + ox}, ${widget.y + oy})`}>
-        {renderWidget({ widget, theme, sim: values, history, alarm })}
+        {renderWidget({ widget, theme, sim: values, hist, alarm })}
         {alarm !== 'none' && (
           <rect x={-4} y={-4} width={widget.w + 8} height={widget.h + 8} fill="none"
             stroke={alarm === 'unacked' ? theme.alarm : theme.alarmAck} strokeWidth={3}
@@ -99,10 +114,9 @@ const WidgetG = memo(
     prev.editing === next.editing &&
     prev.ox === next.ox &&
     prev.oy === next.oy &&
-    // identity only: history arrays are rebuilt each tick for bound tags, so
-    // trends re-render every tick (correct — samples scroll even when PV is
-    // flat at the cap); unbound widgets pass undefined === undefined
-    prev.history === next.history &&
+    // identity only: the hist slab is rebuilt each tick, so trends re-render
+    // every tick (correct — samples scroll); other widgets pass undefined
+    prev.hist === next.hist &&
     shallowEq(prev.values, next.values),
 )
 
@@ -122,7 +136,7 @@ function segmentPoints(points: { x: number; y: number }[], index: number, axis: 
   )
 }
 
-export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onToolDone, armedPick, onPicked, view = null, onViewChange, onCursor, sim, flows, history, alarms, onWidgetClick }: HmiCanvasProps) {
+export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onToolDone, armedPick, onPicked, view = null, onViewChange, onCursor, sim, flows, history, historyT, alarms, onWidgetClick }: HmiCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [drag, setDrag] = useState<DragState>(null)
   const [ghost, setGhost] = useState<{ dx: number; dy: number } | null>(null)
@@ -517,9 +531,12 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
         }
         const recs = (alarms ?? []).filter((a) => a.tag === w.tag)
         const alarm = recs.some((a) => a.phase === 'active' || a.phase === 'cleared') ? 'unacked' as const : recs.length > 0 ? 'acked' as const : 'none' as const
-        const hist = history?.[w.tag ?? ''] ?? (!sim && w.type === 'trend' ? PREVIEW_TREND : undefined)
+        const needsHist = w.type === 'trend' || (w.type === 'display' && w.props?.spark === true)
+        const hist = !needsHist ? undefined
+          : sim && history && historyT ? { t: historyT, series: history }
+          : previewHist(w)
         return (
-          <WidgetG key={w.id} widget={w} theme={theme} values={values} history={hist}
+          <WidgetG key={w.id} widget={w} theme={theme} values={values} hist={hist}
             alarm={alarm} selected={selection.includes(w.id)} editing={mode === 'edit'} ox={o.dx} oy={o.dy} />
         )
       })}

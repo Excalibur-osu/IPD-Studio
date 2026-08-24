@@ -245,6 +245,45 @@ export default function HmiPropertyPanel({ selection, onSelect, armedPick, onArm
           <NumProp w={w} k="H" label="H" /><NumProp w={w} k="HH" label="HH" />
         </>
       )}
+      {w.type === 'display' && (
+        <Row label="Sparkline">
+          <input type="checkbox" data-testid="prop-spark" checked={w.props?.spark === true}
+            onChange={(e) => {
+              const props = { ...w.props }
+              if (e.target.checked) props.spark = true
+              else delete props.spark
+              updateWidget(w.id, { props })
+            }} />
+        </Row>
+      )}
+      {w.type === 'trend' && (
+        <>
+          <Row label="Span">
+            <select data-testid="prop-span" value={String(w.props?.span ?? 120)}
+              onChange={(e) => updateWidget(w.id, { props: { ...w.props, span: Number(e.target.value) } })}>
+              <option value="60">1 min</option>
+              <option value="120">2 min</option>
+              <option value="240">4 min</option>
+            </select>
+          </Row>
+          <h5 style={{ margin: '10px 0 2px' }}>Extra pens</h5>
+          {[0, 1, 2].map((i) => (
+            <Row key={i} label={`Pen ${i + 2}`}>
+              <SignalPicker value={w.pens?.[i]?.ref ?? ''} testid={`prop-pen-${i}`}
+                onCommit={(ref) => {
+                  const pens = [...(w.pens ?? [])]
+                  if (ref === undefined) pens.splice(i, 1)
+                  else pens[i] = { ...pens[i], ref }
+                  const cleaned = pens.filter((p) => p?.ref)
+                  updateWidget(w.id, { pens: cleaned.length > 0 ? cleaned : undefined })
+                }} />
+            </Row>
+          ))}
+          <p style={{ fontSize: 10, color: '#889', margin: '2px 0' }}>
+            Pen 1 is the widget's own tag. Extra pens take any TAG.SIGNAL — SP and OP of controllers too.
+          </p>
+        </>
+      )}
       {(w.type === 'display' || w.type === 'gauge' || w.type === 'trend' || w.type === 'bar') && (
         <>
           <StrProp w={w} k="unit" label="Unit" placeholder="%" /><NumProp w={w} k="min" label="Min" /><NumProp w={w} k="max" label="Max" />

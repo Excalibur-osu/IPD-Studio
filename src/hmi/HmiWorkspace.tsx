@@ -78,6 +78,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   const pipeFlows = useSimStore((s) => s.pipeFlows)
   const alarms = useSimStore((s) => s.alarms)
   const history = useSimStore((s) => s.history)
+  const historyT = useSimStore((s) => s.historyT)
 
   useEffect(() => {
     setSelection([])
@@ -151,6 +152,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
                 sim={mode === 'run' ? simTags : undefined}
                 flows={mode === 'run' ? pipeFlows : undefined}
                 history={mode === 'run' ? history : undefined}
+                historyT={mode === 'run' ? historyT : undefined}
                 alarms={mode === 'run' ? alarms : undefined}
                 onWidgetClick={(w) => setFaceplate(w.id)}
               />

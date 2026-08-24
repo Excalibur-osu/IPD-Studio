@@ -21,6 +21,9 @@ export interface HmiWidget {
   /** Per-type extras. The legal keys per type live in WIDGET_SCHEMA below —
    *  register every new key there (and in tests/hmi/schema.test.ts's ledger). */
   props?: Record<string, string | number | boolean>
+  /** Extra trend pens beyond the primary tag: 'TAG.SIGNAL' refs (≤3). A
+   *  top-level field because the props bag can't hold arrays. */
+  pens?: { ref: string; color?: string }[]
 }
 
 export type PropKind =
@@ -42,9 +45,9 @@ export const WIDGET_SCHEMA: Record<WidgetType, Record<string, PropKind>> = {
   tank: { capacity: 'number', level0: 'number', ...LIMITS },
   pump: {},
   valve: { throttle: 'boolean' },
-  display: { ...MEASURE },
+  display: { ...MEASURE, spark: 'boolean' },
   gauge: { ...MEASURE },
-  trend: { ...MEASURE },
+  trend: { ...MEASURE, span: 'number' },
   bar: { ...MEASURE },
   lamp: { signal: 'signalRef' },
   button: { signal: 'signalRef', writeValue: 'number' },

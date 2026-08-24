@@ -48,12 +48,16 @@ screens have a design time and a runtime:
 ## Widgets
 
 Tank (animated level with LL/L/H/HH markers) · Pump (running state + spin) ·
-Valve (on/off or throttling %, actuator stem) · Value display · **Bar
+Valve (on/off or throttling %, actuator stem) · Value display (with an
+optional **sparkline** — ISA-101's "which way is it heading" mark) · **Bar
 indicator** — the ISA-101 analog: a vertical scale with the PV as
 pointer+fill, alarm limits as colored ticks and the SP as a caret · Gauge
-(with warn/alarm zone arcs) · Trend (live history with gridlines, scale
-labels, limit and SP lines) · Lamp · Button · Switch · **Screen link** (jumps
-to another screen in RUN) · Text · **Group panel** (titled frame for
+(with warn/alarm zone arcs) · **Trend** — up to **4 pens** (the widget's tag
+plus any `TAG.SIGNAL`, controller SP/OP included), a real **mm:ss time
+axis** that stays truthful across 1×/5× speed changes, a 1/2/4-minute span,
+limit and SP lines, and a **hover cursor** that freezes the window and reads
+out every pen at that instant · Lamp · Button · Switch · **Screen link**
+(jumps to another screen in RUN) · Text · **Group panel** (titled frame for
 sectioning the screen — grab it by its title or border) · **P&ID symbol** —
 any of the catalog symbols as a graphic, so imported drawings never lose
 equipment.

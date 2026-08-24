@@ -57,7 +57,7 @@ function ItemPreview({ type }: { type: WidgetType }) {
   return (
     <svg width={54} height={36} viewBox={`${-pad} ${-pad} ${size.w + 2 * pad} ${size.h + 2 * pad}`}
       style={{ background: THEMES.classic.bg, borderRadius: 4, flex: '0 0 auto' }} aria-hidden>
-      {renderWidget({ widget, theme: THEMES.classic, sim: PREVIEW_SIM[type] ?? {}, history: type === 'trend' ? TREND_PREVIEW : undefined })}
+      {renderWidget({ widget, theme: THEMES.classic, sim: PREVIEW_SIM[type] ?? {}, hist: type === 'trend' ? { t: TREND_PREVIEW.map((_, i) => i * 3), series: { PV: TREND_PREVIEW } } : undefined })}
     </svg>
   )
 }

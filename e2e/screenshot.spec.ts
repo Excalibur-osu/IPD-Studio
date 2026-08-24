@@ -131,6 +131,48 @@ test('capture zoomed segment editing', async ({ page }) => {
   await page.screenshot({ path: '/tmp/hmi-zoom-segments.png' })
 })
 
+test('capture multi-pen trend and sparkline', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.setViewportSize({ width: 1680, height: 1000 })
+  await page.goto('/')
+  await page.getByTestId('open-hmi').click()
+  await page.getByRole('button', { name: 'New screen' }).click()
+  const canvas = page.getByTestId('hmi-canvas')
+  const world = async (wx: number, wy: number) => {
+    const b = (await canvas.boundingBox())!
+    return { x: b.x + (wx / 1600) * b.width, y: b.y + (wy / 1000) * b.height }
+  }
+  const place = async (label: string, wx: number, wy: number) => {
+    await page.getByText(label, { exact: true }).dblclick()
+    let q = await world(350, 260)
+    await page.mouse.move(q.x, q.y)
+    await page.mouse.down()
+    q = await world(wx, wy)
+    await page.mouse.move(q.x, q.y, { steps: 4 })
+    await page.mouse.up()
+  }
+  // level loop: tank + controller display + big trend on the pair
+  await place('Tank', 300, 300)
+  await page.getByTestId('prop-tag').fill('LT-1')
+  await place('Value display', 640, 180)
+  await page.getByTestId('prop-tag').fill('LIC-1')
+  await page.getByTestId('prop-controller').check()
+  await place('Value display', 640, 260)
+  await page.getByTestId('prop-tag').fill('FT-1')
+  await page.getByTestId('prop-spark').check()
+  await place('Trend', 760, 560)
+  // widen it via the panel geometry row (aiming at the SE handle is fiddly)
+  const wh = page.locator('label:has-text("W / H") input')
+  await wh.nth(0).fill('440')
+  await wh.nth(1).fill('240')
+  await page.getByTestId('prop-tag').fill('LIC-1')
+  await page.getByTestId('prop-pen-0').fill('LIC-1.SP')
+  await page.getByTestId('prop-pen-1').fill('LT-1.PV')
+  await page.getByTestId('hmi-run-toggle').click()
+  await page.waitForTimeout(4000)
+  await page.screenshot({ path: '/tmp/hmi-trend-pens.png' })
+})
+
 test('capture faceplate v2 and command journal', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })

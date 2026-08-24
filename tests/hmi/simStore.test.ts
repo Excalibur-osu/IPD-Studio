@@ -24,7 +24,8 @@ describe('simStore', () => {
     expect(st().tags['TK-1']!.PV).toBe(88)
     st().tickOnce(0.2)
     expect(st().t).toBeCloseTo(0.2)
-    expect(st().history['TK-1']).toHaveLength(1)
+    expect(st().history['TK-1.PV']).toHaveLength(1)
+    expect(st().historyT).toHaveLength(1)
   })
   it('pump start fills tank through the pipes and raises the H alarm; ack works', () => {
     const st = () => useSimStore.getState()
@@ -47,12 +48,13 @@ describe('simStore', () => {
     st().reset()
     expect(st().t).toBe(0)
     expect(st().tags['TK-1']!.PV).toBe(88)
-    expect(st().history['TK-1'] ?? []).toHaveLength(0)
+    expect(st().history['TK-1.PV'] ?? []).toHaveLength(0)
   })
-  it('history caps at 600 samples', () => {
+  it('history caps at 1200 samples, time axis in lockstep', () => {
     const st = () => useSimStore.getState()
     st().enterRun(screen)
-    for (let i = 0; i < 650; i++) st().tickOnce(0.2)
-    expect(st().history['TK-1']!.length).toBe(600)
+    for (let i = 0; i < 1250; i++) st().tickOnce(0.2)
+    expect(st().history['TK-1.PV']!.length).toBe(1200)
+    expect(st().historyT.length).toBe(1200)
   })
 })

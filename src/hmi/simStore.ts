@@ -10,7 +10,7 @@ import { pipeFlowMap } from './sim/network'
 import { makeRng } from './sim/noise'
 import { parseSignalRef } from './tagIndex'
 
-const HISTORY_CAP = 600
+const HISTORY_CAP = 1200 // 4 min at 1×, 20 min at 5×
 const JOURNAL_CAP = 200
 const SEED = 1234
 let model: SimModel | null = null
@@ -32,7 +32,10 @@ interface SimStoreState {
   alarms: AlarmRecord[]
   /** Newest-first journal: alarm lifecycle AND operator commands, capped. */
   journal: JournalEntry[]
+  /** Sample series keyed 'TAG.SIGNAL' (PV for every tag, SP/OP for
+   *  controllers), index-aligned with historyT (the shared time axis). */
   history: Record<string, number[]>
+  historyT: number[]
   /** Pass every screen for a plant-wide run (navigation keeps simulating). */
   enterRun(screens: HmiScreen | HmiScreen[]): void
   exitRun(): void
@@ -46,23 +49,23 @@ interface SimStoreState {
 
 export const useSimStore = create<SimStoreState>()((set, get) => ({
   mode: 'edit', playing: false, speed: 1, t: 0,
-  tags: {}, pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {},
+  tags: {}, pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {}, historyT: [],
 
   enterRun: (screens) => {
     model = buildSimModel(screens)
     rng = makeRng(SEED)
-    set({ mode: 'run', playing: true, t: 0, tags: initTags(model), pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {} })
+    set({ mode: 'run', playing: true, t: 0, tags: initTags(model), pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {}, historyT: [] })
   },
   exitRun: () => {
     model = null
-    set({ mode: 'edit', playing: false, t: 0, tags: {}, pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {} })
+    set({ mode: 'edit', playing: false, t: 0, tags: {}, pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {}, historyT: [] })
   },
   playPause: () => set((s) => ({ playing: !s.playing })),
   setSpeed: (speed) => set({ speed }),
   reset: () => {
     if (!model) return
     rng = makeRng(SEED)
-    set({ t: 0, tags: initTags(model), pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {}, playing: true })
+    set({ t: 0, tags: initTags(model), pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {}, historyT: [], playing: true })
   },
   tickOnce: (dt) => {
     if (!model) return
@@ -70,10 +73,19 @@ export const useSimStore = create<SimStoreState>()((set, get) => ({
     const { tags, branchFlows } = tick(model, s.tags, dt, rng)
     const t = s.t + dt
     const history: Record<string, number[]> = { ...s.history }
+    const historyT = [...s.historyT, t].slice(-HISTORY_CAP)
+    const record = (name: string, sig: string) => {
+      const v = tags[name]?.[sig]
+      if (v === undefined) return
+      const key = `${name}.${sig}`
+      history[key] = [...(history[key] ?? []), v].slice(-HISTORY_CAP)
+    }
     for (const d of model.defs) {
-      const pv = tags[d.name]?.PV
-      if (pv === undefined) continue
-      history[d.name] = [...(history[d.name] ?? []), pv].slice(-HISTORY_CAP)
+      record(d.name, 'PV')
+      if (d.kind === 'controller') {
+        record(d.name, 'SP')
+        record(d.name, 'OP')
+      }
     }
     const alarms = evalAlarms(model.defs, tags, s.alarms, t)
     const journal = [...alarmEvents(s.alarms, alarms, t).reverse(), ...s.journal].slice(0, JOURNAL_CAP)
@@ -83,7 +95,7 @@ export const useSimStore = create<SimStoreState>()((set, get) => ({
       for (const p of b.pumps) equipFlows[p] = Math.max(equipFlows[p] ?? 0, f)
       for (const v of b.valves) equipFlows[v] = Math.max(equipFlows[v] ?? 0, f)
     }
-    set({ t, tags, pipeFlows: pipeFlowMap(model.net, branchFlows), equipFlows, alarms, journal, history })
+    set({ t, tags, pipeFlows: pipeFlowMap(model.net, branchFlows), equipFlows, alarms, journal, history, historyT })
   },
   writeTag: (tag, signal, value) => {
     let tg = tag, sig = signal

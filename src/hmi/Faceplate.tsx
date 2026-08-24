@@ -79,7 +79,7 @@ export default function Faceplate({ widget, onClose }: { widget: HmiWidget; onCl
   const tag = widget.tag ?? ''
   const t = useSimStore((s) => s.tags[tag]) ?? {}
   const alarms = useSimStore((s) => s.alarms)
-  const history = useSimStore((s) => s.history[tag])
+  const history = useSimStore((s) => s.history[`${tag}.PV`])
   const flow = useSimStore((s) => s.equipFlows[tag])
   const write = useSimStore((s) => s.writeTag)
   const ack = useSimStore((s) => s.ack)
