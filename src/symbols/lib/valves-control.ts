@@ -31,28 +31,32 @@ function actuatorGlyph(actuator: string): string {
   }
 }
 
-function failMark(fail: string): string {
+/** Fail-action arrow beside the stem; shifts to the left flank when the
+ *  positioner box occupies the right. */
+function failMark(fail: string, x = 26): string {
   switch (fail) {
     case 'fc':
-      return path('M26 14 V22 M23 19 L26 22 L29 19')
+      return path(`M${x} 14 V22 M${x - 3} 19 L${x} 22 L${x + 3} 19`)
     case 'fo':
-      return path('M26 22 V14 M23 17 L26 14 L29 17')
+      return path(`M${x} 22 V14 M${x - 3} 17 L${x} 14 L${x + 3} 17`)
     case 'fl':
-      return path('M22 18 H30')
+      return path(`M${x - 4} 18 H${x + 4}`)
     default:
       return ''
   }
 }
 
 /**
- * ISA valve positioner: the box mounts ON the stem, between the actuator and
- * the valve body (every actuator glyph bottoms at y12, the body starts at
- * y24, so the box spans the whole stem zone and touches both). It replaces
- * the stem line. Signal lines land on its sides — the sw/se ports sit on the
- * box edges, which with the top sig port gives the three connection dots.
+ * Valve positioner, per the user's reference drawing: the box hangs on the
+ * RIGHT side of the stem (its left edge on the stem line, stem visible above
+ * and below, running through to the body crossing), with three connection
+ * bosses drawn as circles inside — the sw/se/sb ports sit on the box's right
+ * edge in line with them, so signal/air lines land one per boss.
  */
 function positionerGlyph(): string {
-  return path('M8 12 h16 v12 h-16 Z')
+  const boss = (cy: number) =>
+    `<circle cx="23" cy="${cy}" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/>`
+  return path('M16 14 h12 v12 h-12 Z') + boss(16) + boss(20) + boss(24)
 }
 
 function bodyAt(bodyMarkup: string): string {
@@ -85,19 +89,25 @@ export const controlValves: SymbolDef[] = Object.entries(CV_BODIES).map(([id, bo
   name: body.name,
   category: 'control-valves',
   gridSize: { w: 4, h: 5 },
-  render: (cfg) =>
-    actuatorGlyph(cfg.actuator ?? 'diaphragm') +
-    (cfg.positioner === 'yes' ? positionerGlyph() : path('M16 12 V24')) +
-    failMark(cfg.fail ?? 'none') +
-    bodyAt(body.markup),
+  render: (cfg) => {
+    const pos = cfg.positioner === 'yes'
+    return (
+      actuatorGlyph(cfg.actuator ?? 'diaphragm') +
+      // with a positioner the stem runs through to the body crossing
+      (pos ? path('M16 12 V32') + positionerGlyph() : path('M16 12 V24')) +
+      failMark(cfg.fail ?? 'none', pos ? 8 : 26) +
+      bodyAt(body.markup)
+    )
+  },
   ports: [
     { id: 'w', x: 0, y: 32, kind: 'process' },
     { id: 'e', x: 32, y: 32, kind: 'process' },
     { id: 'sig', x: 16, y: 0, kind: 'signal' },
-    // Stem-zone flanks: they sit exactly on the positioner box's side edges
-    // when one is drawn — with the top sig port, the three connection dots.
-    { id: 'sw', x: 8, y: 16, kind: 'signal' },
-    { id: 'se', x: 24, y: 16, kind: 'signal' },
+    // Positioner bosses: one port per connection circle on the box's right
+    // edge (harmless stem-side points when no positioner is drawn).
+    { id: 'sw', x: 28, y: 16, kind: 'signal' },
+    { id: 'se', x: 28, y: 20, kind: 'signal' },
+    { id: 'sb', x: 28, y: 24, kind: 'signal' },
   ],
   tagRule: 'valve',
   defaultConfig: { actuator: 'diaphragm', fail: 'none', positioner: 'none' },

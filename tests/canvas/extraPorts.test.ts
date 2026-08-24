@@ -59,18 +59,21 @@ describe('control valve positioner', () => {
     const def = getSymbol('cv.globe')
     const plain = def.render({ actuator: 'diaphragm', fail: 'none', positioner: 'none' })
     const withPos = def.render({ actuator: 'diaphragm', fail: 'none', positioner: 'yes' })
-    // the box mounts on the stem between actuator (y12) and body (y24)…
-    expect(plain).not.toContain('M8 12 h16 v12')
-    expect(withPos).toContain('M8 12 h16 v12')
-    // …replacing the stem line; the plain valve keeps it
-    expect(withPos).not.toContain('M16 12 V24')
+    // side-mounted box on the stem, with three connection bosses inside
+    expect(plain).not.toContain('M16 14 h12 v12')
+    expect(withPos).toContain('M16 14 h12 v12')
+    expect(withPos.match(/cx="23"/g)).toHaveLength(3)
+    // the stem runs through to the body crossing when the positioner is on
+    expect(withPos).toContain('M16 12 V32')
     expect(plain).toContain('M16 12 V24')
     expect(def.configOptions?.positioner).toEqual(['none', 'yes'])
-    // three connection dots: sig on top, sw/se exactly on the box's side edges
-    const sw = def.ports.find((p) => p.id === 'sw')!
-    const se = def.ports.find((p) => p.id === 'se')!
-    expect(sw).toMatchObject({ x: 8, y: 16 })
-    expect(se).toMatchObject({ x: 24, y: 16 })
+    // one port per boss, on the box's right edge
+    expect(def.ports.find((p) => p.id === 'sw')).toMatchObject({ x: 28, y: 16 })
+    expect(def.ports.find((p) => p.id === 'se')).toMatchObject({ x: 28, y: 20 })
+    expect(def.ports.find((p) => p.id === 'sb')).toMatchObject({ x: 28, y: 24 })
     expect(def.ports.find((p) => p.id === 'sig')).toMatchObject({ x: 16, y: 0 })
+    // the fail arrow moves to the free left flank when the box is drawn
+    const failPos = def.render({ actuator: 'diaphragm', fail: 'fc', positioner: 'yes' })
+    expect(failPos).toContain('M8 14 V22')
   })
 })

@@ -41,12 +41,12 @@ describe('multi-nozzle vessels', () => {
 })
 
 describe('control valve connection points', () => {
-  it('has process in/out plus three signal ports', () => {
+  it('has process in/out, the top signal port, and the three positioner bosses', () => {
     const def = getSymbol('cv.globe')
     expect(def.ports.filter((p) => p.kind === 'process')).toHaveLength(2)
-    expect(def.ports.filter((p) => p.kind === 'signal')).toHaveLength(3)
-    expect(portDirection('cv.globe', 'sw')).toBe('left')
-    expect(portDirection('cv.globe', 'se')).toBe('right')
+    expect(def.ports.filter((p) => p.kind === 'signal')).toHaveLength(4)
+    // the bosses sit on the positioner box's right edge and route rightward
+    for (const id of ['sw', 'se', 'sb']) expect(portDirection('cv.globe', id)).toBe('right')
   })
 })
 
