@@ -169,7 +169,10 @@ button { font: inherit; }
 /* --- quick line editor ---------------------------------------------------- */
 .line-popover {
   position: fixed;
-  transform: translate(-50%, calc(-100% - 12px));
+  /* hang above AND to the right of the midpoint: centered-above covered the
+     upper half of vertical lines — including the ✕ tool and the segment
+     handles users need to reach */
+  transform: translate(14px, calc(-100% - 14px));
   background: #fff;
   border: 1px solid #c5c5d5;
   border-radius: 6px;

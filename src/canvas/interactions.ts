@@ -5,6 +5,7 @@ import { isPortEnd } from '../model/types'
 import type { PortKind } from '../symbols/types'
 import { compatibleKinds, pickLineClass } from './connectionRules'
 import { alignNodes, distributeNodes, portWorld, snapGuides } from './alignment'
+import { cleanVertices } from './vertexClean'
 import { makeLink } from './shapes'
 import { activeSheet, resumeHistory, useStore } from '../store/store'
 
@@ -366,10 +367,36 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
   }
 
   // --- vertex editing on selected links ----------------------------------
-  const onLinkChangeVertices = (link: dia.Link, _v: unknown, opt: { ui?: boolean }) => {
-    if (!opt.ui || String(link.id).startsWith('draft-')) return
-    const verts = link.vertices().map((v) => ({ x: snap8(v.x), y: snap8(v.y) }))
-    store().setEdgeVertices(String(link.id), verts)
+  // The Vertices/Segments tools write the model on EVERY pointermove; the doc
+  // must only hear about the finished gesture — one clean commit, one undo
+  // step — or the store fights the drag mid-flight and undo floods with
+  // hundreds of micro-states. Tool gestures are wrapped in named batches, so
+  // the commit waits for the batch to close (vertex removal is unbatched and
+  // commits immediately).
+  const VERTEX_BATCHES = ['vertex-move', 'vertex-add', 'segment-move'] as const
+  const inVertexGesture = () => VERTEX_BATCHES.some((n) => graph.hasActiveBatch(n))
+  const pendingVerts = new Set<string>()
+  const commitVertices = (id: string) => {
+    const cell = graph.getCell(id) as dia.Link | undefined
+    if (!cell || !cell.isLink()) return
+    const view = cell.findView(paper) as dia.LinkView | null
+    const anchor = (which: 'sourceAnchor' | 'targetAnchor'): { x: number; y: number } | null => {
+      const p = view?.[which]
+      return p ? { x: p.x, y: p.y } : null
+    }
+    store().setEdgeVertices(id, cleanVertices(cell.vertices(), anchor('sourceAnchor'), anchor('targetAnchor')))
+  }
+  const onLinkChangeVertices = (link: dia.Link, _v: unknown, opt: { ui?: boolean; tool?: string }) => {
+    if (String(link.id).startsWith('draft-')) return
+    if (!opt.ui && !opt.tool) return // reconciler writes echo back without ui
+    if (inVertexGesture()) pendingVerts.add(String(link.id))
+    else commitVertices(String(link.id))
+  }
+  const onBatchStop = (data: { batchName?: string } | undefined) => {
+    if (!data?.batchName || !(VERTEX_BATCHES as readonly string[]).includes(data.batchName)) return
+    if (inVertexGesture()) return // vertex-add wraps vertex-move; wait for the outermost
+    for (const id of pendingVerts) commitVertices(id)
+    pendingVerts.clear()
   }
 
   // --- selection highlight + link tools -----------------------------------
@@ -390,9 +417,20 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
             new dia.ToolsView({
               tools: [
                 new linkTools.Vertices({ snapRadius: 8 }),
+                // drag a whole run sideways — the natural way to arrange a line
+                new linkTools.Segments({ snapRadius: 8 }),
                 new linkTools.SourceArrowhead(),
                 new linkTools.TargetArrowhead(),
-                new linkTools.Remove({ distance: '25%' }),
+                new linkTools.Remove({
+                  distance: '25%',
+                  // the default action removes only the JointJS cell; the doc
+                  // would keep the edge and the next reconcile would resurrect
+                  // the "deleted" line — deletion must go through the store
+                  action: (_evt: dia.Event, toolView: dia.LinkView) => {
+                    store().deleteIds([String(toolView.model.id)])
+                    store().setSelection([])
+                  },
+                }),
               ],
             }),
           )
@@ -459,6 +497,7 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
   paper.on('link:pointerup', onLinkPointerUp)
   paper.on('blank:pointerdown', onBlankPointerDown)
   graph.on('change:vertices', onLinkChangeVertices)
+  graph.on('batch:stop', onBatchStop)
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('pointerup', onGlobalPointerUp)
 
@@ -475,6 +514,7 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     paper.off('link:pointerup')
     paper.off('blank:pointerdown')
     graph.off('change:vertices')
+    graph.off('batch:stop', onBatchStop)
   }
 }
 
