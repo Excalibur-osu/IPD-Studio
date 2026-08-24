@@ -69,21 +69,21 @@ test('move, connect, ghost-stub guard, quick line editor, panel collapse', async
   // Active line class stays the default process.major; FIC south port (both)
   // to valve top signal port must still connect, as signal.electric.
   // FIC bubble at (320,96), port s at local (20,40) -> sheet (340,136).
-  // Valve at (320,240), port sig at local (16,0) -> sheet (336,240).
-  await drag(page, await clientPoint(page, 340, 136), await clientPoint(page, 336, 240), 20)
+  // Valve at (320,240), port sig at local (24,0) -> sheet (344,240).
+  await drag(page, await clientPoint(page, 340, 136), await clientPoint(page, 344, 240), 20)
   const edges1 = await page.evaluate(() => window.__pid.useStore.getState().doc.sheets[0].edges)
   expect(edges1).toHaveLength(1)
   expect(edges1[0].lineClass).toBe('signal.electric')
   expect(edges1[0].source.portId).toBe('s')
   expect(edges1[0].target.portId).toBe('sig')
 
-  // The bubble s port (x=340) was 4px off the valve sig port (x=336); the
+  // The bubble s port (x=340) was 4px off the valve sig port (x=344); the
   // connect must auto-nudge the instrument so the line runs dead straight.
   const ficX = await page.evaluate(
     (id) => window.__pid.useStore.getState().doc.sheets[0].nodes.find((n: any) => n.id === id).x,
     ids.fic,
   )
-  expect(ficX).toBe(316)
+  expect(ficX).toBe(324)
 
   // --- short drag from a port into blank leaves no ghost stub ------------
   await drag(page, await clientPoint(page, 232, 152), await clientPoint(page, 244, 158))
@@ -91,7 +91,7 @@ test('move, connect, ghost-stub guard, quick line editor, panel collapse', async
   expect(edges2).toHaveLength(1)
 
   // --- clicking the line opens the quick editor and can retype it --------
-  const mid = await clientPoint(page, 338, 188)
+  const mid = await clientPoint(page, 344, 188)
   await page.mouse.click(mid.x, mid.y)
   await expect(page.locator('.line-popover')).toBeVisible()
   await page.locator('.line-popover select').selectOption('signal.pneumatic')

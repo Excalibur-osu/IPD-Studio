@@ -33,7 +33,7 @@ const edges = (page: Page) => page.evaluate(() => window.__pid.useStore.getState
 const undoDepth = (page: Page) =>
   page.evaluate(() => window.__pid.useStore.temporal.getState().pastStates.length)
 
-/** Tank + FIC bubble + valve; draws FIC.s -> valve.sig (a straight vertical line at x=336). */
+/** Tank + FIC bubble + valve; draws FIC.s -> valve.sig (a straight vertical line at x=344). */
 async function setupWithLine(page: Page) {
   await page.goto('/')
   await page.waitForFunction(() => Boolean(window.__pid))
@@ -51,7 +51,7 @@ async function setupWithLine(page: Page) {
     s.setSelection([])
   })
   await expect(page.locator('[model-id]')).toHaveCount(3)
-  await drag(page, await clientPoint(page, 340, 136), await clientPoint(page, 336, 240), 20)
+  await drag(page, await clientPoint(page, 340, 136), await clientPoint(page, 344, 240), 20)
   await expect.poll(async () => (await edges(page)).length).toBe(1)
   // drawing auto-selects the new line, so its tools mount on their own once
   // the async route render settles — never race it with extra clicks
@@ -64,7 +64,7 @@ test('the on-line ✕ tool deletes from the doc — no resurrection on the next 
   // the doc must drop the edge immediately…
   await expect.poll(async () => (await edges(page)).length).toBe(0)
   // …and drawing a new line must not resurrect the old one
-  await drag(page, await clientPoint(page, 336, 136), await clientPoint(page, 336, 240), 20)
+  await drag(page, await clientPoint(page, 344, 136), await clientPoint(page, 344, 240), 20)
   await expect.poll(async () => (await edges(page)).length).toBe(1)
   await expect(page.locator('.joint-link[model-id]')).toHaveCount(1)
 })
@@ -74,15 +74,15 @@ test('vertex drag: one undo step, sticks where dropped, heals straight on the ax
 
   const before = await undoDepth(page)
   // drag the line body sideways: creates a bend and places it
-  await drag(page, await clientPoint(page, 336, 216), await clientPoint(page, 392, 216), 16)
+  await drag(page, await clientPoint(page, 344, 216), await clientPoint(page, 400, 216), 16)
   const e1 = await edges(page)
   expect(e1[0].vertices?.length ?? 0).toBeGreaterThanOrEqual(1)
-  expect(e1[0].vertices[0].x).toBe(392)
+  expect(e1[0].vertices[0].x).toBe(400)
   const after = await undoDepth(page)
   expect(after - before).toBeLessThanOrEqual(2) // the whole gesture is one commit
 
   // drag the bend back onto the line's axis: the kink heals, the line is straight again
-  await drag(page, await clientPoint(page, 392, 216), await clientPoint(page, 339, 216), 12)
+  await drag(page, await clientPoint(page, 400, 216), await clientPoint(page, 347, 216), 12)
   await expect.poll(async () => {
     const e = await edges(page)
     return e[0].vertices?.length ?? 0

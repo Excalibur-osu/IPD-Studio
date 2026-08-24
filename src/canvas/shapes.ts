@@ -140,6 +140,9 @@ function baseAttrs(node: PlantNode): Record<string, Record<string, unknown>> {
   }
 }
 
+const haloMarkup = (r: number) =>
+  PORT_MARKUP.map((m) => (m.selector === 'portBody' ? { ...m, attributes: { ...m.attributes, r } } : m))
+
 function portItems(node: PlantNode) {
   const def = getSymbol(node.symbolId)
   const { sx, sy } = scalesOf(node)
@@ -147,6 +150,7 @@ function portItems(node: PlantNode) {
     id: p.id,
     group: 'p',
     args: { x: p.x * sx, y: p.y * sy },
+    ...('hit' in p && typeof p.hit === 'number' ? { markup: haloMarkup(p.hit) } : {}),
   }))
 }
 

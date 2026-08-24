@@ -20,6 +20,10 @@ export interface PortDef {
   x: number
   y: number
   kind: PortKind
+  /** Click-halo radius override (default 8). Precision ports packed close
+   *  together — like positioner bosses — use a smaller halo so they don't
+   *  swallow clicks aimed at a neighboring port. */
+  hit?: number
 }
 
 export interface SymbolDef {
