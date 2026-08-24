@@ -59,16 +59,18 @@ describe('control valve positioner', () => {
     const def = getSymbol('cv.globe')
     const plain = def.render({ actuator: 'diaphragm', fail: 'none', positioner: 'none' })
     const withPos = def.render({ actuator: 'diaphragm', fail: 'none', positioner: 'yes' })
-    expect(plain).not.toContain('M-10 2 h12 v12')
-    expect(withPos).toContain('M-10 2 h12 v12')
-    // the connecting line reaches the diaphragm edge, never inside it
-    expect(withPos).toContain('M2 8 H7.5')
+    // the box mounts on the stem between actuator (y12) and body (y24)…
+    expect(plain).not.toContain('M8 12 h16 v12')
+    expect(withPos).toContain('M8 12 h16 v12')
+    // …replacing the stem line; the plain valve keeps it
+    expect(withPos).not.toContain('M16 12 V24')
+    expect(plain).toContain('M16 12 V24')
     expect(def.configOptions?.positioner).toEqual(['none', 'yes'])
-    // the sw signal port sits on the positioner box (right portion)
+    // three connection dots: sig on top, sw/se exactly on the box's side edges
     const sw = def.ports.find((p) => p.id === 'sw')!
-    expect(sw.x).toBeGreaterThanOrEqual(-10)
-    expect(sw.x).toBeLessThanOrEqual(2)
-    expect(sw.y).toBeGreaterThanOrEqual(2)
-    expect(sw.y).toBeLessThanOrEqual(14)
+    const se = def.ports.find((p) => p.id === 'se')!
+    expect(sw).toMatchObject({ x: 8, y: 16 })
+    expect(se).toMatchObject({ x: 24, y: 16 })
+    expect(def.ports.find((p) => p.id === 'sig')).toMatchObject({ x: 16, y: 0 })
   })
 })

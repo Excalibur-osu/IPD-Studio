@@ -45,18 +45,14 @@ function failMark(fail: string): string {
 }
 
 /**
- * ISA valve positioner: a square box standing clear of the actuator, joined
- * by a short line that lands exactly on the actuator's edge at mid-height —
- * never poking inside it. The sw signal port (0,8) sits on the box, so
- * signal lines attach to the positioner like the standard drawing.
+ * ISA valve positioner: the box mounts ON the stem, between the actuator and
+ * the valve body (every actuator glyph bottoms at y12, the body starts at
+ * y24, so the box spans the whole stem zone and touches both). It replaces
+ * the stem line. Signal lines land on its sides — the sw/se ports sit on the
+ * box edges, which with the top sig port gives the three connection dots.
  */
-function positionerGlyph(actuator: string): string {
-  // where the actuator's left edge sits at y=8, per glyph geometry
-  const edge: Record<string, number> = {
-    diaphragm: 7.5, piston: 8, motor: 10.5, solenoid: 10,
-    manual: 16, digital: 10, 'electro-hydraulic': 6,
-  }
-  return path('M-10 2 h12 v12 h-12 Z') + path(`M2 8 H${edge[actuator] ?? 7.5}`)
+function positionerGlyph(): string {
+  return path('M8 12 h16 v12 h-16 Z')
 }
 
 function bodyAt(bodyMarkup: string): string {
@@ -91,18 +87,17 @@ export const controlValves: SymbolDef[] = Object.entries(CV_BODIES).map(([id, bo
   gridSize: { w: 4, h: 5 },
   render: (cfg) =>
     actuatorGlyph(cfg.actuator ?? 'diaphragm') +
-    path('M16 12 V24') +
+    (cfg.positioner === 'yes' ? positionerGlyph() : path('M16 12 V24')) +
     failMark(cfg.fail ?? 'none') +
-    (cfg.positioner === 'yes' ? positionerGlyph(cfg.actuator ?? 'diaphragm') : '') +
     bodyAt(body.markup),
   ports: [
     { id: 'w', x: 0, y: 32, kind: 'process' },
     { id: 'e', x: 32, y: 32, kind: 'process' },
     { id: 'sig', x: 16, y: 0, kind: 'signal' },
-    // Actuator flanks: positioner input one side, feedback/limit switches the
-    // other. sw sits on the positioner box when one is drawn.
-    { id: 'sw', x: 0, y: 8, kind: 'signal' },
-    { id: 'se', x: 28, y: 8, kind: 'signal' },
+    // Stem-zone flanks: they sit exactly on the positioner box's side edges
+    // when one is drawn — with the top sig port, the three connection dots.
+    { id: 'sw', x: 8, y: 16, kind: 'signal' },
+    { id: 'se', x: 24, y: 16, kind: 'signal' },
   ],
   tagRule: 'valve',
   defaultConfig: { actuator: 'diaphragm', fail: 'none', positioner: 'none' },
