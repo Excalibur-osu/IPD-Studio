@@ -26,11 +26,12 @@ function sizeOf(node: PlantNode): { w: number; h: number } {
   }
 }
 
-/** Sheet-space position of a node's port, honoring rotation and scale. */
+/** Sheet-space position of a node's port, honoring rotation and scale.
+ *  Looks through the catalog ports AND any user-added pins. */
 export function portWorld(node: PlantNode, portId: string): { x: number; y: number } | null {
   try {
     const def = getSymbol(node.symbolId)
-    const port = def.ports.find((p) => p.id === portId)
+    const port = def.ports.find((p) => p.id === portId) ?? node.extraPorts?.find((p) => p.id === portId)
     if (!port) return null
     const { sx, sy } = scalesOf(node)
     const w = def.gridSize.w * 8 * sx
@@ -44,6 +45,29 @@ export function portWorld(node: PlantNode, portId: string): { x: number; y: numb
       dy = r.y
     }
     return { x: node.x + w / 2 + dx, y: node.y + h / 2 + dy }
+  } catch {
+    return null
+  }
+}
+
+/** Inverse of portWorld: symbol-frame coordinates for a sheet point on a node
+ *  (where a user clicked, expressed like a catalog port's x/y). */
+export function localPortPoint(node: PlantNode, pt: { x: number; y: number }): { x: number; y: number } | null {
+  try {
+    const def = getSymbol(node.symbolId)
+    const { sx, sy } = scalesOf(node)
+    const w = def.gridSize.w * 8 * sx
+    const h = def.gridSize.h * 8 * sy
+    let dx = pt.x - (node.x + w / 2)
+    let dy = pt.y - (node.y + h / 2)
+    const turns = (((node.rotation % 360) + 360) % 360) / 90
+    for (let i = 0; i < turns; i++) {
+      // inverse of the clockwise quarter-turn portWorld applies
+      const r = { x: dy, y: -dx }
+      dx = r.x
+      dy = r.y
+    }
+    return { x: (dx + w / 2) / sx, y: (dy + h / 2) / sy }
   } catch {
     return null
   }

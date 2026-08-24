@@ -143,15 +143,19 @@ function baseAttrs(node: PlantNode): Record<string, Record<string, unknown>> {
 function portItems(node: PlantNode) {
   const def = getSymbol(node.symbolId)
   const { sx, sy } = scalesOf(node)
-  return def.ports.map((p) => ({
+  return [...def.ports, ...(node.extraPorts ?? [])].map((p) => ({
     id: p.id,
     group: 'p',
     args: { x: p.x * sx, y: p.y * sy },
   }))
 }
 
-export function makeElement(node: PlantNode): dia.Element {
+function portKindsOf(node: PlantNode): Record<string, string> {
   const def = getSymbol(node.symbolId)
+  return Object.fromEntries([...def.ports, ...(node.extraPorts ?? [])].map((p) => [p.id, p.kind]))
+}
+
+export function makeElement(node: PlantNode): dia.Element {
   const { w, h } = dimsFor(node)
   const el = new dia.Element(<dia.Element.Attributes>{
     id: node.id,
@@ -167,7 +171,7 @@ export function makeElement(node: PlantNode): dia.Element {
       },
       items: portItems(node),
     },
-    data: { symbolId: node.symbolId, kind: node.kind, portKinds: Object.fromEntries(def.ports.map((p) => [p.id, p.kind])) },
+    data: { symbolId: node.symbolId, kind: node.kind, portKinds: portKindsOf(node) },
   })
   return el
 }
@@ -176,6 +180,10 @@ export function updateElement(cell: dia.Element, node: PlantNode, prev: PlantNod
   if (node.x !== prev.x || node.y !== prev.y) cell.set('position', { x: node.x, y: node.y })
   if (node.rotation !== prev.rotation) cell.set('angle', node.rotation)
   if (node.config !== prev.config) cell.set('markup', markupFor(node) as unknown as dia.MarkupJSON)
+  if (node.extraPorts !== prev.extraPorts) {
+    cell.prop('ports/items', portItems(node))
+    cell.set('data', { symbolId: node.symbolId, kind: node.kind, portKinds: portKindsOf(node) })
+  }
   const ps = scalesOf(node)
   const pp = scalesOf(prev)
   const rescaled = ps.sx !== pp.sx || ps.sy !== pp.sy

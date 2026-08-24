@@ -23,6 +23,11 @@ export interface StoreState {
   /** Per-axis stretch (longer horizontal vessel etc.). 1/1 clears all scaling. */
   setNodeStretch(id: string, sx: number, sy: number): void
   setNodeConfig(id: string, config: Record<string, string>): void
+  /** One-shot pin placement: the next click on this node adds a connection pin. */
+  armPin: string | null
+  setArmPin(id: string | null): void
+  addExtraPort(nodeId: string, port: { x: number; y: number; kind: 'process' | 'signal' | 'both' }): void
+  removeExtraPort(nodeId: string, portId: string): void
   setTag(id: string, tag: Tag | undefined): void
   setLabel(id: string, label: string): void
   setLabelPos(id: string, pos: 'below' | 'center'): void
@@ -127,6 +132,7 @@ export const useStore = create<StoreState>()(
         activeSheetId: initialDoc.sheets[0]!.id,
         activeScreenId: null,
         selection: [],
+        armPin: null,
         dirty: false,
         activeLineClass: 'process.major',
 
@@ -187,6 +193,41 @@ export const useStore = create<StoreState>()(
 
         setNodeConfig(id, config) {
           patchSheet((sh) => ({ ...sh, nodes: sh.nodes.map((n) => (n.id === id ? { ...n, config } : n)) }))
+        },
+
+        setArmPin(id) {
+          set({ armPin: id })
+        },
+
+        addExtraPort(nodeId, port) {
+          patchSheet((sh) => ({
+            ...sh,
+            nodes: sh.nodes.map((n) => {
+              if (n.id !== nodeId) return n
+              const existing = n.extraPorts ?? []
+              let i = existing.length + 1
+              while (existing.some((p) => p.id === `pin-${i}`)) i++
+              return { ...n, extraPorts: [...existing, { id: `pin-${i}`, ...port }] }
+            }),
+          }))
+        },
+
+        removeExtraPort(nodeId, portId) {
+          // lines connected to the pin go with it — a dangling reference would
+          // wedge the reconciler
+          patchSheet((sh) => ({
+            ...sh,
+            nodes: sh.nodes.map((n) =>
+              n.id === nodeId
+                ? { ...n, extraPorts: (n.extraPorts ?? []).filter((p) => p.id !== portId) }
+                : n,
+            ),
+            edges: sh.edges.filter((e) => {
+              const refs = (end: PlantEdge['source']) =>
+                isPortEnd(end) && end.nodeId === nodeId && end.portId === portId
+              return !refs(e.source) && !refs(e.target)
+            }),
+          }))
         },
 
         setTag(id, tag) {

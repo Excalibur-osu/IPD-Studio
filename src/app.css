@@ -162,6 +162,10 @@ button { font: inherit; }
 .pid-port-dot { fill: #fff; stroke: #93a4bd; stroke-width: 1.2; opacity: 0; transition: opacity 0.12s; }
 .joint-element:hover .pid-port-dot { opacity: 1; stroke: #2b6cb0; fill: #dbeafe; r: 4px; }
 .pid-linking .pid-port-dot { opacity: 1; }
+/* pin-arming: crosshair + all dots visible so the user can aim the new pin */
+.pid-pinning .pid-port-dot { opacity: 1; }
+.pid-pinning [joint-selector='hit'] { cursor: crosshair !important; }
+.arm-on { background: #dbeafe !important; border-color: #2b6cb0 !important; color: #2b6cb0; }
 .pid-port-hit:hover { fill: rgba(43, 108, 176, 0.22); stroke: #2b6cb0; }
 /* While dragging a link, every legal target port shows a slim ring. */
 .pid-port-hit.available-magnet { fill: rgba(43, 108, 176, 0.12); stroke: #2b6cb0; stroke-width: 1.25; r: 5px; }

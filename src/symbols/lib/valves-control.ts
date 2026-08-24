@@ -78,6 +78,9 @@ export const controlValves: SymbolDef[] = Object.entries(CV_BODIES).map(([id, bo
     actuatorGlyph(cfg.actuator ?? 'diaphragm') +
     path('M16 12 V24') +
     failMark(cfg.fail ?? 'none') +
+    // ISA valve positioner: a square box mounted beside the actuator; the
+    // signal line lands on it (the sw port sits inside the box)
+    (cfg.positioner === 'yes' ? path('M-2 2 h12 v12 h-12 Z') + path('M10 8 H13') : '') +
     bodyAt(body.markup),
   ports: [
     { id: 'w', x: 0, y: 32, kind: 'process' },
@@ -88,10 +91,11 @@ export const controlValves: SymbolDef[] = Object.entries(CV_BODIES).map(([id, bo
     { id: 'se', x: 28, y: 8, kind: 'signal' },
   ],
   tagRule: 'valve',
-  defaultConfig: { actuator: 'diaphragm', fail: 'none' },
+  defaultConfig: { actuator: 'diaphragm', fail: 'none', positioner: 'none' },
   configOptions: {
     actuator: ['diaphragm', 'piston', 'motor', 'solenoid', 'manual', 'digital', 'electro-hydraulic'],
     fail: ['none', 'fc', 'fo', 'fl'],
+    positioner: ['none', 'yes'],
   },
   keywords: body.keywords,
 }))

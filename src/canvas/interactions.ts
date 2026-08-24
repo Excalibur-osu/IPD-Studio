@@ -4,9 +4,10 @@ import type { PlantEdge, PlantNode } from '../model/types'
 import { isPortEnd } from '../model/types'
 import type { PortKind } from '../symbols/types'
 import { compatibleKinds, pickLineClass } from './connectionRules'
-import { alignNodes, distributeNodes, portWorld, snapGuides } from './alignment'
+import { alignNodes, distributeNodes, localPortPoint, portWorld, snapGuides } from './alignment'
 import { cleanVertices } from './vertexClean'
 import { makeLink } from './shapes'
+import { getSymbol } from '../symbols/registry'
 import { activeSheet, resumeHistory, useStore } from '../store/store'
 
 const snap8 = (v: number) => Math.round(v / 8) * 8
@@ -37,6 +38,10 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
       source: { x: 0, y: 0 },
       target: { x: 0, y: 0 },
     })
+
+  // While a pin placement is armed, port halos must not swallow the click by
+  // starting a link — the click is aimed at the symbol surface.
+  paper.options.validateMagnet = () => !store().armPin
 
   // Any port pairing that some line class could join is allowed; the class
   // itself is picked at commit time so users never have to pre-select it.
@@ -254,6 +259,30 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     resumeHistory()
   }
 
+  // --- pin placement ------------------------------------------------------
+  // "＋ Add pin" in the panel arms one click: the next click on that symbol
+  // adds a user connection pin exactly where it landed (4px lattice, like the
+  // catalog ports). Any other click cancels.
+  const snap4 = (v: number) => Math.round(v / 4) * 4
+  const placePin = (view: dia.ElementView, x: number, y: number): boolean => {
+    const arm = store().armPin
+    if (!arm) return false
+    store().setArmPin(null)
+    const id = String(view.model.id)
+    if (id !== arm) return true
+    const node = activeSheet(store()).nodes.find((n) => n.id === id)
+    if (!node) return true
+    const local = localPortPoint(node, { x, y })
+    if (!local) return true
+    try {
+      const g = getSymbol(node.symbolId).gridSize
+      const px = Math.max(0, Math.min(g.w * 8, snap4(local.x)))
+      const py = Math.max(0, Math.min(g.h * 8, snap4(local.y)))
+      store().addExtraPort(id, { x: px, y: py, kind: 'both' })
+    } catch { /* unknown symbol: nothing to pin */ }
+    return true
+  }
+
   // --- selection ----------------------------------------------------------
   const onElementPointerDown = (view: dia.ElementView, evt: dia.Event) => {
     const id = String(view.model.id)
@@ -277,6 +306,7 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
   }
 
   const onBlankPointerDown = () => {
+    if (store().armPin) store().setArmPin(null)
     if (store().selection.length) store().setSelection([])
   }
 
@@ -402,6 +432,8 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
   // --- selection highlight + link tools -----------------------------------
   const HIGHLIGHT = 'pid-selection'
   const syncSelection = () => {
+    // pin-arming shows every connection dot and a crosshair cursor
+    paper.el.classList.toggle('pid-pinning', Boolean(store().armPin))
     const sel = new Set(store().selection)
     for (const cell of graph.getCells()) {
       const view = cell.findView(paper)
@@ -472,7 +504,11 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
       return
     }
     if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); s.deleteSelected(); return }
-    if (e.key === 'Escape') { s.setSelection([]); return }
+    if (e.key === 'Escape') {
+      if (s.armPin) { s.setArmPin(null); return }
+      s.setSelection([])
+      return
+    }
     if (e.key.toLowerCase() === 'r' && s.selection.length) {
       for (const id of s.selection) if (activeSheet(s).nodes.some((n) => n.id === id)) s.rotateNode(id)
       return
@@ -489,7 +525,11 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     }
   }
 
-  paper.on('element:pointerdown', (v: dia.ElementView, e: dia.Event) => { onElementPointerDown(v, e); onElementPointerDownPos(v) })
+  paper.on('element:pointerdown', (v: dia.ElementView, e: dia.Event, x: number, y: number) => {
+    if (placePin(v, x, y)) return
+    onElementPointerDown(v, e)
+    onElementPointerDownPos(v)
+  })
   paper.on('element:pointermove', onElementPointerMove)
   paper.on('element:pointerup', onElementPointerUp)
   paper.on('element:magnet:pointerdown', onMagnetDown)

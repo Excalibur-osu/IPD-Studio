@@ -91,6 +91,9 @@ function OffPageLink({ node }: { node: PlantNode }) {
 
 function NodeProps({ node }: { node: PlantNode }) {
   const def = getSymbol(node.symbolId)
+  const armPin = useStore((s) => s.armPin)
+  const setArmPin = useStore((s) => s.setArmPin)
+  const removeExtraPort = useStore((s) => s.removeExtraPort)
   const setNodeConfig = useStore((s) => s.setNodeConfig)
   const setLabel = useStore((s) => s.setLabel)
   const setLabelPos = useStore((s) => s.setLabelPos)
@@ -157,6 +160,24 @@ function NodeProps({ node }: { node: PlantNode }) {
         <span className="scale-value">{sy}×</span>
         <button title="Taller" disabled={sy >= 4} onClick={() => setNodeStretch(node.id, sx, sy + 0.25)}>＋</button>
       </div>
+      {node.kind !== 'annotation' && (
+        <div className="prop-row">
+          <span className="prop-hint">Pins</span>
+          <button
+            className={armPin === node.id ? 'arm-on' : ''}
+            title="Add a connection pin: click this button, then click the spot on the symbol"
+            onClick={() => setArmPin(armPin === node.id ? null : node.id)}
+          >
+            {armPin === node.id ? 'Click the symbol… (Esc cancels)' : '＋ Add pin'}
+          </button>
+        </div>
+      )}
+      {(node.extraPorts ?? []).map((p) => (
+        <div className="prop-row" key={p.id}>
+          <span className="prop-hint">{p.id} · ({p.x}, {p.y})</span>
+          <button title="Remove this pin (its lines go with it)" onClick={() => removeExtraPort(node.id, p.id)}>✕</button>
+        </div>
+      ))}
       {(node.tagOffset || node.labelOffset) && (
         <div className="prop-row">
           <button onClick={() => { setTagOffset(node.id, undefined); setLabelOffset(node.id, undefined) }}>

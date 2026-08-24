@@ -96,6 +96,41 @@ test('vertex drag: one undo step, sticks where dropped, heals straight on the ax
   }).toBeGreaterThanOrEqual(1)
 })
 
+test('user pins: arm from the panel, click the symbol, draw a line from the new pin', async ({ page }) => {
+  await page.goto('/')
+  await page.waitForFunction(() => Boolean(window.__pid))
+  const ids = await page.evaluate(() => {
+    const s = window.__pid.useStore.getState()
+    const tank = s.addNode({ symbolId: 'vessel.tank', kind: 'equipment', x: 96, y: 96, rotation: 0 })
+    const pump = s.addNode({ symbolId: 'pump.centrifugal', kind: 'equipment', x: 320, y: 240, rotation: 0 })
+    s.setSelection([tank])
+    return { tank, pump }
+  })
+  await expect(page.locator('[model-id]')).toHaveCount(2)
+  // arm from the property panel, then click the tank's top edge mid-point
+  await page.getByRole('button', { name: '＋ Add pin' }).click()
+  // aim right where an existing port halo sits — arming must win over magnets
+  const spot = await clientPoint(page, 96 + 32, 96 + 2)
+  await page.mouse.click(spot.x, spot.y)
+  const pins = await page.evaluate(
+    (id) => window.__pid.useStore.getState().doc.sheets[0].nodes.find((n: any) => n.id === id).extraPorts,
+    ids.tank,
+  )
+  expect(pins).toHaveLength(1)
+  expect(pins[0].id).toBe('pin-1')
+  // the pin is a live magnet: drag a line from it to the pump suction
+  await drag(
+    page,
+    await clientPoint(page, 96 + pins[0].x, 96 + pins[0].y),
+    await clientPoint(page, 320, 268),
+    20,
+  )
+  const e = await edges(page)
+  expect(e).toHaveLength(1)
+  expect(e[0].source).toMatchObject({ nodeId: ids.tank, portId: 'pin-1' })
+  expect(e[0].target).toMatchObject({ nodeId: ids.pump, portId: 'suction' })
+})
+
 test('segments tool: drag a whole run sideways in one undo step', async ({ page }) => {
   await setupWithLine(page)
   await expect(page.locator('[data-tool-name="segments"]')).toBeVisible()

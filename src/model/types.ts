@@ -52,6 +52,9 @@ export interface PlantNode {
   scaleX?: number
   scaleY?: number
   flipH?: boolean
+  /** User-added connection pins, in the symbol's unscaled frame (like the
+   *  catalog ports). Added when the built-in nozzles aren't enough. */
+  extraPorts?: { id: string; x: number; y: number; kind: 'process' | 'signal' | 'both' }[]
   config?: Record<string, string>
   tag?: Tag
   label?: string
