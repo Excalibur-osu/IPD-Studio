@@ -16,6 +16,7 @@ const LEDGER = [
   'bindTank', 'bindPipe', 'controller',
   'symbolId', 'signal', 'writeValue', 'onLabel', 'offLabel', 'screen',
   'spark', 'span',
+  'deadband', 'alarmDelay', 'priority',
 ] as const
 
 describe('WIDGET_SCHEMA', () => {

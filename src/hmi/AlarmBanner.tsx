@@ -1,34 +1,89 @@
 import { useState } from 'react'
 import { useSimStore } from './simStore'
-import { priorityOf } from './sim/alarms'
-import type { AlarmRecord, JournalEntry } from './sim/alarms'
+import type { AlarmPriority, AlarmRecord, JournalEntry } from './sim/alarms'
 import { commandText } from './sim/commands'
 import { useStore } from '../store/store'
 
 const mmss = (t: number) => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}`
 
 const phaseRank = (p: AlarmRecord['phase']) => (p === 'active' ? 0 : p === 'cleared' ? 1 : 2)
-const prioRank = (a: AlarmRecord) => (priorityOf(a.level) === 'high' ? 0 : 1)
+const prioRank = (p: AlarmPriority) => (p === 'high' ? 0 : p === 'medium' ? 1 : 2)
 
-/** ISA-18.2 style: critical (HH/LL) as a red square, warning (H/L) as an
- *  amber triangle — shape + color so priority survives color-blindness. */
-function PrioIcon({ level }: { level: AlarmRecord['level'] }) {
-  return priorityOf(level) === 'high'
-    ? <span className="al-prio al-prio-high" aria-label="critical">■</span>
-    : <span className="al-prio al-prio-warn" aria-label="warning">▲</span>
+/** ISA-18.2 style: three priorities as shape + color so they survive
+ *  color-blindness — high ■ red, medium ▲ orange, low ● yellow. */
+function PrioIcon({ priority }: { priority: AlarmPriority }) {
+  return priority === 'high' ? <span className="al-prio al-prio-high" aria-label="high">■</span>
+    : priority === 'medium' ? <span className="al-prio al-prio-medium" aria-label="medium">▲</span>
+    : <span className="al-prio al-prio-low" aria-label="low">●</span>
 }
 
+type SortKey = 'time' | 'pri' | 'tag' | 'level' | 'value' | 'state'
+
 /** Docked alarm strip above the mimic + expandable summary/journal.
- *  Clicking a tag navigates to the screen that shows it. */
-export default function AlarmBanner() {
+ *  Clicking a tag navigates to the screen that shows it (and pulses it). */
+export default function AlarmBanner({ onJump }: { onJump?(tag: string): void }) {
   const alarms = useSimStore((s) => s.alarms)
   const journal = useSimStore((s) => s.journal)
+  const shelvedMap = useSimStore((s) => s.shelved)
+  const oosMap = useSimStore((s) => s.oos)
+  const t = useSimStore((s) => s.t)
   const ack = useSimStore((s) => s.ack)
+  const shelve = useSimStore((s) => s.shelve)
+  const unshelve = useSimStore((s) => s.unshelve)
+  const toggleOos = useSimStore((s) => s.toggleOos)
   const screens = useStore((s) => s.doc.hmiScreens)
   const setActiveScreen = useStore((s) => s.setActiveScreen)
   const [open, setOpen] = useState<'none' | 'summary' | 'journal'>('none')
   const [jFilter, setJFilter] = useState<'all' | 'alarms' | 'commands'>('all')
-  if (alarms.length === 0 && journal.length === 0) return null
+  const [pFilter, setPFilter] = useState<'all' | AlarmPriority>('all')
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'state', dir: 1 })
+  const oosTags = Object.keys(oosMap)
+  if (alarms.length === 0 && journal.length === 0 && oosTags.length === 0) return null
+
+  // standing = what actually annunciates; suppressed/pending live in sections
+  const standing = alarms.filter((a) => !a.sup && a.phase !== 'pending')
+  const shelvedRows = Object.entries(shelvedMap)
+  const sbdRecs = alarms.filter((a) => a.sup === 'design')
+
+  const cmp = (a: AlarmRecord, b: AlarmRecord): number => {
+    const d =
+      sort.key === 'time' ? a.since - b.since
+      : sort.key === 'pri' ? prioRank(a.priority) - prioRank(b.priority)
+      : sort.key === 'tag' ? a.tag.localeCompare(b.tag, undefined, { numeric: true })
+      : sort.key === 'level' ? a.level.localeCompare(b.level)
+      : sort.key === 'value' ? (a.value ?? 0) - (b.value ?? 0)
+      : phaseRank(a.phase) - phaseRank(b.phase)
+    // stable, meaningful tiebreak: priority then recency
+    return d * sort.dir || prioRank(a.priority) - prioRank(b.priority) || b.since - a.since
+  }
+  const rows = [...standing].sort(cmp)
+  const summaryRows = pFilter === 'all' ? rows : rows.filter((a) => a.priority === pFilter)
+  const shown = rows.slice(0, 3)
+  const unacked = standing.filter((a) => a.phase !== 'acked')
+  const nBy = (p: AlarmPriority) => unacked.filter((a) => a.priority === p).length
+
+  const jumpTo = (tag: string) => {
+    if (onJump) return onJump(tag)
+    const sc = screens.find((s) => s.widgets.some((w) => w.tag === tag))
+    if (sc) setActiveScreen(sc.id)
+  }
+
+  const header = (key: SortKey, label: string) => (
+    <button className={`al-all al-th${sort.key === key ? ' al-on' : ''}`}
+      onClick={() => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }))}>
+      {label}{sort.key === key ? (sort.dir === 1 ? ' ▴' : ' ▾') : ''}
+    </button>
+  )
+
+  const ShelveSelect = ({ id }: { id: string }) => (
+    <select className="al-shelve" value="" title="Shelve: hide temporarily, auto-returns"
+      onChange={(e) => { if (e.target.value) shelve(id, Number(e.target.value)) }}>
+      <option value="">Shelve…</option>
+      <option value="5">5 min</option>
+      <option value="15">15 min</option>
+      <option value="30">30 min</option>
+    </select>
+  )
 
   const journalShown = journal.filter((ev) =>
     jFilter === 'all' ? true : jFilter === 'commands' ? ev.what === 'CMD' : ev.what !== 'CMD')
@@ -38,25 +93,16 @@ export default function AlarmBanner() {
     void navigator.clipboard?.writeText(journalShown.map(journalLine).join('\n')).catch(() => {})
   }
 
-  const rows = [...alarms].sort((a, b) =>
-    phaseRank(a.phase) - phaseRank(b.phase) || prioRank(a) - prioRank(b) || b.since - a.since)
-  const shown = rows.slice(0, 3)
-  const unacked = rows.filter((a) => a.phase !== 'acked').length
-  const nHigh = rows.filter((a) => prioRank(a) === 0 && a.phase !== 'acked').length
-
-  const jumpTo = (tag: string) => {
-    const sc = screens.find((s) => s.widgets.some((w) => w.tag === tag))
-    if (sc) setActiveScreen(sc.id)
-  }
-
   return (
     <div className="hmi-alarmwrap">
       <div className="hmi-alarmbar" data-testid="alarm-bar">
-        <span className={`al-count${unacked > 0 ? ' hmi-blink' : ''}`}>⚠ {rows.length}</span>
-        {nHigh > 0 && <span className="al-prio al-prio-high">■ {nHigh}</span>}
+        <span className={`al-count${unacked.length > 0 ? ' hmi-blink' : ''}`}>⚠ {standing.length}</span>
+        {nBy('high') > 0 && <span className="al-prio al-prio-high">■ {nBy('high')}</span>}
+        {nBy('medium') > 0 && <span className="al-prio al-prio-medium">▲ {nBy('medium')}</span>}
+        {nBy('low') > 0 && <span className="al-prio al-prio-low">● {nBy('low')}</span>}
         {shown.map((a, i) => (
           <span key={a.id} className={`al-chip ${a.phase}${a.phase !== 'acked' ? ' hmi-blink' : ''}`}>
-            <PrioIcon level={a.level} />
+            <PrioIcon priority={a.priority} />
             <span className="al-time">{mmss(a.since)}</span>
             <button className="al-tag" title="Show this tag's screen" onClick={() => jumpTo(a.tag)}><strong>{a.tag}</strong></button>
             <span>{a.level}</span>
@@ -77,18 +123,71 @@ export default function AlarmBanner() {
       </div>
       {open === 'summary' && (
         <div className="hmi-alarmpanel" data-testid="alarm-summary">
-          {rows.length === 0 && <p className="al-empty">No standing alarms.</p>}
-          {rows.map((a) => (
+          <div className="al-row" style={{ borderBottom: '1px solid #ffffff2a' }}>
+            {(['all', 'high', 'medium', 'low'] as const).map((f) => (
+              <button key={f} className={`al-all${pFilter === f ? ' al-on' : ''}`}
+                data-testid={`sum-${f}`} onClick={() => setPFilter(f)}>
+                {f === 'all' ? 'All' : f[0]!.toUpperCase() + f.slice(1)}
+              </button>
+            ))}
+            <span style={{ flex: 1 }} />
+            {header('time', 'Time')}{header('pri', 'Pri')}{header('tag', 'Tag')}
+            {header('level', 'Lvl')}{header('value', 'Value')}{header('state', 'State')}
+          </div>
+          {summaryRows.length === 0 && <p className="al-empty">No standing alarms.</p>}
+          {summaryRows.map((a) => (
             <div key={a.id} className={`al-row ${a.phase}`}>
-              <PrioIcon level={a.level} />
+              <PrioIcon priority={a.priority} />
               <span className="al-time">{mmss(a.since)}</span>
               <button className="al-tag" onClick={() => jumpTo(a.tag)}><strong>{a.tag}</strong></button>
-              <span>{a.level}</span>
+              <span style={{ width: 24 }}>{a.level}</span>
+              <span className="al-time" style={{ width: 44 }}>{a.value !== undefined ? a.value.toFixed(1) : '—'}</span>
               <span className="al-phase">{a.phase.toUpperCase()}</span>
               <span style={{ flex: 1 }} />
+              <ShelveSelect id={a.id} />
+              <button title={`Take ${a.tag} out of service (suppresses all its alarms)`}
+                onClick={() => toggleOos(a.tag)}>OOS</button>
               {a.phase !== 'acked' && <button onClick={() => ack(a.id)}>Ack</button>}
             </div>
           ))}
+          {shelvedRows.length > 0 && (
+            <>
+              <p className="al-section">Shelved ({shelvedRows.length})</p>
+              {shelvedRows.map(([id, until]) => (
+                <div key={id} className="al-row acked" data-testid="shelved-row">
+                  <span>⏸</span>
+                  <span><strong>{id.replace(':', ' ')}</strong></span>
+                  <span className="al-time">back in {mmss(Math.max(0, until - t))}</span>
+                  <span style={{ flex: 1 }} />
+                  <button onClick={() => unshelve(id)}>Unshelve</button>
+                </div>
+              ))}
+            </>
+          )}
+          {oosTags.length > 0 && (
+            <>
+              <p className="al-section">Out of service ({oosTags.length})</p>
+              {oosTags.map((tag) => (
+                <div key={tag} className="al-row acked" data-testid="oos-row">
+                  <span>⊘</span>
+                  <button className="al-tag" onClick={() => jumpTo(tag)}><strong>{tag}</strong></button>
+                  <span style={{ flex: 1 }} />
+                  <button onClick={() => toggleOos(tag)}>Back in service</button>
+                </div>
+              ))}
+            </>
+          )}
+          {sbdRecs.length > 0 && (
+            <>
+              <p className="al-section">Suppressed by design ({sbdRecs.length}) — no running pump on their line</p>
+              {sbdRecs.map((a) => (
+                <div key={a.id} className="al-row acked" data-testid="sbd-row">
+                  <span>⊘</span>
+                  <span><strong>{a.tag}</strong> {a.level}</span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
       {open === 'journal' && (

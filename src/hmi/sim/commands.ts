@@ -10,6 +10,8 @@ export function commandText(ev: CommandEvent): string {
     case 'MODE': return ev.to >= 0.5 ? 'AUTO' : 'MAN'
     case 'SP':
     case 'OP': return `${ev.sig} ${fmt(ev.from)} → ${fmt(ev.to)}`
+    case 'SHELVE': return ev.to > 0 ? `SHELVED ${fmt(ev.to)} min` : 'UNSHELVED'
+    case 'OOS': return ev.to >= 0.5 ? 'OUT OF SERVICE' : 'BACK IN SERVICE'
     default: return `${ev.sig} = ${fmt(ev.to)}`
   }
 }

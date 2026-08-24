@@ -50,6 +50,8 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   const [armedPick, setArmedPick] = useState<ArmedPick | null>(null)
   const [view, setView] = useState<View | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [flashTag, setFlashTag] = useState<string | null>(null)
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const showNotice = (msg: string) => {
     if (noticeTimer.current) clearTimeout(noticeTimer.current)
@@ -91,6 +93,17 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   }, [activeScreenId])
   // RUN is fit-locked, the way a real operator station presents a page
   useEffect(() => { setFaceplate(null); setArmedPick(null); setView(null) }, [mode])
+  /** Alarm click-through: land on the screen AND show which widget it was. */
+  const jumpToTag = (tag: string) => {
+    const s = useStore.getState()
+    const sc = s.doc.hmiScreens.find((x) => x.widgets.some((w) => w.tag === tag))
+    if (sc) s.setActiveScreen(sc.id)
+    if (flashTimer.current) clearTimeout(flashTimer.current)
+    setFlashTag(null)
+    // out-in so a repeat click restarts the CSS animation
+    requestAnimationFrame(() => setFlashTag(tag))
+    flashTimer.current = setTimeout(() => setFlashTag(null), 2300)
+  }
   // leaving the workspace (unmount) stops any running simulation
   useEffect(() => () => useSimStore.getState().exitRun(), [])
   // the P&ID canvas owns these shortcuts normally; it is unmounted here
@@ -135,7 +148,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
       <div className="hmi-center">
         {screen ? (
           <>
-            {mode === 'run' && <AlarmBanner />}
+            {mode === 'run' && <AlarmBanner onJump={jumpToTag} />}
             <div className="hmi-canvas-wrap" style={{ background: THEMES[screen.theme].bg }}>
               <HmiCanvas
                 screen={screen}
@@ -154,6 +167,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
                 history={mode === 'run' ? history : undefined}
                 historyT={mode === 'run' ? historyT : undefined}
                 alarms={mode === 'run' ? alarms : undefined}
+                flashTag={flashTag}
                 onWidgetClick={(w) => setFaceplate(w.id)}
               />
             </div>
@@ -188,7 +202,9 @@ function StatusBar({ screenName, selection, notice }: { screenName?: string; sel
   const t = useSimStore((s) => s.t)
   const playing = useSimStore((s) => s.playing)
   const alarms = useSimStore((s) => s.alarms)
-  const unacked = alarms.filter((a) => a.phase !== 'acked').length
+  const live = alarms.filter((a) => !a.sup && a.phase !== 'pending' && a.phase !== 'acked')
+  const unacked = live.length
+  const nBy = (p: 'high' | 'medium' | 'low') => live.filter((a) => a.priority === p).length
   return (
     <div className="hmi-status">
       <span>HMI workspace</span>
@@ -197,7 +213,10 @@ function StatusBar({ screenName, selection, notice }: { screenName?: string; sel
       {mode === 'run' ? (
         <>
           <span data-testid="sim-clock">⏱ {mmss(t)}{playing ? '' : ' (paused)'}</span>
-          <span>{unacked > 0 ? `⚠ ${unacked} unacked alarm${unacked === 1 ? '' : 's'}` : 'no unacked alarms'}</span>
+          <span>{unacked > 0 ? `⚠ ${unacked} unacked` : 'no unacked alarms'}</span>
+          {nBy('high') > 0 && <span className="al-prio al-prio-high">■ {nBy('high')}</span>}
+          {nBy('medium') > 0 && <span className="al-prio al-prio-medium">▲ {nBy('medium')}</span>}
+          {nBy('low') > 0 && <span className="al-prio al-prio-low">● {nBy('low')}</span>}
           <span style={{ marginLeft: 'auto' }}>RUNNING plant-wide — tabs navigate, click equipment to operate</span>
         </>
       ) : (

@@ -250,6 +250,34 @@ test('author tools: zoom, cross-screen clipboard, segment editing', async ({ pag
   expect(pts.map((q) => q.y)).toEqual([776, 696])
 })
 
+test('alarm summary v2: shelve and out-of-service', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.goto('/')
+  await page.getByTestId('open-hmi').click()
+  await page.getByRole('button', { name: 'New screen' }).click()
+  await page.getByText('Tank', { exact: true }).dblclick()
+  const canvas = page.getByTestId('hmi-canvas')
+  const b = (await canvas.boundingBox())!
+  await page.mouse.click(b.x + (360 / 1600) * b.width, b.y + (290 / 1000) * b.height)
+  await page.getByTestId('prop-tag').fill('TK-1')
+  await page.getByLabel('Start level %').fill('96')
+  await page.getByTestId('hmi-run-toggle').click()
+  await expect(page.getByTestId('alarm-ack')).toBeVisible({ timeout: 15000 })
+  await page.getByTestId('alarm-summary-toggle').click()
+  const summary = page.getByTestId('alarm-summary')
+  await expect(summary).toContainText('HH')
+  // shelve the first standing alarm: it moves into the Shelved section
+  await summary.locator('.al-shelve').first().selectOption('5')
+  await expect(page.getByTestId('shelved-row')).toBeVisible()
+  await expect(page.getByTestId('shelved-row')).toContainText('back in')
+  // take the tag out of service: remaining alarms suppress into their section
+  await summary.getByRole('button', { name: 'OOS' }).first().click()
+  await expect(page.getByTestId('oos-row')).toBeVisible()
+  await summary.getByRole('button', { name: 'Back in service' }).click()
+  await expect(page.getByTestId('oos-row')).toHaveCount(0)
+  await page.getByTestId('hmi-run-toggle').click()
+})
+
 test('multi-pen trend with a time axis', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.goto('/')

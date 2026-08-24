@@ -3,14 +3,14 @@ import { alarmEvents, priorityOf } from '../../src/hmi/sim/alarms'
 import type { AlarmRecord } from '../../src/hmi/sim/alarms'
 
 const A = (id: string, phase: AlarmRecord['phase'], level: AlarmRecord['level'] = 'H'): AlarmRecord =>
-  ({ id, tag: id.split(':')[0]!, level, phase, since: 0 })
+  ({ id, tag: id.split(':')[0]!, level, phase, since: 0, priority: 'medium' })
 
 describe('priorityOf', () => {
   it('trip limits are critical, warnings are not', () => {
     expect(priorityOf('HH')).toBe('high')
     expect(priorityOf('LL')).toBe('high')
-    expect(priorityOf('H')).toBe('warn')
-    expect(priorityOf('L')).toBe('warn')
+    expect(priorityOf('H')).toBe('medium')
+    expect(priorityOf('L')).toBe('medium')
   })
 })
 

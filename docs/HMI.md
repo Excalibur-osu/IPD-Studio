@@ -90,11 +90,23 @@ throttling valves at 0% — nothing moves and nothing alarms until the
 operator lines up valves and starts pumps (or a control loop acts). Lines
 that dead-end without any valve can never drain a tank. Alarm limits (LL/L/H/HH) on tanks and
 displays drive a blinking, acknowledgeable alarm banner with an
-ISA-18.2-style lifecycle (active → acked / cleared) and priorities: HH/LL
-are critical (red ■), H/L are warnings (amber ▲) — shape *and* color, so
-priority survives color-blindness. The banner expands into a full **alarm
-summary** and a **journal** of every raise / return-to-normal / ack with its
-sim time, and clicking an alarm's tag navigates to the screen that shows it.
+ISA-18.2-style lifecycle (active → acked / cleared) and **three priorities**
+— high ■ red, medium ▲ orange, low ● yellow (shape *and* color, so priority
+survives color-blindness; HH/LL ride one step above the H/L pair, and each
+tag can override its priority). Alarms don't chatter: every limit has a
+**hysteresis deadband** (default 1% of range, tunable) and an optional
+**on-delay** so a value brushing its limit doesn't annunciate until it
+means it. And they can be **suppressed the ISA-18.2 way**: **shelve** an
+alarm for 5/15/30 minutes (it returns by itself), take a tag **out of
+service**, and flow alarms on a line whose pumps are commanded off
+suppress themselves (**suppressed by design**) — each with its own section
+in the summary, a ⊘ badge on the widget itself, and journal entries for
+every shelve/restore. The banner expands into a full **alarm
+summary** — a real table (time, priority, tag, level, **value at trip**,
+state) with sortable columns, priority filters and per-row Shelve / OOS /
+Ack — and a **journal** of every raise / return-to-normal / ack with its
+sim time. Clicking an alarm's tag navigates to the screen that shows it
+**and pulses the widget** so you see exactly which one it was.
 The journal also records **every operator action** — `START`, `CLOSE`,
 `SP 50 → 62`, `MAN` — the way a real DCS audit trail does (slider bursts
 coalesce into one entry); filter it to Alarms or Commands and copy the

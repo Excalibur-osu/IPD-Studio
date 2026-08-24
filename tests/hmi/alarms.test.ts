@@ -8,7 +8,7 @@ const at = (pv: number) => ({ 'TK-1': { PV: pv } })
 describe('alarm lifecycle', () => {
   it('raises H then HH as the level climbs', () => {
     let a = evalAlarms(defs, at(92), [], 1)
-    expect(a).toEqual([{ id: 'TK-1:H', tag: 'TK-1', level: 'H', phase: 'active', since: 1 }])
+    expect(a).toEqual([{ id: 'TK-1:H', tag: 'TK-1', level: 'H', phase: 'active', since: 1, priority: 'medium', value: 92 }])
     a = evalAlarms(defs, at(97), a, 2)
     expect(a.map((x) => x.id).sort()).toEqual(['TK-1:H', 'TK-1:HH'])
   })

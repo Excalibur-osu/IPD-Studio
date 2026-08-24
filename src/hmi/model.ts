@@ -31,10 +31,12 @@ export type PropKind =
   | 'tagRef' | 'signalRef' | 'screenRef' | 'symbolRef' | 'tankRef' | 'pipeRef'
 
 const LIMITS = { LL: 'number', L: 'number', H: 'number', HH: 'number' } as const
+/** ISA-18.2 alarm-quality knobs, valid wherever limits are. */
+const ALARM_Q = { deadband: 'number', alarmDelay: 'number', priority: 'string' } as const
 /** display/gauge/bar/trend share the full measurement bundle (sim/tags.ts
  *  treats the four identically). */
 const MEASURE = {
-  ...LIMITS, unit: 'string', min: 'number', max: 'number',
+  ...LIMITS, ...ALARM_Q, unit: 'string', min: 'number', max: 'number',
   controller: 'boolean', base: 'number', bindTank: 'tankRef', bindPipe: 'pipeRef',
 } as const
 
@@ -42,7 +44,7 @@ const MEASURE = {
  *  spec to check against. Unknown keys are WARNED about, never dropped — an
  *  older build must not eat a newer document's props. */
 export const WIDGET_SCHEMA: Record<WidgetType, Record<string, PropKind>> = {
-  tank: { capacity: 'number', level0: 'number', ...LIMITS },
+  tank: { capacity: 'number', level0: 'number', ...LIMITS, ...ALARM_Q },
   pump: {},
   valve: { throttle: 'boolean' },
   display: { ...MEASURE, spark: 'boolean' },

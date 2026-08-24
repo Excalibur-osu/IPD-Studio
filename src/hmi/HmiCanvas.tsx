@@ -16,7 +16,7 @@ import { HMI_DRAG_MIME } from './HmiPalette'
 import { parseSignalRef } from './tagIndex'
 
 /** Structural subset of sim/alarms' AlarmRecord that the canvas needs. */
-export interface AlarmView { tag: string; phase: 'active' | 'acked' | 'cleared' }
+export interface AlarmView { tag: string; phase: 'pending' | 'active' | 'acked' | 'cleared'; sup?: string }
 
 export interface HmiCanvasProps {
   screen: HmiScreen
@@ -40,6 +40,8 @@ export interface HmiCanvasProps {
   history?: Record<string, number[]>
   historyT?: number[]
   alarms?: AlarmView[]
+  /** Briefly pulse every widget carrying this tag (alarm click-through). */
+  flashTag?: string | null
   onWidgetClick?(w: HmiWidget): void
 }
 
@@ -50,6 +52,8 @@ interface WidgetGProps {
   /** Only trend/sparkline widgets receive this (memo stays effective). */
   hist?: TrendData
   alarm: 'none' | 'unacked' | 'acked'
+  suppressed: boolean
+  flash: boolean
   selected: boolean
   editing: boolean
   ox: number
@@ -91,7 +95,7 @@ const shallowEq = (a: Record<string, number>, b: Record<string, number>) => {
 /** Memoized widget group: a 5 Hz tick only re-renders widgets whose values,
  *  history, alarm state, or geometry actually changed. */
 const WidgetG = memo(
-  function WidgetG({ widget, theme, values, hist, alarm, selected, editing, ox, oy }: WidgetGProps) {
+  function WidgetG({ widget, theme, values, hist, alarm, suppressed, flash, selected, editing, ox, oy }: WidgetGProps) {
     return (
       <g data-wid={widget.id} className="hmi-widget" transform={`translate(${widget.x + ox}, ${widget.y + oy})`}>
         {renderWidget({ widget, theme, sim: values, hist, alarm })}
@@ -99,6 +103,14 @@ const WidgetG = memo(
           <rect x={-4} y={-4} width={widget.w + 8} height={widget.h + 8} fill="none"
             stroke={alarm === 'unacked' ? theme.alarm : theme.alarmAck} strokeWidth={3}
             className={alarm === 'unacked' ? 'hmi-blink' : undefined} />
+        )}
+        {suppressed && (
+          <text x={widget.w - 2} y={-4} textAnchor="end" fontSize={11} fill={theme.textDim}
+            data-suppressed aria-label="alarms suppressed">⊘</text>
+        )}
+        {flash && (
+          <rect x={-8} y={-8} width={widget.w + 16} height={widget.h + 16} fill="none"
+            stroke="#2b6cb0" strokeWidth={4} rx={4} className="hmi-pulse" pointerEvents="none" />
         )}
         {editing && selected && (
           <rect x={-2} y={-2} width={widget.w + 4} height={widget.h + 4} fill="none" stroke="#2b6cb0" strokeDasharray="4 3" strokeWidth={1.5} />
@@ -117,6 +129,8 @@ const WidgetG = memo(
     // identity only: the hist slab is rebuilt each tick, so trends re-render
     // every tick (correct — samples scroll); other widgets pass undefined
     prev.hist === next.hist &&
+    prev.suppressed === next.suppressed &&
+    prev.flash === next.flash &&
     shallowEq(prev.values, next.values),
 )
 
@@ -136,7 +150,7 @@ function segmentPoints(points: { x: number; y: number }[], index: number, axis: 
   )
 }
 
-export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onToolDone, armedPick, onPicked, view = null, onViewChange, onCursor, sim, flows, history, historyT, alarms, onWidgetClick }: HmiCanvasProps) {
+export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onToolDone, armedPick, onPicked, view = null, onViewChange, onCursor, sim, flows, history, historyT, alarms, flashTag, onWidgetClick }: HmiCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [drag, setDrag] = useState<DragState>(null)
   const [ghost, setGhost] = useState<{ dx: number; dy: number } | null>(null)
@@ -530,14 +544,17 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
           values[signal] = sim[sigRef.tag]?.[sigRef.signal] ?? 0
         }
         const recs = (alarms ?? []).filter((a) => a.tag === w.tag)
-        const alarm = recs.some((a) => a.phase === 'active' || a.phase === 'cleared') ? 'unacked' as const : recs.length > 0 ? 'acked' as const : 'none' as const
+        const live = recs.filter((a) => !a.sup && a.phase !== 'pending')
+        const alarm = live.some((a) => a.phase === 'active' || a.phase === 'cleared') ? 'unacked' as const : live.length > 0 ? 'acked' as const : 'none' as const
+        const suppressed = recs.some((a) => a.sup)
         const needsHist = w.type === 'trend' || (w.type === 'display' && w.props?.spark === true)
         const hist = !needsHist ? undefined
           : sim && history && historyT ? { t: historyT, series: history }
           : previewHist(w)
         return (
           <WidgetG key={w.id} widget={w} theme={theme} values={values} hist={hist}
-            alarm={alarm} selected={selection.includes(w.id)} editing={mode === 'edit'} ox={o.dx} oy={o.dy} />
+            alarm={alarm} suppressed={suppressed} flash={flashTag != null && w.tag === flashTag}
+            selected={selection.includes(w.id)} editing={mode === 'edit'} ox={o.dx} oy={o.dy} />
         )
       })}
       {draft.length > 0 && (

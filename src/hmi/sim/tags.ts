@@ -9,6 +9,11 @@ export interface TagDef {
   min: number
   max: number
   limits?: { LL?: number; L?: number; H?: number; HH?: number }
+  /** Alarm quality knobs (ISA-18.2): hysteresis width, on-delay seconds,
+   *  and the H/L priority override (HH/LL ride one step above it). */
+  deadband?: number
+  alarmDelay?: number
+  priority?: 'high' | 'medium' | 'low'
   capacity?: number
   level0?: number
   bindTank?: string
@@ -17,6 +22,8 @@ export interface TagDef {
 }
 
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined)
+const prio = (v: unknown): 'high' | 'medium' | 'low' | undefined =>
+  v === 'high' || v === 'medium' || v === 'low' ? v : undefined
 
 function defFor(w: HmiWidget): TagDef | null {
   if (!w.tag) return null
@@ -28,6 +35,7 @@ function defFor(w: HmiWidget): TagDef | null {
         capacity: num(p.capacity) ?? (w.w * w.h) / 40,
         level0: num(p.level0) ?? 40,
         limits: { LL: num(p.LL) ?? 5, L: num(p.L) ?? 10, H: num(p.H) ?? 90, HH: num(p.HH) ?? 95 },
+        deadband: num(p.deadband), alarmDelay: num(p.alarmDelay), priority: prio(p.priority),
       }
     case 'pump':
       return { name: w.tag, kind: 'motor', min: 0, max: 1 }
@@ -44,6 +52,7 @@ function defFor(w: HmiWidget): TagDef | null {
         name: w.tag, kind: p.controller === true ? 'controller' : 'display',
         unit: typeof p.unit === 'string' ? p.unit : undefined,
         min: num(p.min) ?? 0, max: num(p.max) ?? 100, limits,
+        deadband: num(p.deadband), alarmDelay: num(p.alarmDelay), priority: prio(p.priority),
         bindTank: typeof p.bindTank === 'string' ? p.bindTank : undefined,
         bindPipe: typeof p.bindPipe === 'string' ? p.bindPipe : undefined,
         base: num(p.base),

@@ -131,6 +131,41 @@ test('capture zoomed segment editing', async ({ page }) => {
   await page.screenshot({ path: '/tmp/hmi-zoom-segments.png' })
 })
 
+test('capture alarm summary v2 with suppression', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.setViewportSize({ width: 1680, height: 1000 })
+  await page.goto('/')
+  await page.getByTestId('open-hmi').click()
+  await page.getByRole('button', { name: 'New screen' }).click()
+  const canvas = page.getByTestId('hmi-canvas')
+  const world = async (wx: number, wy: number) => {
+    const b = (await canvas.boundingBox())!
+    return { x: b.x + (wx / 1600) * b.width, y: b.y + (wy / 1000) * b.height }
+  }
+  // tank trips H (medium) + HH (high); a low-priority display trips L (low)
+  await page.getByText('Tank', { exact: true }).dblclick()
+  let p = await world(360, 290)
+  await page.mouse.move(p.x, p.y)
+  await page.mouse.down()
+  p = await world(900, 300)
+  await page.mouse.move(p.x, p.y, { steps: 4 })
+  await page.mouse.up()
+  await page.getByTestId('prop-tag').fill('TK-1')
+  await page.getByLabel('Start level %').fill('96')
+  await page.getByText('Value display', { exact: true }).dblclick()
+  p = await world(350, 255)
+  await page.mouse.click(p.x, p.y)
+  await page.getByTestId('prop-tag').fill('XI-9')
+  await page.getByLabel('L', { exact: true }).fill('60')
+  await page.getByTestId('prop-priority').selectOption('low')
+  await page.getByTestId('hmi-run-toggle').click()
+  await page.waitForTimeout(1200)
+  await page.getByTestId('alarm-summary-toggle').click()
+  await page.locator('.al-shelve').first().selectOption('15')
+  await page.waitForTimeout(400)
+  await page.screenshot({ path: '/tmp/hmi-alarm-v2.png' })
+})
+
 test('capture multi-pen trend and sparkline', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })

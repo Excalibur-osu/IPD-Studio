@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSimStore } from './simStore'
 import type { HmiWidget } from './model'
-import { priorityOf } from './sim/alarms'
 import type { AlarmLevel } from './sim/alarms'
 
 /** Remembered for the session so the plate reopens where the operator put it. */
@@ -135,7 +134,8 @@ export default function Faceplate({ widget, onClose }: { widget: HmiWidget; onCl
     : t.OP !== undefined ? 'throttle'
     : 'measure'
   const auto = (t.MODE ?? 1) >= 0.5
-  const myAlarms = alarms.filter((a) => a.tag === tag)
+  const myAlarms = alarms.filter((a) => a.tag === tag && !a.sup && a.phase !== 'pending')
+  const nSup = alarms.filter((a) => a.tag === tag && a.sup).length
 
   return (
     <div className="hmi-faceplate" data-testid="faceplate" ref={boxRef}
@@ -216,12 +216,13 @@ export default function Faceplate({ widget, onClose }: { widget: HmiWidget; onCl
         <p style={{ fontSize: 11, margin: '8px 0 0', opacity: 0.85 }}>Flow through: <strong>{flow.toFixed(1)}</strong></p>
       )}
 
+      {nSup > 0 && <p style={{ fontSize: 10, margin: '6px 0 0', opacity: 0.7 }}>⊘ {nSup} alarm{nSup === 1 ? '' : 's'} suppressed</p>}
       {myAlarms.length > 0 && (
         <div style={{ marginTop: 8, borderTop: '1px solid #35567c', paddingTop: 6 }} data-testid="fp-alarms">
           {myAlarms.map((a) => (
             <div key={a.id} style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, padding: '1px 0' }}>
-              <span className={`al-prio al-prio-${priorityOf(a.level) === 'high' ? 'high' : 'warn'}`}>
-                {priorityOf(a.level) === 'high' ? '■' : '▲'}
+              <span className={`al-prio al-prio-${a.priority}`}>
+                {a.priority === 'high' ? '■' : a.priority === 'medium' ? '▲' : '●'}
               </span>
               <span>{a.level}</span>
               <span style={{ opacity: 0.8 }}>{a.phase.toUpperCase()}</span>

@@ -243,6 +243,23 @@ export default function HmiPropertyPanel({ selection, onSelect, armedPick, onArm
           <h5 style={{ margin: '10px 0 2px' }}>Alarm limits</h5>
           <NumProp w={w} k="LL" label="LL" /><NumProp w={w} k="L" label="L" />
           <NumProp w={w} k="H" label="H" /><NumProp w={w} k="HH" label="HH" />
+          <NumProp w={w} k="deadband" label="Deadband" />
+          <NumProp w={w} k="alarmDelay" label="On-delay s" />
+          <Row label="Priority">
+            <select data-testid="prop-priority"
+              value={typeof w.props?.priority === 'string' ? String(w.props.priority) : ''}
+              onChange={(e) => {
+                const props = { ...w.props }
+                if (e.target.value === '') delete props.priority
+                else props.priority = e.target.value
+                updateWidget(w.id, { props })
+              }}>
+              <option value="">default</option>
+              <option value="low">low</option>
+              <option value="medium">medium</option>
+              <option value="high">high</option>
+            </select>
+          </Row>
         </>
       )}
       {w.type === 'display' && (
