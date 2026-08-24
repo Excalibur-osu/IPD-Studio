@@ -161,6 +161,91 @@ test('bind with the tag picker and pick-on-canvas', async ({ page }) => {
   await expect(page.getByTestId('hmi-notice')).toBeHidden()
 })
 
+interface PidHook {
+  __pid: {
+    useStore: {
+      getState(): {
+        doc: { hmiScreens: { widgets: { type: string; x: number; y: number; w: number; h: number; tag?: string }[]; pipes: { points: { x: number; y: number }[] }[] }[] }
+      }
+    }
+  }
+}
+
+test('author tools: zoom, cross-screen clipboard, segment editing', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.goto('/')
+  await page.getByTestId('open-hmi').click()
+  await page.getByRole('button', { name: 'New screen' }).click()
+  const canvas = page.getByTestId('hmi-canvas')
+  const world = async (wx: number, wy: number) => {
+    const b = (await canvas.boundingBox())!
+    return { x: b.x + (wx / 1600) * b.width, y: b.y + (wy / 1000) * b.height }
+  }
+  // wheel zooms at the cursor; Fit restores the whole world
+  let p = await world(800, 500)
+  await page.mouse.move(p.x, p.y)
+  await page.mouse.wheel(0, -400)
+  await expect(canvas).not.toHaveAttribute('viewBox', '0 0 1600 1000')
+  await page.getByTestId('hmi-fit').click()
+  await expect(canvas).toHaveAttribute('viewBox', '0 0 1600 1000')
+  // tank, tagged, copied
+  await page.getByText('Tank', { exact: true }).dblclick()
+  p = await world(360, 290)
+  await page.mouse.click(p.x, p.y)
+  await page.getByTestId('prop-tag').fill('TK-7')
+  p = await world(360, 290)
+  await page.mouse.click(p.x, p.y)
+  await page.keyboard.press('ControlOrMeta+c')
+  // second screen: paste lands centered at the cursor
+  await page.getByTitle('Add screen').click()
+  p = await world(600, 500)
+  await page.mouse.move(p.x, p.y)
+  await page.keyboard.press('ControlOrMeta+v')
+  const pasted = await page.evaluate(() => {
+    const s = (window as unknown as PidHook).__pid.useStore.getState()
+    return s.doc.hmiScreens[1]!.widgets[0]
+  })
+  expect(pasted).toMatchObject({ type: 'tank', tag: 'TK-7' })
+  expect(Math.abs(pasted!.x + pasted!.w / 2 - 600)).toBeLessThanOrEqual(8)
+  expect(Math.abs(pasted!.y + pasted!.h / 2 - 500)).toBeLessThanOrEqual(8)
+  // pipe: double-click inserts a bend, segment drags sideways, dbl-click vertex removes
+  // grid-aligned targets (multiples of 8) keep snap8 away from its rounding
+  // boundary — the box mapping is only pixel-accurate
+  await page.getByTestId('hmi-pipe-tool').click()
+  for (const [wx, wy] of [[200, 696], [600, 696]] as const) {
+    const q = await world(wx, wy)
+    await page.mouse.click(q.x, q.y)
+  }
+  await page.keyboard.press('Enter')
+  const points = () => page.evaluate(() => {
+    const s = (window as unknown as PidHook).__pid.useStore.getState()
+    return s.doc.hmiScreens[1]!.pipes[0]!.points
+  })
+  const y0 = (await points())[0]!.y
+  expect(y0).toBe(696)
+  p = await world(400, 696)
+  await page.mouse.click(p.x, p.y) // select
+  await page.mouse.dblclick(p.x, p.y) // insert vertex
+  await expect.poll(points).toHaveLength(3)
+  // drag the left run down: both its ends move together, axis-locked
+  p = await world(300, 696)
+  await page.mouse.move(p.x, p.y)
+  await page.mouse.down()
+  p = await world(300, 776)
+  await page.mouse.move(p.x, p.y, { steps: 4 })
+  await page.mouse.up()
+  let pts = await points()
+  expect(pts[0]!.y).toBe(776)
+  expect(pts[1]!.y).toBe(776)
+  expect(pts[2]!.y).toBe(696)
+  // remove the inserted vertex again
+  p = await world(400, 776)
+  await page.mouse.dblclick(p.x, p.y)
+  await expect.poll(points).toHaveLength(2)
+  pts = await points()
+  expect(pts.map((q) => q.y)).toEqual([776, 696])
+})
+
 test('build an HMI screen by hand and keep it across reload', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.goto('/')

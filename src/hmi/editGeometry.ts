@@ -89,6 +89,22 @@ export function hitPipe(screen: HmiScreen, pt: { x: number; y: number }, tol = 6
   return null
 }
 
+/** The pipe segment under pt, with its axis ('h'/'v', null for oblique).
+ *  Points near a vertex resolve to null so vertex handles always win. */
+export function segmentAt(
+  pipe: HmiPipe,
+  pt: { x: number; y: number },
+  tol = 6,
+): { index: number; axis: 'h' | 'v' | null } | null {
+  for (let i = 0; i + 1 < pipe.points.length; i++) {
+    const a = pipe.points[i]!, b = pipe.points[i + 1]!
+    if (segDist(pt, a, b) > tol) continue
+    if (Math.hypot(pt.x - a.x, pt.y - a.y) <= 8 || Math.hypot(pt.x - b.x, pt.y - b.y) <= 8) return null
+    return { index: i, axis: a.y === b.y ? 'h' : a.x === b.x ? 'v' : null }
+  }
+  return null
+}
+
 export function handlePoint(r: Rect, h: Handle): { x: number; y: number } {
   const mx = r.x + r.w / 2, my = r.y + r.h / 2
   switch (h) {

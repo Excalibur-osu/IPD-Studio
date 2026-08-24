@@ -21,7 +21,14 @@ screens have a design time and a runtime:
   works like a drawing tool should: drag on empty canvas to rubber-band,
   Shift+click to add/remove, Ctrl+A selects all, Ctrl+D duplicates, Escape
   clears. Multi-selections get align/distribute, bring-to-front/send-to-back
-  and Duplicate in the panel; a selected pipe shows draggable vertex handles.
+  and Duplicate in the panel. **Zoom and pan** like a CAD tool: the wheel
+  zooms at the cursor, Space- or middle-drag pans, ⛶ (or Ctrl+0) fits — RUN
+  always shows the full page, like a real operator station. **Clipboard**:
+  Ctrl+C/X/V copies widgets *and* pipes and pastes them centered at the
+  cursor — including onto a different screen. A selected pipe is fully
+  editable: drag the round vertex handles, **double-click a run to insert a
+  bend, double-click a bend to remove it**, and drag any straight run
+  sideways (the ◇ marks) — both corners follow, axis-locked.
   Edits are undoable and autosaved with the drawing.
 - **RUN** — the simulator compiles **every screen into one plant** and ticks
   5×/s. Values move, tanks fill, pipes animate proportional to flow. The

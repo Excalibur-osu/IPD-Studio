@@ -103,6 +103,34 @@ test('capture new widgets on a hand-built screen', async ({ page }) => {
   await page.screenshot({ path: '/tmp/hmi-new-widgets.png' })
 })
 
+test('capture zoomed segment editing', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.setViewportSize({ width: 1680, height: 1000 })
+  await page.goto('/')
+  await page.getByTestId('open-hmi').click()
+  await page.getByRole('button', { name: 'New screen' }).click()
+  const canvas = page.getByTestId('hmi-canvas')
+  const world = async (wx: number, wy: number) => {
+    const b = (await canvas.boundingBox())!
+    return { x: b.x + (wx / 1600) * b.width, y: b.y + (wy / 1000) * b.height }
+  }
+  await page.getByText('Tank', { exact: true }).dblclick()
+  await page.getByTestId('hmi-pipe-tool').click()
+  for (const [wx, wy] of [[96, 600], [320, 600], [320, 368]] as const) {
+    const q = await world(wx, wy)
+    await page.mouse.click(q.x, q.y)
+  }
+  await page.keyboard.press('Enter')
+  let p = await world(200, 600)
+  await page.mouse.click(p.x, p.y) // select the pipe: vertices + segment diamonds
+  p = await world(320, 480)
+  await page.mouse.move(p.x, p.y)
+  await page.mouse.wheel(0, -600)
+  await page.mouse.wheel(0, -600)
+  await page.waitForTimeout(250)
+  await page.screenshot({ path: '/tmp/hmi-zoom-segments.png' })
+})
+
 test('capture the tag picker and value-source rows', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })

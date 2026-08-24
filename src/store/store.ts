@@ -78,6 +78,8 @@ export interface StoreState {
   addHmiPipe(partial: Omit<HmiPipe, 'id'>): string
   updateHmiPipe(id: string, patch: Partial<Omit<HmiPipe, 'id'>>): void
   deleteHmiIds(ids: string[]): void
+  /** Paste/import helper: widgets + pipes land as ONE undo step. */
+  addHmiBatch(widgets: Omit<HmiWidget, 'id'>[], pipes: Omit<HmiPipe, 'id'>[]): { widgetIds: string[]; pipeIds: string[] }
 }
 
 /** The sheet all node/edge actions and the canvas operate on. */
@@ -542,6 +544,17 @@ export const useStore = create<StoreState>()(
 
         updateHmiPipe(id, patch) {
           patchScreen((sc) => ({ ...sc, pipes: sc.pipes.map((p) => (p.id === id ? { ...p, ...patch } : p)) }))
+        },
+
+        addHmiBatch(widgets, pipes) {
+          const widgetIds = widgets.map(() => ulid())
+          const pipeIds = pipes.map(() => ulid())
+          patchScreen((sc) => ({
+            ...sc,
+            widgets: [...sc.widgets, ...widgets.map((w, i) => ({ ...w, id: widgetIds[i]! }))],
+            pipes: [...sc.pipes, ...pipes.map((p, i) => ({ ...p, id: pipeIds[i]! }))],
+          }))
+          return { widgetIds, pipeIds }
         },
 
         deleteHmiIds(ids) {

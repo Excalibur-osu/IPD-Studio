@@ -1,12 +1,14 @@
-import { memo, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import type { ThemeTokens } from './theme'
 import type { HmiScreen, HmiWidget, WidgetType } from './model'
 import { HMI_WORLD, WIDGET_DEFAULT_SIZE } from './model'
 import { THEMES } from './theme'
 import { renderWidget } from './widgets/index'
-import { HANDLES, handlePoint, hitPipe, hitWidget, marqueeHits, normRect, resizeRect, snap8, widgetRect } from './editGeometry'
+import { HANDLES, handlePoint, hitPipe, hitWidget, marqueeHits, normRect, resizeRect, segmentAt, snap8, widgetRect } from './editGeometry'
 import type { Handle, Rect } from './editGeometry'
 import { duplicateWidgets } from './align'
+import type { View } from './view'
+import { effectiveK, panBy, viewBoxOf, zoomAt } from './view'
 import { useStore } from '../store/store'
 import { useSimStore } from './simStore'
 import { HMI_DRAG_MIME } from './HmiPalette'
@@ -26,6 +28,11 @@ export interface HmiCanvasProps {
    *  instead of selecting. Selection must NOT change while picking. */
   armedPick?: { kind: 'tank' | 'pipe'; widgetId: string } | null
   onPicked?(): void
+  /** Zoom/pan view (null = fit). RUN stays fit-locked by the workspace. */
+  view?: View | null
+  onViewChange?(v: View | null): void
+  /** Reports the pointer's world position (paste anchor for the workspace). */
+  onCursor?(pt: { x: number; y: number }): void
   /** Runtime bindings (absent in edit mode). */
   sim?: Record<string, Record<string, number>>
   flows?: Record<string, number>
@@ -104,26 +111,65 @@ type DragState =
   | { kind: 'resize'; handle: Handle; start: { x: number; y: number }; orig: Rect; id: string; live?: Rect }
   | { kind: 'marquee'; start: { x: number; y: number }; cur: { x: number; y: number }; base: string[] }
   | { kind: 'vertex'; pipeId: string; index: number; live?: { x: number; y: number } }
+  | { kind: 'segment'; pipeId: string; index: number; axis: 'h' | 'v'; live?: number }
+  | { kind: 'pan'; startClient: { x: number; y: number }; orig: View | null }
   | null
 
-export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onToolDone, armedPick, onPicked, sim, flows, history, alarms, onWidgetClick }: HmiCanvasProps) {
+/** Apply an in-flight segment drag to a pipe's points (preview + commit). */
+function segmentPoints(points: { x: number; y: number }[], index: number, axis: 'h' | 'v', v: number) {
+  return points.map((q, i) =>
+    i === index || i === index + 1 ? (axis === 'h' ? { x: q.x, y: v } : { x: v, y: q.y }) : q,
+  )
+}
+
+export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onToolDone, armedPick, onPicked, view = null, onViewChange, onCursor, sim, flows, history, alarms, onWidgetClick }: HmiCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [drag, setDrag] = useState<DragState>(null)
   const [ghost, setGhost] = useState<{ dx: number; dy: number } | null>(null)
   const [draft, setDraft] = useState<{ x: number; y: number }[]>([])
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null)
+  const [spaceDown, setSpaceDown] = useState(false)
+  const lastPt = useRef<{ x: number; y: number } | null>(null)
   const theme = THEMES[screen.theme]
   const st = useStore.getState
 
-  /** Client -> world coordinates through the viewBox. */
+  const vb = viewBoxOf(view)
+  /** Zoom factor: overlay geometry (handles, strokes) divides by this so it
+   *  keeps a constant on-screen size. */
+  const hk = effectiveK(view)
+
+  /** Client -> world coordinates through the (possibly zoomed) viewBox. */
   const toWorld = (e: { clientX: number; clientY: number }) => {
     const svg = svgRef.current!
     const r = svg.getBoundingClientRect()
     return {
-      x: ((e.clientX - r.left) / r.width) * HMI_WORLD.w,
-      y: ((e.clientY - r.top) / r.height) * HMI_WORLD.h,
+      x: vb.x + ((e.clientX - r.left) / r.width) * vb.w,
+      y: vb.y + ((e.clientY - r.top) / r.height) * vb.h,
     }
   }
+
+  // wheel zoom needs a NON-passive listener (the scrollable wrap would pan
+  // the page otherwise); refs keep the handler stable across renders
+  const wheelCtx = useRef({ mode, view, onViewChange })
+  wheelCtx.current = { mode, view, onViewChange }
+  useEffect(() => {
+    const el = svgRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      const c = wheelCtx.current
+      if (c.mode !== 'edit' || !c.onViewChange) return
+      e.preventDefault()
+      const r = el.getBoundingClientRect()
+      const b = viewBoxOf(c.view ?? null)
+      const anchor = {
+        x: b.x + ((e.clientX - r.left) / r.width) * b.w,
+        y: b.y + ((e.clientY - r.top) / r.height) * b.h,
+      }
+      c.onViewChange(zoomAt(c.view ?? null, anchor, e.deltaY < 0 ? 1.15 : 1 / 1.15))
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
 
   /** Pipe drawing stays orthogonal: an oblique click gets an elbow
    *  (horizontal-first, like the importer) so the run stays right-angled while
@@ -197,6 +243,13 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
       if (onWidgetClick) onWidgetClick(w)
       return
     }
+    // pan: middle button anywhere, or space-held drag (edit mode only)
+    if (mode === 'edit' && (e.button === 1 || spaceDown)) {
+      e.preventDefault()
+      setDrag({ kind: 'pan', startClient: { x: e.clientX, y: e.clientY }, orig: view })
+      e.currentTarget.setPointerCapture(e.pointerId)
+      return
+    }
     if (tool === 'pipe') {
       const next = withElbow(draft, { x: snap8(pt.x), y: snap8(pt.y) }, e.altKey)
       if (e.detail === 2) commitDraft(next)
@@ -240,6 +293,13 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
       if (e.shiftKey) {
         onSelect(selection.includes(p.id) ? selection.filter((id) => id !== p.id) : [...selection, p.id])
       } else if (selection.includes(p.id)) {
+        const seg = selection.length === 1 ? segmentAt(p, pt) : null
+        if (seg?.axis) {
+          // axis-aligned segments drag sideways (both bends move together)
+          setDrag({ kind: 'segment', pipeId: p.id, index: seg.index, axis: seg.axis })
+          e.currentTarget.setPointerCapture(e.pointerId)
+          return
+        }
         setDrag({ kind: 'move', start: pt, downId: p.id, wasSelected: true })
         e.currentTarget.setPointerCapture(e.pointerId)
       } else {
@@ -253,19 +313,34 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
   }
 
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (drag?.kind === 'pan') {
+      const svg = svgRef.current!
+      const r = svg.getBoundingClientRect()
+      const b = viewBoxOf(drag.orig)
+      onViewChange?.(panBy(
+        drag.orig,
+        -((e.clientX - drag.startClient.x) / r.width) * b.w,
+        -((e.clientY - drag.startClient.y) / r.height) * b.h,
+      ))
+      return
+    }
+    lastPt.current = toWorld(e)
+    onCursor?.(lastPt.current)
     if (mode === 'edit' && tool === 'pipe') {
-      const pt = toWorld(e)
+      const pt = lastPt.current
       setHover({ x: snap8(pt.x), y: snap8(pt.y) })
       return
     }
     if (!drag) return
-    const pt = toWorld(e)
+    const pt = lastPt.current
     if (drag.kind === 'move') {
       setGhost({ dx: snap8(pt.x - drag.start.x), dy: snap8(pt.y - drag.start.y) })
     } else if (drag.kind === 'marquee') {
       setDrag({ ...drag, cur: pt })
     } else if (drag.kind === 'vertex') {
       setDrag({ ...drag, live: { x: snap8(pt.x), y: snap8(pt.y) } })
+    } else if (drag.kind === 'segment') {
+      setDrag({ ...drag, live: snap8(drag.axis === 'h' ? pt.y : pt.x) })
     } else {
       // live-preview only; the store commit happens once on pointerup so a
       // resize gesture is ONE undo step, not hundreds
@@ -293,7 +368,17 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
     }
     if (drag?.kind === 'vertex' && drag.live) {
       const p = screen.pipes.find((x) => x.id === drag.pipeId)
-      if (p) st().updateHmiPipe(p.id, { points: p.points.map((q, i) => (i === drag.index ? drag.live! : q)) })
+      const orig = p?.points[drag.index]
+      if (p && orig && (orig.x !== drag.live.x || orig.y !== drag.live.y)) {
+        st().updateHmiPipe(p.id, { points: p.points.map((q, i) => (i === drag.index ? drag.live! : q)) })
+      }
+    }
+    if (drag?.kind === 'segment' && drag.live !== undefined) {
+      const p = screen.pipes.find((x) => x.id === drag.pipeId)
+      const orig = p?.points[drag.index]
+      if (p && orig && drag.live !== (drag.axis === 'h' ? orig.y : orig.x)) {
+        st().updateHmiPipe(p.id, { points: segmentPoints(p.points, drag.index, drag.axis, drag.live) })
+      }
     }
     setDrag(null)
     setGhost(null)
@@ -301,6 +386,8 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (mode === 'run') return
+    if (e.key === ' ' && !e.repeat) { e.preventDefault(); setSpaceDown(true); return }
+    if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); onViewChange?.(null); return }
     if (tool === 'pipe') {
       if (e.key === 'Enter') commitDraft(draft)
       if (e.key === 'Escape') { setDraft([]); setHover(null); onToolDone() }
@@ -326,6 +413,29 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
     if (e.key === 'ArrowDown') st().moveWidgets(selection, 0, step)
   }
 
+  /** Double-click edits pipe geometry on the sole selected pipe: near a
+   *  vertex = remove the bend, on a run = insert one right there. Hit-tested
+   *  by coordinates, not event target — the drag's pointer capture retargets
+   *  the derived dblclick to the svg itself. */
+  const onDblClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (mode !== 'edit' || tool !== 'select' || armedPick) return
+    if (selection.length !== 1) return
+    const p = screen.pipes.find((x) => x.id === selection[0])
+    if (!p) return
+    const pt = toWorld(e)
+    const vi = p.points.findIndex((q) => Math.hypot(q.x - pt.x, q.y - pt.y) <= 8 / hk)
+    if (vi >= 0) {
+      if (p.points.length > 2) st().updateHmiPipe(p.id, { points: p.points.filter((_, i) => i !== vi) })
+      return
+    }
+    const seg = segmentAt(p, pt)
+    if (seg) {
+      const points = [...p.points]
+      points.splice(seg.index + 1, 0, { x: snap8(pt.x), y: snap8(pt.y) })
+      st().updateHmiPipe(p.id, { points })
+    }
+  }
+
   const onDrop = (e: React.DragEvent<SVGSVGElement>) => {
     const raw = e.dataTransfer.getData(HMI_DRAG_MIME)
     if (!raw) return
@@ -348,13 +458,21 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
     <svg
       ref={svgRef}
       data-testid="hmi-canvas"
-      viewBox={`0 0 ${HMI_WORLD.w} ${HMI_WORLD.h}`}
-      style={{ background: theme.bg, touchAction: 'none', cursor: mode === 'edit' && (tool === 'pipe' || armedPick) ? 'crosshair' : undefined }}
+      viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
+      style={{
+        background: theme.bg, touchAction: 'none',
+        cursor: drag?.kind === 'pan' ? 'grabbing'
+          : mode === 'edit' && spaceDown ? 'grab'
+          : mode === 'edit' && (tool === 'pipe' || armedPick) ? 'crosshair' : undefined,
+      }}
       tabIndex={0}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onDoubleClick={onDblClick}
       onKeyDown={onKeyDown}
+      onKeyUp={(e) => { if (e.key === ' ') setSpaceDown(false) }}
+      onBlur={() => setSpaceDown(false)}
       onDragOver={(e) => { if (e.dataTransfer.types.includes(HMI_DRAG_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' } }}
       onDrop={onDrop}
     >
@@ -367,7 +485,9 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
       {screen.pipes.map((raw) => {
         const p = drag?.kind === 'vertex' && drag.pipeId === raw.id && drag.live
           ? { ...raw, points: raw.points.map((q, i) => (i === drag.index ? drag.live! : q)) }
-          : raw
+          : drag?.kind === 'segment' && drag.pipeId === raw.id && drag.live !== undefined
+            ? { ...raw, points: segmentPoints(raw.points, drag.index, drag.axis, drag.live) }
+            : raw
         const o = offset(p.id)
         const pts = p.points.map((q) => `${q.x + o.dx},${q.y + o.dy}`).join(' ')
         const flow = flows?.[p.id] ?? 0
@@ -411,16 +531,35 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
           {draft.map((q, i) => <circle key={i} cx={q.x} cy={q.y} r={3} fill={theme.pipeFlow} />)}
         </g>
       )}
-      {selectedPipe && (drag?.kind === 'vertex' && drag.pipeId === selectedPipe.id && drag.live
-        ? selectedPipe.points.map((q, i) => (i === drag.index ? drag.live! : q))
-        : selectedPipe.points
-      ).map((q, i) => (
-        <circle key={i} data-vertex={i} data-vertex-pipe={selectedPipe.id} cx={q.x} cy={q.y} r={5}
-          fill="#fff" stroke="#2b6cb0" strokeWidth={2} style={{ cursor: 'move' }} />
-      ))}
+      {selectedPipe && (() => {
+        const pts = drag?.kind === 'vertex' && drag.pipeId === selectedPipe.id && drag.live
+          ? selectedPipe.points.map((q, i) => (i === drag.index ? drag.live! : q))
+          : drag?.kind === 'segment' && drag.pipeId === selectedPipe.id && drag.live !== undefined
+            ? segmentPoints(selectedPipe.points, drag.index, drag.axis, drag.live)
+            : selectedPipe.points
+        return (
+          <g>
+            {pts.slice(0, -1).map((q, i) => {
+              const b = pts[i + 1]!
+              const axis = q.y === b.y ? 'h' : q.x === b.x ? 'v' : null
+              if (!axis || Math.hypot(b.x - q.x, b.y - q.y) <= 24) return null
+              const m = { x: (q.x + b.x) / 2, y: (q.y + b.y) / 2 }
+              // diamond = "this run drags sideways"; purely an affordance, the
+              // whole segment is grabbable
+              return <rect key={`s${i}`} x={m.x - 3 / hk} y={m.y - 3 / hk} width={6 / hk} height={6 / hk}
+                fill="#fff" stroke="#2b6cb0" strokeWidth={1.5 / hk} pointerEvents="none"
+                transform={`rotate(45 ${m.x} ${m.y})`} />
+            })}
+            {pts.map((q, i) => (
+              <circle key={i} data-vertex={i} data-vertex-pipe={selectedPipe.id} cx={q.x} cy={q.y} r={5 / hk}
+                fill="#fff" stroke="#2b6cb0" strokeWidth={2 / hk} style={{ cursor: 'move' }} />
+            ))}
+          </g>
+        )
+      })()}
       {marqueeRect && (marqueeRect.w >= 4 || marqueeRect.h >= 4) && (
         <rect x={marqueeRect.x} y={marqueeRect.y} width={marqueeRect.w} height={marqueeRect.h}
-          fill="#2b6cb022" stroke="#2b6cb0" strokeDasharray="6 4" strokeWidth={1.5} pointerEvents="none" />
+          fill="#2b6cb022" stroke="#2b6cb0" strokeDasharray="6 4" strokeWidth={1.5 / hk} pointerEvents="none" />
       )}
       {mode === 'edit' && tool === 'select' && selection.length === 1 && (() => {
         const found = screen.widgets.find((x) => x.id === selection[0])
@@ -429,7 +568,8 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
         const o = offset(w.id)
         return HANDLES.map((h) => {
           const p = handlePoint({ x: w.x + o.dx, y: w.y + o.dy, w: w.w, h: w.h }, h)
-          return <rect key={h} data-handle={h} x={p.x - 4} y={p.y - 4} width={8} height={8} fill="#2b6cb0" stroke="#fff" strokeWidth={1} style={{ cursor: `${h}-resize` }} />
+          return <rect key={h} data-handle={h} x={p.x - 4 / hk} y={p.y - 4 / hk} width={8 / hk} height={8 / hk}
+            fill="#2b6cb0" stroke="#fff" strokeWidth={1 / hk} style={{ cursor: `${h}-resize` }} />
         })
       })()}
     </svg>

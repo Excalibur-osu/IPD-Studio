@@ -9,6 +9,9 @@ import HmiPalette from './HmiPalette'
 import HmiCanvas from './HmiCanvas'
 import HmiPropertyPanel from './HmiPropertyPanel'
 import type { ArmedPick } from './HmiPropertyPanel'
+import type { View } from './view'
+import { copySelection, pastePayload } from './clipboard'
+import { HMI_WORLD } from './model'
 import Faceplate from './Faceplate'
 import AlarmBanner from './AlarmBanner'
 
@@ -45,6 +48,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   const [tool, setTool] = useState<'select' | 'pipe'>('select')
   const [faceplate, setFaceplate] = useState<string | null>(null)
   const [armedPick, setArmedPick] = useState<ArmedPick | null>(null)
+  const [view, setView] = useState<View | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const showNotice = (msg: string) => {
@@ -65,6 +69,11 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
 
   useSimEngine()
   const mode = useSimStore((s) => s.mode)
+  // clipboard works window-wide like the P&ID shortcuts — the canvas doesn't
+  // need focus; refs give the once-registered handler current state
+  const cursorPt = useRef<{ x: number; y: number } | null>(null)
+  const clipCtx = useRef({ selection, screen, mode })
+  clipCtx.current = { selection, screen, mode }
   const simTags = useSimStore((s) => s.tags)
   const pipeFlows = useSimStore((s) => s.pipeFlows)
   const alarms = useSimStore((s) => s.alarms)
@@ -75,10 +84,12 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
     setTool('select')
     setFaceplate(null)
     setArmedPick(null)
+    setView(null)
     // In RUN the sim is compiled plant-wide (every screen), so switching
     // screens is navigation, not a model change — keep simulating.
   }, [activeScreenId])
-  useEffect(() => { setFaceplate(null); setArmedPick(null) }, [mode])
+  // RUN is fit-locked, the way a real operator station presents a page
+  useEffect(() => { setFaceplate(null); setArmedPick(null); setView(null) }, [mode])
   // leaving the workspace (unmount) stops any running simulation
   useEffect(() => () => useSimStore.getState().exitRun(), [])
   // the P&ID canvas owns these shortcuts normally; it is unmounted here
@@ -94,6 +105,21 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
       if (k === 'z') { e.preventDefault(); undoRedo(e.shiftKey ? 'redo' : 'undo') }
       else if (k === 'y') { e.preventDefault(); undoRedo('redo') }
       else if (k === 's') { e.preventDefault(); void import('../persist/file').then((m) => m.saveFile()) }
+      else if (k === 'c' || k === 'x' || k === 'v') {
+        const c = clipCtx.current
+        if (c.mode !== 'edit' || !c.screen) return
+        e.preventDefault()
+        if (k === 'v') {
+          const payload = pastePayload(cursorPt.current ?? { x: HMI_WORLD.w / 2, y: HMI_WORLD.h / 2 })
+          if (payload) {
+            const { widgetIds, pipeIds } = useStore.getState().addHmiBatch(payload.widgets, payload.pipes)
+            setSelection([...widgetIds, ...pipeIds])
+          }
+        } else if (copySelection(c.screen, c.selection) && k === 'x') {
+          useStore.getState().deleteHmiIds(c.selection)
+          setSelection([])
+        }
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -102,7 +128,8 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   return (
     <div className={`hmi${mode === 'run' ? ' run-mode' : ''}`}>
       <HmiToolbar onExit={onExit} tool={tool} setTool={setTool} onImport={() => void runImport()}
-        onUndo={() => undoRedo('undo')} onRedo={() => undoRedo('redo')} />
+        onUndo={() => undoRedo('undo')} onRedo={() => undoRedo('redo')}
+        zoomed={view !== null} onFit={() => setView(null)} />
       <div className="hmi-side"><HmiPalette /></div>
       <div className="hmi-center">
         {screen ? (
@@ -118,6 +145,9 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
                 onToolDone={() => setTool('select')}
                 armedPick={armedPick}
                 onPicked={() => setArmedPick(null)}
+                view={view}
+                onViewChange={setView}
+                onCursor={(pt) => { cursorPt.current = pt }}
                 sim={mode === 'run' ? simTags : undefined}
                 flows={mode === 'run' ? pipeFlows : undefined}
                 history={mode === 'run' ? history : undefined}

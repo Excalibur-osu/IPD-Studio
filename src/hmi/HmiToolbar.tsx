@@ -1,7 +1,7 @@
 import { useStore, activeHmiScreen } from '../store/store'
 import { useSimStore } from './simStore'
 
-export default function HmiToolbar({ onExit, tool, setTool, onImport, onUndo, onRedo }: {
+export default function HmiToolbar({ onExit, tool, setTool, onImport, onUndo, onRedo, zoomed, onFit }: {
   onExit(): void
   tool: 'select' | 'pipe'
   setTool(t: 'select' | 'pipe'): void
@@ -9,6 +9,8 @@ export default function HmiToolbar({ onExit, tool, setTool, onImport, onUndo, on
   /** Workspace-provided undo/redo (adds the shared-history notice). */
   onUndo?(): void
   onRedo?(): void
+  zoomed?: boolean
+  onFit?(): void
 }) {
   const storeUndo = useStore((s) => s.undo)
   const storeRedo = useStore((s) => s.redo)
@@ -65,6 +67,8 @@ export default function HmiToolbar({ onExit, tool, setTool, onImport, onUndo, on
           </button>
           <button onClick={undo} title="Ctrl+Z">↩</button>
           <button onClick={redo} title="Ctrl+Y">↪</button>
+          <button data-testid="hmi-fit" className={zoomed ? 'active' : ''} onClick={onFit}
+            title="Fit view (Ctrl+0) — wheel zooms, Space/middle-drag pans">⛶</button>
           <button data-testid="hmi-import" onClick={onImport} title="Build an HMI screen from a P&ID sheet">From P&ID…</button>
           {screen?.fromSheetId && doc.sheets.some((sh) => sh.id === screen.fromSheetId) && (
             <button data-testid="hmi-reimport" onClick={() => void reimport()} title="Rebuild this screen from its source sheet">Re-import</button>
