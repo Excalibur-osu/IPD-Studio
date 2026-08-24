@@ -42,7 +42,7 @@ test('move, connect, ghost-stub guard, quick line editor, panel collapse', async
       config: { display: 'discrete', location: 'field' }, tag: { letters: 'FIC', loop: '101' },
     })
     const valve = s.addNode({
-      symbolId: 'cv.globe', kind: 'valve', x: 320, y: 240, rotation: 0,
+      symbolId: 'cv.globe', kind: 'valve', x: 312, y: 240, rotation: 0,
       config: { actuator: 'diaphragm', fail: 'none' },
     })
     s.setSelection([])
@@ -69,7 +69,7 @@ test('move, connect, ghost-stub guard, quick line editor, panel collapse', async
   // Active line class stays the default process.major; FIC south port (both)
   // to valve top signal port must still connect, as signal.electric.
   // FIC bubble at (320,96), port s at local (20,40) -> sheet (340,136).
-  // Valve at (320,240), port sig at local (24,0) -> sheet (344,240).
+  // Valve at (312,240), port sig at local (32,0) -> sheet (344,240).
   await drag(page, await clientPoint(page, 340, 136), await clientPoint(page, 344, 240), 20)
   const edges1 = await page.evaluate(() => window.__pid.useStore.getState().doc.sheets[0].edges)
   expect(edges1).toHaveLength(1)

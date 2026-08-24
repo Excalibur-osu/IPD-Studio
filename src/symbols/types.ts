@@ -24,6 +24,9 @@ export interface PortDef {
    *  together — like positioner bosses — use a smaller halo so they don't
    *  swallow clicks aimed at a neighboring port. */
   hit?: number
+  /** Explicit link departure direction, for ports that sit too deep inside
+   *  the frame for edge-distance detection (e.g. positioner bosses). */
+  dir?: 'left' | 'right' | 'top' | 'bottom'
 }
 
 export interface SymbolDef {

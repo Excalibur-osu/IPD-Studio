@@ -60,26 +60,29 @@ describe('control valve positioner', () => {
     const plain = def.render({ actuator: 'diaphragm', fail: 'none', positioner: 'none' })
     const withPos = def.render({ actuator: 'diaphragm', fail: 'none', positioner: 'yes' })
     // side-mounted box on the stem, with three connection bosses inside
-    expect(plain).not.toContain('M24 14 h16 v12')
-    expect(withPos).toContain('M24 14 h16 v12')
-    expect(withPos.match(/cx="34"/g)).toHaveLength(3)
-    // the stem runs through to the body crossing when the positioner is on
-    expect(withPos).toContain('M24 12 V32')
-    expect(plain).toContain('M24 12 V24')
+    expect(plain).not.toContain('M32 14 h16 v12')
+    expect(withPos).toContain('M32 14 h16 v12')
+    expect(withPos.match(/cx="42"/g)).toHaveLength(3)
+    // the stem runs through to the body crossing when the positioner is on,
+    // and stays visible above AND below the box (12..14 and 26..36)
+    expect(withPos).toContain('M32 12 V36')
+    expect(plain).toContain('M32 12 V28')
     expect(def.configOptions?.positioner).toEqual(['none', 'yes'])
     // one port per boss, on the box's right edge — clear of the e-port halo
-    expect(def.ports.find((p) => p.id === 'sw')).toMatchObject({ x: 40, y: 16 })
-    expect(def.ports.find((p) => p.id === 'se')).toMatchObject({ x: 40, y: 20 })
-    expect(def.ports.find((p) => p.id === 'sb')).toMatchObject({ x: 40, y: 24 })
-    expect(def.ports.find((p) => p.id === 'sig')).toMatchObject({ x: 24, y: 0 })
+    expect(def.ports.find((p) => p.id === 'sw')).toMatchObject({ x: 48, y: 16, dir: 'right' })
+    expect(def.ports.find((p) => p.id === 'se')).toMatchObject({ x: 48, y: 20, dir: 'right' })
+    expect(def.ports.find((p) => p.id === 'sb')).toMatchObject({ x: 48, y: 24, dir: 'right' })
+    expect(def.ports.find((p) => p.id === 'sig')).toMatchObject({ x: 32, y: 0 })
     // bosses use precision halos so they can't swallow clicks aimed at 'e'
     for (const id of ['sw', 'se', 'sb']) expect(def.ports.find((p) => p.id === id)?.hit).toBe(3)
     const e = def.ports.find((p) => p.id === 'e')!
-    expect(Math.hypot(e.x - 40, e.y - 24)).toBeGreaterThan(8 + 3) // halos never overlap
-    // the body carries pipe stubs both sides (line—bowtie—line)
-    expect(plain).toContain('M0 32 H8 M40 32 H48')
+    expect(Math.hypot(e.x - 48, e.y - 24)).toBeGreaterThan(8 + 3) // halos never overlap
+    // the box never reaches the body zone (starts y28)
+    expect(withPos).not.toContain('v16')
+    // the body carries LONG pipe stubs both sides (line—bowtie—line)
+    expect(plain).toContain('M0 36 H16 M48 36 H64')
     // the fail arrow moves to the free left flank when the box is drawn
     const failPos = def.render({ actuator: 'diaphragm', fail: 'fc', positioner: 'yes' })
-    expect(failPos).toContain('M14 14 V22')
+    expect(failPos).toContain('M22 14 V22')
   })
 })

@@ -8,11 +8,11 @@ const text = (x: number, y: number, t: string) =>
   `<text x="${x}" y="${y}" font-size="10" font-family="sans-serif" text-anchor="middle" fill="currentColor" stroke="none">${t}</text>`
 
 /**
- * Control valve: 48x40 — wider than the manual valves so the body carries
- * pipe stubs on both ends (line—bowtie—line, like the standard drawings) and
- * the positioner bosses stay clear of the process ports' click halos.
- * Actuator zone y0..12 centered on x24, stem x24 y12..24, body y24..40
- * (32-wide bowtie centered, stubs 0..8 and 40..48).
+ * Control valve: 64x48 — long straight pipe stubs (16px each side) so the
+ * symbol sits IN the line with proper spacing, and a tall middle zone so the
+ * positioner box never touches the actuator or the body.
+ * Zones: actuator y0..12 centered on x32, stem x32 y12..28, body y28..44
+ * (32-wide bowtie centered at 16..48, stubs 0..16 and 48..64 at y36).
  * cfg.actuator: diaphragm | piston | motor | solenoid | manual | digital |
  * electro-hydraulic · cfg.fail: none | fc | fo | fl · cfg.positioner:
  * none | yes
@@ -20,25 +20,25 @@ const text = (x: number, y: number, t: string) =>
 function actuatorGlyph(actuator: string): string {
   switch (actuator) {
     case 'piston':
-      return path('M16 2 h16 v10 h-16 Z M16 7 h16')
+      return path('M24 2 h16 v10 h-16 Z M24 7 h16')
     case 'motor':
-      return `<circle cx="24" cy="6" r="6" fill="none" stroke="currentColor" stroke-width="${S}"/>` + text(24, 9.5, 'M')
+      return `<circle cx="32" cy="6" r="6" fill="none" stroke="currentColor" stroke-width="${S}"/>` + text(32, 9.5, 'M')
     case 'solenoid':
-      return path('M18 0 h12 v12 h-12 Z') + text(24, 9.5, 'S')
+      return path('M26 0 h12 v12 h-12 Z') + text(32, 9.5, 'S')
     case 'manual':
-      return path('M14 4 H34 M24 4 V12')
+      return path('M22 4 H42 M32 4 V12')
     case 'digital':
-      return path('M18 0 h12 v12 h-12 Z') + text(24, 9.5, 'D')
+      return path('M26 0 h12 v12 h-12 Z') + text(32, 9.5, 'D')
     case 'electro-hydraulic':
-      return path('M14 0 h20 v12 h-20 Z') + text(24, 9.5, 'EH')
+      return path('M22 0 h20 v12 h-20 Z') + text(32, 9.5, 'EH')
     default: // spring diaphragm
-      return path('M14 12 a10 8 0 0 1 20 0 Z')
+      return path('M22 12 a10 8 0 0 1 20 0 Z')
   }
 }
 
 /** Fail-action arrow beside the stem; shifts to the left flank when the
  *  positioner box occupies the right. */
-function failMark(fail: string, x = 34): string {
+function failMark(fail: string, x = 42): string {
   switch (fail) {
     case 'fc':
       return path(`M${x} 14 V22 M${x - 3} 19 L${x} 22 L${x + 3} 19`)
@@ -60,13 +60,13 @@ function failMark(fail: string, x = 34): string {
  */
 function positionerGlyph(): string {
   const boss = (cy: number) =>
-    `<circle cx="34" cy="${cy}" r="1.6" fill="none" stroke="currentColor" stroke-width="1.1"/>`
-  return path('M24 14 h16 v12 h-16 Z') + boss(16) + boss(20) + boss(24)
+    `<circle cx="42" cy="${cy}" r="1.6" fill="none" stroke="currentColor" stroke-width="1.1"/>`
+  return path('M32 14 h16 v12 h-16 Z') + boss(16) + boss(20) + boss(24)
 }
 
 function bodyAt(bodyMarkup: string): string {
-  // 32-wide body drawn centered in the 48 frame, with pipe stubs both sides.
-  return `<g transform="translate(8 24)">${bodyMarkup}</g>` + path('M0 32 H8 M40 32 H48')
+  // 32-wide body drawn centered in the 64 frame, with long pipe stubs.
+  return `<g transform="translate(16 28)">${bodyMarkup}</g>` + path('M0 36 H16 M48 36 H64')
 }
 
 const CV_BODIES: Record<string, { name: string; markup: string; keywords: string[] }> = {
@@ -93,26 +93,28 @@ export const controlValves: SymbolDef[] = Object.entries(CV_BODIES).map(([id, bo
   id,
   name: body.name,
   category: 'control-valves',
-  gridSize: { w: 6, h: 5 },
+  gridSize: { w: 8, h: 6 },
   render: (cfg) => {
     const pos = cfg.positioner === 'yes'
     return (
       actuatorGlyph(cfg.actuator ?? 'diaphragm') +
       // with a positioner the stem runs through to the body crossing
-      (pos ? path('M24 12 V32') + positionerGlyph() : path('M24 12 V24')) +
-      failMark(cfg.fail ?? 'none', pos ? 14 : 34) +
+      (pos ? path('M32 12 V36') + positionerGlyph() : path('M32 12 V28')) +
+      failMark(cfg.fail ?? 'none', pos ? 22 : 42) +
       bodyAt(body.markup)
     )
   },
   ports: [
-    { id: 'w', x: 0, y: 32, kind: 'process' },
-    { id: 'e', x: 48, y: 32, kind: 'process' },
-    { id: 'sig', x: 24, y: 0, kind: 'signal' },
+    { id: 'w', x: 0, y: 36, kind: 'process' },
+    { id: 'e', x: 64, y: 36, kind: 'process' },
+    { id: 'sig', x: 32, y: 0, kind: 'signal' },
     // Positioner bosses: one port per connection circle on the box's right
-    // edge (harmless stem-side points when no positioner is drawn).
-    { id: 'sw', x: 40, y: 16, kind: 'signal', hit: 3 },
-    { id: 'se', x: 40, y: 20, kind: 'signal', hit: 3 },
-    { id: 'sb', x: 40, y: 24, kind: 'signal', hit: 3 },
+    // edge. Precision halos + an explicit direction: they sit too deep in the
+    // frame for edge-distance direction detection, and their lines must
+    // always leave rightward.
+    { id: 'sw', x: 48, y: 16, kind: 'signal', hit: 3, dir: 'right' },
+    { id: 'se', x: 48, y: 20, kind: 'signal', hit: 3, dir: 'right' },
+    { id: 'sb', x: 48, y: 24, kind: 'signal', hit: 3, dir: 'right' },
   ],
   tagRule: 'valve',
   defaultConfig: { actuator: 'diaphragm', fail: 'none', positioner: 'none' },

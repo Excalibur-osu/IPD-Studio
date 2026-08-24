@@ -219,6 +219,7 @@ export function portDirection(symbolId: string, portId: string): Direction | nul
     const def = getSymbol(symbolId)
     const port = def.ports.find((p) => p.id === portId)
     if (!port) return null
+    if (port.dir) return port.dir
     const w = def.gridSize.w * 8
     const h = def.gridSize.h * 8
     const candidates: [Direction, number][] = [

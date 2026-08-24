@@ -45,7 +45,7 @@ async function setupWithLine(page: Page) {
       config: { display: 'discrete', location: 'field' }, tag: { letters: 'FIC', loop: '101' },
     })
     s.addNode({
-      symbolId: 'cv.globe', kind: 'valve', x: 320, y: 240, rotation: 0,
+      symbolId: 'cv.globe', kind: 'valve', x: 312, y: 240, rotation: 0,
       config: { actuator: 'diaphragm', fail: 'none' },
     })
     s.setSelection([])
