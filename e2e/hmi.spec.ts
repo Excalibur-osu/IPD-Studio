@@ -71,6 +71,10 @@ test('operate a hand-built screen: start pump, watch it fill, alarm, ack', async
   await page.getByTestId('hmi-speed').click()
   await expect(page.getByTestId('alarm-ack')).toBeVisible({ timeout: 60000 })
   await page.getByTestId('alarm-ack-all').click()
+  // the journal recorded the operator's START as a command; filter to it
+  await page.getByRole('button', { name: /Journal/ }).click()
+  await page.getByTestId('journal-commands').click()
+  await expect(page.getByTestId('alarm-journal')).toContainText('START')
   await page.getByTestId('hmi-run-toggle').click()
 })
 

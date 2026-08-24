@@ -28,7 +28,7 @@
 .hmi-tab .sheet-close { background: none; border: none; color: inherit; cursor: pointer; padding: 0 2px; }
 .hmi-pal-item { display: flex; align-items: center; gap: 8px; padding: 4px 6px; margin: 3px 0; background: #fff; border: 1px solid #d5d5d5; border-radius: 5px; cursor: grab; font-size: 12px; }
 .hmi-pal-item:hover { border-color: #2b6cb0; box-shadow: 0 1px 4px #2b6cb030; }
-.hmi-faceplate { position: absolute; right: 16px; top: 56px; width: 240px; background: #1d314e; color: #e8f0fa; border: 1px solid #35567c; border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px #0008; z-index: 20; }
+.hmi-faceplate { position: absolute; right: 16px; top: 56px; width: 268px; background: #1d314e; color: #e8f0fa; border: 1px solid #35567c; border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px #0008; z-index: 20; }
 .hmi-faceplate header { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
 .hmi-faceplate .fp-row { display: flex; gap: 6px; margin-top: 8px; }
 .hmi-faceplate button { flex: 1; background: #24405f; color: inherit; border: 1px solid #35567c; border-radius: 4px; padding: 5px; cursor: pointer; }
@@ -51,6 +51,8 @@
 .al-what-alarm { color: #ff8f8f; }
 .al-what-rtn { color: #7fd4a0; }
 .al-what-ack { color: #9db4cc; }
+.al-what-cmd { color: #8fb8ff; }
+.al-all.al-on { background: #2b6cb0; border-color: #2b6cb0; }
 .al-chip { display: inline-flex; gap: 6px; align-items: center; padding: 2px 8px; border-radius: 4px; background: #b02a2a; white-space: nowrap; }
 .al-chip.cleared { background: #8a6d00; }
 .al-chip.acked { background: #6c3040; opacity: 0.9; }

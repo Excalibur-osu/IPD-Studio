@@ -34,9 +34,16 @@ screens have a design time and a runtime:
   5×/s. Values move, tanks fill, pipes animate proportional to flow. The
   screen tabs (and Screen-link buttons) navigate between pages while the
   plant keeps running — exactly how a real operator station works. Click
-  equipment to open its **faceplate**: Start/Stop for pumps, position for
-  valves, PV/SP/OP with AUTO/MAN for controllers. Run/Pause, 1×/5× speed,
-  and Reset live in the toolbar; the status bar shows the sim clock.
+  anything tagged to open its **faceplate** — a draggable DCS-style plate
+  (Esc closes): pumps get state + Start/Stop + live flow-through; valves a
+  position scale with entry; measurements a **scale bar with the alarm
+  limits drawn as ticks**, engineering units and a live sparkline;
+  controllers the full PV/SP/OUT bar trio with the SP marked on the PV
+  scale, ▲▼ setpoint entry clamped to range, AUTO/MAN (output entry only in
+  MAN — and the transfer is **bumpless**: AUTO resumes from the operator's
+  output instead of kicking), plus the tag's standing alarms with per-alarm
+  Ack. Run/Pause, 1×/5× speed, and Reset live in the toolbar; the status
+  bar shows the sim clock.
 
 ## Widgets
 
@@ -84,6 +91,10 @@ are critical (red ■), H/L are warnings (amber ▲) — shape *and* color, so
 priority survives color-blindness. The banner expands into a full **alarm
 summary** and a **journal** of every raise / return-to-normal / ack with its
 sim time, and clicking an alarm's tag navigates to the screen that shows it.
+The journal also records **every operator action** — `START`, `CLOSE`,
+`SP 50 → 62`, `MAN` — the way a real DCS audit trail does (slider bursts
+coalesce into one entry); filter it to Alarms or Commands and copy the
+visible lines out with one click.
 
 ## Build from P&ID
 

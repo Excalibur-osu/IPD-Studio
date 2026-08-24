@@ -133,6 +133,10 @@ export function tick(model: SimModel, prev: Tags, dt: number, rng: () => number)
     if ((t.MODE ?? 0) < 0.5) {
       const manValve = tags[c.outTag]
       if (manValve && manValve.OP !== undefined) manValve.OP = t.OP ?? manValve.OP
+      // bumpless transfer: keep the integrator tracking the operator's OP
+      // (I = OP − KP·e) so returning to AUTO resumes from here, no kick
+      const eMan = ((t.SP ?? 50) - pv) * (c.action ?? 1)
+      t.I = clamp((t.OP ?? 0) - KP * eMan, -100, 100)
       continue
     }
     const e = ((t.SP ?? 50) - pv) * (c.action ?? 1)

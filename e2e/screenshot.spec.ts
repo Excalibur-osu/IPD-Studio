@@ -131,6 +131,50 @@ test('capture zoomed segment editing', async ({ page }) => {
   await page.screenshot({ path: '/tmp/hmi-zoom-segments.png' })
 })
 
+test('capture faceplate v2 and command journal', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.setViewportSize({ width: 1680, height: 1000 })
+  await page.goto('/')
+  await page.getByTestId('open-hmi').click()
+  await page.getByRole('button', { name: 'New screen' }).click()
+  const canvas = page.getByTestId('hmi-canvas')
+  const world = async (wx: number, wy: number) => {
+    const b = (await canvas.boundingBox())!
+    return { x: b.x + (wx / 1600) * b.width, y: b.y + (wy / 1000) * b.height }
+  }
+  // tank near-full so its faceplate shows live alarms; a controller display
+  await page.getByText('Tank', { exact: true }).dblclick()
+  let p = await world(360, 290)
+  await page.mouse.move(p.x, p.y)
+  await page.mouse.down()
+  p = await world(800, 300)
+  await page.mouse.move(p.x, p.y, { steps: 5 })
+  await page.mouse.up()
+  await page.getByTestId('prop-tag').fill('TK-1')
+  await page.getByLabel('Start level %').fill('96')
+  await page.getByText('Value display', { exact: true }).dblclick()
+  p = await world(350, 255)
+  await page.mouse.click(p.x, p.y)
+  await page.getByTestId('prop-tag').fill('LIC-1')
+  await page.getByTestId('prop-controller').check()
+  // run: tank faceplate first (bar + limit ticks + sparkline + alarm ack)
+  await page.getByTestId('hmi-run-toggle').click()
+  await page.waitForTimeout(1600)
+  p = await world(800, 320)
+  await page.mouse.click(p.x, p.y)
+  await page.waitForTimeout(300)
+  await page.screenshot({ path: '/tmp/hmi-faceplate-tank.png' })
+  await page.getByTestId('fp-close').click()
+  // controller faceplate + journal filtered to operator commands
+  p = await world(350, 255)
+  await page.mouse.click(p.x, p.y)
+  await page.getByTestId('fp-sp').fill('62')
+  await page.getByRole('button', { name: /Journal/ }).click()
+  await page.getByTestId('journal-commands').click()
+  await page.waitForTimeout(250)
+  await page.screenshot({ path: '/tmp/hmi-faceplate-controller.png' })
+})
+
 test('capture the tag picker and value-source rows', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })

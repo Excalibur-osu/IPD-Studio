@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useSimStore } from './simStore'
 import { priorityOf } from './sim/alarms'
-import type { AlarmRecord } from './sim/alarms'
+import type { AlarmRecord, JournalEntry } from './sim/alarms'
+import { commandText } from './sim/commands'
 import { useStore } from '../store/store'
 
 const mmss = (t: number) => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}`
@@ -26,7 +27,16 @@ export default function AlarmBanner() {
   const screens = useStore((s) => s.doc.hmiScreens)
   const setActiveScreen = useStore((s) => s.setActiveScreen)
   const [open, setOpen] = useState<'none' | 'summary' | 'journal'>('none')
+  const [jFilter, setJFilter] = useState<'all' | 'alarms' | 'commands'>('all')
   if (alarms.length === 0 && journal.length === 0) return null
+
+  const journalShown = journal.filter((ev) =>
+    jFilter === 'all' ? true : jFilter === 'commands' ? ev.what === 'CMD' : ev.what !== 'CMD')
+  const journalLine = (ev: JournalEntry) =>
+    `[${mmss(ev.t)}] ${ev.tag} ${ev.what === 'CMD' ? commandText(ev) : `${ev.what} ${ev.level}`}`
+  const copyJournal = () => {
+    void navigator.clipboard?.writeText(journalShown.map(journalLine).join('\n')).catch(() => {})
+  }
 
   const rows = [...alarms].sort((a, b) =>
     phaseRank(a.phase) - phaseRank(b.phase) || prioRank(a) - prioRank(b) || b.since - a.since)
@@ -83,13 +93,24 @@ export default function AlarmBanner() {
       )}
       {open === 'journal' && (
         <div className="hmi-alarmpanel" data-testid="alarm-journal">
-          {journal.length === 0 && <p className="al-empty">No events yet.</p>}
-          {journal.map((ev, i) => (
+          <div className="al-row" style={{ borderBottom: '1px solid #ffffff2a' }}>
+            {(['all', 'alarms', 'commands'] as const).map((f) => (
+              <button key={f} className={`al-all${jFilter === f ? ' al-on' : ''}`}
+                data-testid={`journal-${f}`} onClick={() => setJFilter(f)}>
+                {f[0]!.toUpperCase() + f.slice(1)}
+              </button>
+            ))}
+            <span style={{ flex: 1 }} />
+            <button className="al-all" data-testid="journal-copy" title="Copy the visible journal lines"
+              onClick={copyJournal}>⧉ Copy</button>
+          </div>
+          {journalShown.length === 0 && <p className="al-empty">No events yet.</p>}
+          {journalShown.map((ev, i) => (
             <div key={i} className="al-row">
               <span className="al-time">{mmss(ev.t)}</span>
               <span className={`al-what al-what-${ev.what.toLowerCase()}`}>{ev.what}</span>
               <button className="al-tag" onClick={() => jumpTo(ev.tag)}><strong>{ev.tag}</strong></button>
-              <span>{ev.level}</span>
+              <span>{ev.what === 'CMD' ? commandText(ev) : ev.level}</span>
             </div>
           ))}
         </div>

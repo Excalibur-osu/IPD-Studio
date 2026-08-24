@@ -15,6 +15,14 @@ export const priorityOf = (level: AlarmLevel): AlarmPriority =>
 /** Chronological journal entry: what happened to which alarm at sim time t. */
 export interface AlarmEvent { t: number; tag: string; level: AlarmLevel; what: 'ALARM' | 'RTN' | 'ACK' }
 
+/** Operator action: a Start/Stop, setpoint change, mode switch… The raw
+ *  before/after values are kept so a slider burst can coalesce into one
+ *  entry without losing where it started. */
+export interface CommandEvent { t: number; tag: string; what: 'CMD'; sig: string; from: number; to: number }
+
+/** The journal holds alarm history AND operator actions, newest first. */
+export type JournalEntry = AlarmEvent | CommandEvent
+
 /** Diff two alarm lists into journal events (raise / return-to-normal / ack). */
 export function alarmEvents(prev: AlarmRecord[], next: AlarmRecord[], t: number): AlarmEvent[] {
   const before = new Map(prev.map((a) => [a.id, a]))
