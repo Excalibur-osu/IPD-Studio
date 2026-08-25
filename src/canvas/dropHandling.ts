@@ -24,7 +24,7 @@ export function kindForSymbol(def: Pick<SymbolDef, 'tagRule' | 'category'>): Nod
 const snap8 = (v: number) => Math.round(v / 8) * 8
 
 /** Place a symbol snapped at the visible canvas center (palette Enter quick-add). */
-export function placeAtCenter(symbolId: string): void {
+export function placeAtCenter(symbolId: string, presetLetters?: string): void {
   const paper = canvasRef.paper
   if (!paper) return
   const def = getSymbol(symbolId)
@@ -42,6 +42,9 @@ export function placeAtCenter(symbolId: string): void {
     rotation: 0,
   }
   if (def.defaultConfig) node.config = { ...def.defaultConfig }
+  if (presetLetters) {
+    node.tag = { letters: presetLetters, loop: nextLoopNumber(store.doc, presetLetters) }
+  }
   const id = store.addNode(node)
   store.setSelection([id])
 }

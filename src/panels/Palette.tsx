@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
-import { byCategory, searchSymbols } from '../symbols/registry'
+import { byCategory, getSymbol } from '../symbols/registry'
 import { placeAtCenter, placeTypicalAtCenter } from '../canvas/dropHandling'
 import { TYPICALS } from '../assist/typicals'
 import { useStore } from '../store/store'
 import SymbolImportDialog from './SymbolImportDialog'
 import type { SymbolCategory, SymbolDef } from '../symbols/types'
+import type { InstrumentPreset } from './instrumentPresets'
+import { INSTRUMENT_PRESETS, TOP_PRESET_LETTERS, searchPalette } from './instrumentPresets'
 
 export const DRAG_MIME = 'application/x-pid-symbol'
 
@@ -29,7 +31,10 @@ const CATEGORY_ORDER: [SymbolCategory, string][] = [
   ['annotation', 'Annotation'],
 ]
 
-const INSTRUMENT_PRESETS = ['FT', 'FIT', 'FIC', 'FE', 'FY', 'PT', 'PIT', 'PIC', 'PDT', 'PY', 'LT', 'LIT', 'LIC', 'LY', 'TT', 'TIT', 'TIC', 'TY', 'AT', 'AIT', 'SC', 'HS', 'ZSC', 'ZSO']
+/** Collapsed sections show at most this many entries; "Show all" expands. */
+const VISIBLE = 8
+
+const PRESET_GROUPS: InstrumentPreset['group'][] = ['Flow', 'Pressure', 'Level', 'Temperature', 'Analysis', 'Other']
 
 function Preview({ def }: { def: SymbolDef }) {
   const w = def.gridSize.w * 8
@@ -43,12 +48,12 @@ function Preview({ def }: { def: SymbolDef }) {
   )
 }
 
-function Entry({ def, label, presetLetters }: { def: SymbolDef; label: string; presetLetters?: string }) {
+function Entry({ def, label, title, presetLetters }: { def: SymbolDef; label: string; title?: string; presetLetters?: string }) {
   return (
     <div
       className="palette-entry"
       draggable
-      title={label}
+      title={title ?? label}
       onDragStart={(e) => {
         const payload: DragPayload = { symbolId: def.id }
         if (presetLetters) payload.presetLetters = presetLetters
@@ -65,10 +70,11 @@ function Entry({ def, label, presetLetters }: { def: SymbolDef; label: string; p
 export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
   const [query, setQuery] = useState('')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [importOpen, setImportOpen] = useState(false)
   const customSymbols = useStore((s) => s.doc.customSymbols)
   const groups = useMemo(() => byCategory(), [customSymbols])
-  const results = useMemo(() => (query ? searchSymbols(query) : null), [query, customSymbols])
+  const results = useMemo(() => (query ? searchPalette(query) : null), [query, customSymbols])
 
   const toggle = (cat: string) => {
     setCollapsed((prev) => {
@@ -78,6 +84,19 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
       return next
     })
   }
+  const toggleMore = (cat: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(cat)) next.delete(cat)
+      else next.add(cat)
+      return next
+    })
+  }
+  const moreButton = (cat: string, hidden: number) => (
+    <button className="palette-more" onClick={() => toggleMore(cat)}>
+      {expanded.has(cat) ? '▴ Show less' : `▾ Show all (${hidden} more)`}
+    </button>
+  )
 
   return (
     <aside className="palette">
@@ -89,7 +108,7 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && results && results[0]) {
-              placeAtCenter(results[0].id)
+              placeAtCenter(results[0].symbolId, results[0].presetLetters)
             }
           }}
         />
@@ -122,8 +141,14 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
       )}
       {results ? (
         <div className="palette-grid">
-          {results.map((def) => (
-            <Entry key={def.id} def={def} label={def.name} />
+          {results.map((hit) => (
+            <Entry
+              key={hit.symbolId + (hit.presetLetters ?? '')}
+              def={getSymbol(hit.symbolId)}
+              label={hit.label}
+              title={hit.name}
+              presetLetters={hit.presetLetters}
+            />
           ))}
         </div>
       ) : (
@@ -131,26 +156,51 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
           const defs = groups.get(cat) ?? []
           if (defs.length === 0) return null
           const isOpen = !collapsed.has(cat)
+          const isFull = expanded.has(cat)
+          const bubble = cat === 'instruments' ? defs.find((d) => d.id === 'instr.bubble') : undefined
+          const preset = (p: InstrumentPreset) => (
+            <Entry key={p.letters} def={bubble!} label={p.letters} title={p.name} presetLetters={p.letters} />
+          )
           return (
             <section key={cat}>
               <button className="palette-cat" onClick={() => toggle(cat)}>
                 {isOpen ? '▾' : '▸'} {title}
               </button>
-              {isOpen && (
-                <div className="palette-grid">
-                  {cat === 'instruments' &&
-                    INSTRUMENT_PRESETS.map((letters) => (
-                      <Entry
-                        key={letters}
-                        def={defs.find((d) => d.id === 'instr.bubble')!}
-                        label={letters}
-                        presetLetters={letters}
-                      />
+              {isOpen && cat === 'instruments' && bubble && (
+                <>
+                  {!isFull ? (
+                    <div className="palette-grid">
+                      {INSTRUMENT_PRESETS.filter((p) => TOP_PRESET_LETTERS.includes(p.letters)).map(preset)}
+                    </div>
+                  ) : (
+                    <>
+                      {PRESET_GROUPS.map((g) => (
+                        <div key={g}>
+                          <div className="palette-subhead">{g}</div>
+                          <div className="palette-grid">
+                            {INSTRUMENT_PRESETS.filter((p) => p.group === g).map(preset)}
+                          </div>
+                        </div>
+                      ))}
+                      <div className="palette-grid">
+                        {defs.map((def) => (
+                          <Entry key={def.id} def={def} label={def.name} />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {moreButton(cat, INSTRUMENT_PRESETS.length - TOP_PRESET_LETTERS.length + defs.length)}
+                </>
+              )}
+              {isOpen && cat !== 'instruments' && (
+                <>
+                  <div className="palette-grid">
+                    {(isFull ? defs : defs.slice(0, VISIBLE)).map((def) => (
+                      <Entry key={def.id} def={def} label={def.name} />
                     ))}
-                  {defs.map((def) => (
-                    <Entry key={def.id} def={def} label={def.name} />
-                  ))}
-                </div>
+                  </div>
+                  {defs.length > VISIBLE && moreButton(cat, defs.length - VISIBLE)}
+                </>
               )}
             </section>
           )

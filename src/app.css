@@ -48,6 +48,9 @@ body { font: 13px/1.4 system-ui, sans-serif; color: #1a1a1a; }
 .palette-entry:hover { border-color: #b5b5c5; background: #fff; }
 .palette-preview { width: 36px; height: 32px; }
 .palette-label { font-size: 9.5px; color: #555; text-align: center; line-height: 1.1; max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette-more { display: block; width: calc(100% - 12px); margin: 0 6px 8px; padding: 3px 0; background: none; border: 1px dashed #b5b5c5; border-radius: 4px; font: inherit; font-size: 10.5px; color: #556; cursor: pointer; }
+.palette-more:hover { background: #fff; border-style: solid; }
+.palette-subhead { padding: 2px 10px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #778; }
 
 .prop-title { font-weight: 600; margin: 10px 0 6px; color: #333; }
 .prop-field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; font-size: 12px; color: #555; text-transform: capitalize; }
