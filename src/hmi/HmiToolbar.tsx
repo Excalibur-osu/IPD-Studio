@@ -23,7 +23,7 @@ function EventsModal({ onClose }: { onClose(): void }) {
     for (const w of sc.widgets) {
       if (!w.tag || seen.has(w.tag)) continue
       seen.add(w.tag)
-      if (w.type === 'pump') pumps.push(w.tag)
+      if (w.type === 'pump' || w.type === 'equip') pumps.push(w.tag)
       else if (w.type === 'valve' && w.props?.throttle === true) valves.push(w.tag)
       else if (typeof w.props?.bindTank === 'string' || typeof w.props?.bindPipe === 'string') bound.push(w.tag)
     }
@@ -39,7 +39,7 @@ function EventsModal({ onClose }: { onClose(): void }) {
     <Modal title="Process events (training)" onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {pumps.slice(0, 6).map((t) => row(
-          (tags[t]?.FAULT ?? 0) >= 0.5 ? `Clear ${t} trip` : `Trip pump ${t}`,
+          (tags[t]?.FAULT ?? 0) >= 0.5 ? `Clear ${t} trip` : `Trip ${t}`,
           (tags[t]?.FAULT ?? 0) >= 0.5, () => toggle(t, 'FAULT'), `f-${t}`))}
         {valves.slice(0, 6).map((t) => row(
           (tags[t]?.STUCK ?? 0) >= 0.5 ? `Free valve ${t}` : `Stick valve ${t}`,

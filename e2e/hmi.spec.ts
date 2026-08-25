@@ -288,7 +288,7 @@ test('scenario injection: trip a pump from the Events menu', async ({ page }) =>
   await expect.poll(async () => (await sim())['P-1']!.RAMP, { timeout: 8000 }).toBe(1)
   // trip it from the Events menu
   await page.getByTestId('hmi-events').click()
-  await page.getByTestId('event-row').filter({ hasText: 'Trip pump P-1' }).click()
+  await page.getByTestId('event-row').filter({ hasText: 'Trip P-1' }).click()
   await page.keyboard.press('Escape')
   await expect.poll(async () => (await sim())['P-1']!.RUN, { timeout: 4000 }).toBe(0) // breaker opened
   // the faceplate shows FAULT and offers a reset
