@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import type { HmiScreen, HmiWidget } from '../../src/hmi/model'
 import { buildTagDefs } from '../../src/hmi/sim/tags'
 import { buildSimModel, initTags, tick } from '../../src/hmi/sim/engine'
+import { buildNetwork } from '../../src/hmi/sim/network'
 import { renderWidget } from '../../src/hmi/widgets/index'
 import { THEMES } from '../../src/hmi/theme'
 import '../../src/symbols/lib/index'
@@ -37,6 +38,33 @@ describe('equip tag model', () => {
     const out = tick(model, tags, 0.2, rng).tags
     expect(out['K-101']!.RUN).toBe(0)
     expect(out['K-101']!.RAMP).toBe(0)
+  })
+})
+
+describe('equip in the flow network', () => {
+  // tank(0,0 96x128) → pipe → equip K-101 (200,40 64x64) → pipe → free end (sink)
+  const tank: HmiWidget = { id: 'w-tk', type: 'tank', x: 0, y: 0, w: 96, h: 128, tag: 'TK-1' }
+  const sc = screen(
+    [tank, equip('K-101', 200, 40)],
+    [
+      { id: 'p1', points: [{ x: 96, y: 100 }, { x: 200, y: 72 }] },
+      { id: 'p2', points: [{ x: 264, y: 72 }, { x: 400, y: 72 }] },
+    ],
+  )
+  it('collects the equip tag as a branch driver', () => {
+    const net = buildNetwork(sc)
+    expect(net.branches).toHaveLength(1)
+    expect(net.branches[0]!.pumps).toEqual(['K-101'])
+    expect(net.branches[0]!.from).toEqual({ kind: 'tank', tag: 'TK-1' })
+  })
+  it('moves flow only when the equip runs', () => {
+    const model = buildSimModel(sc)
+    const tags = initTags(model)
+    let r = tick(model, tags, 0.2, rng)
+    expect(Object.values(r.branchFlows).every((f) => f === 0)).toBe(true) // calm start
+    r.tags['K-101']!.RUN = 1
+    for (let i = 0; i < 15; i++) r = tick(model, r.tags, 0.2, rng)
+    expect(Object.values(r.branchFlows).some((f) => f > 0)).toBe(true)
   })
 })
 

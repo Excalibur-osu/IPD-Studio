@@ -26,33 +26,51 @@ const ATTACH = 14
 const MAX_PATH = 32
 const MAX_BRANCHES = 128
 
-function hitInflated(w: HmiWidget, p: { x: number; y: number }): boolean {
-  return p.x >= w.x - ATTACH && p.x <= w.x + w.w + ATTACH && p.y >= w.y - ATTACH && p.y <= w.y + w.h + ATTACH
-}
+const isSolid = (w: HmiWidget): boolean =>
+  w.type === 'tank' || w.type === 'pump' || w.type === 'valve' || w.type === 'symbol' || w.type === 'equip'
 
+/** Nearest solid widget within ATTACH of the point. A point INSIDE a rect is
+ *  distance 0, so exact containment always beats an inflated near-miss —
+ *  imports pack valves against vessels, and topmost-hit picked the wrong one. */
 function widgetAt(screen: HmiScreen, p: { x: number; y: number }): HmiWidget | null {
+  let best: HmiWidget | null = null
+  let bestD = Infinity
   for (let i = screen.widgets.length - 1; i >= 0; i--) {
     const w = screen.widgets[i]!
-    if (w.type !== 'tank' && w.type !== 'pump' && w.type !== 'valve' && w.type !== 'symbol') continue
-    if (hitInflated(w, p)) return w
+    if (!isSolid(w)) continue
+    const dx = Math.max(w.x - p.x, 0, p.x - (w.x + w.w))
+    const dy = Math.max(w.y - p.y, 0, p.y - (w.y + w.h))
+    if (dx > ATTACH || dy > ATTACH) continue
+    const d = Math.hypot(dx, dy)
+    if (d < bestD) { best = w; bestD = d }
   }
-  return null
+  return best
+}
+
+/** Anchored end (import truth) first; geometry as the fallback. */
+function endWidget(screen: HmiScreen, byId: Map<string, HmiWidget>, anchor: string | undefined, p: { x: number; y: number }): HmiWidget | null {
+  if (anchor !== undefined) {
+    const w = byId.get(anchor)
+    if (w && isSolid(w)) return w
+  }
+  return widgetAt(screen, p)
 }
 
 export function buildNetwork(screen: HmiScreen): FlowNetwork {
   const heads = new Map<string, HmiPipe[]>() // widget id -> pipes leaving it
   const ends = new Map<HmiPipe, { a: HmiWidget | null; b: HmiWidget | null }>()
   const hasInflow = new Set<string>()
+  const byId = new Map(screen.widgets.map((w) => [w.id, w]))
   for (const p of screen.pipes) {
     if (p.points.length < 2) continue
-    const a = widgetAt(screen, p.points[0]!)
-    const b = widgetAt(screen, p.points[p.points.length - 1]!)
+    const a = endWidget(screen, byId, p.aId, p.points[0]!)
+    const b = endWidget(screen, byId, p.bId, p.points[p.points.length - 1]!)
     ends.set(p, { a, b })
     if (a) heads.set(a.id, [...(heads.get(a.id) ?? []), p])
     if (b) hasInflow.add(b.id)
   }
   const inline = (w: HmiWidget | null): w is HmiWidget =>
-    !!w && (w.type === 'pump' || w.type === 'valve' || w.type === 'symbol')
+    !!w && (w.type === 'pump' || w.type === 'valve' || w.type === 'symbol' || w.type === 'equip')
 
   const branches: Branch[] = []
   let n = 0
@@ -70,7 +88,7 @@ export function buildNetwork(screen: HmiScreen): FlowNetwork {
       const w = ends.get(p)!.a
       if (i === 0 && !inline(w)) return
       if (!w) return
-      if (w.type === 'pump' && w.tag) branch.pumps.push(w.tag)
+      if ((w.type === 'pump' || w.type === 'equip') && w.tag) branch.pumps.push(w.tag)
       if (w.type === 'valve' && w.tag) branch.valves.push(w.tag)
     })
     branches.push(branch)
@@ -134,8 +152,13 @@ export function solveFlows(
     } else if (b.from.kind === 'tank') {
       const uncontrollableStub = b.to.kind === 'sink' && b.valves.length === 0
       driver[b.id] = b.fromBottom && !uncontrollableStub ? rating.gravity : 0
+    } else if (b.from.kind === 'source' && b.valves.length > 0) {
+      // a free end feeding THROUGH a hand valve is a battery-limit/supply
+      // header: opening the valve draws on it. Calm start still holds — the
+      // valve comes up closed, so nothing moves until an operator acts.
+      driver[b.id] = rating.gravity
     } else {
-      driver[b.id] = 0 // free-end sources are passive without a pump
+      driver[b.id] = 0 // valveless free-end stubs stay passive
     }
   }
 
