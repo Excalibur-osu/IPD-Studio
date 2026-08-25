@@ -1,7 +1,8 @@
 import type { TagDef } from './tags'
 import type { Tags } from './engine'
 
-export type AlarmLevel = 'LL' | 'L' | 'H' | 'HH'
+/** Limit levels plus DEV — a device alarm (valve position deviation). */
+export type AlarmLevel = 'LL' | 'L' | 'H' | 'HH' | 'DEV'
 /** ISA-18.2-flavored lifecycle: pending (on-delay running, never annunciated)
  *  -> active (unacked) -> acked; return-to-normal turns active into cleared
  *  (still listed until acked) and drops acked. */
@@ -98,7 +99,7 @@ export function evalAlarms(
     if (pv === undefined) continue
     const db = d.deadband ?? Math.abs(d.max - d.min) * 0.01
     const delay = d.alarmDelay ?? 0
-    for (const level of ['LL', 'L', 'H', 'HH'] as AlarmLevel[]) {
+    for (const level of ['LL', 'L', 'H', 'HH'] as const) {
       const limit = d.limits[level]
       if (limit === undefined) continue
       const id = `${d.name}:${level}`
@@ -142,6 +143,53 @@ export function evalAlarms(
           out.push(existing)
         }
         // 'acked' + back to normal -> drop silently
+      }
+    }
+  }
+  return out
+}
+
+/** How long commanded vs actual valve position may disagree (beyond the
+ *  stroke band) before a DEV alarm annunciates. */
+const DEV_DELAY = 5
+
+/** Valve deviation alarms: the command and the position apart for longer
+ *  than a normal stroke — a stuck or slipping valve. Same lifecycle and
+ *  suppression semantics as limit alarms. */
+export function deviceAlarms(
+  defs: TagDef[],
+  tags: Tags,
+  prev: AlarmRecord[],
+  t: number,
+  sup: SuppressionSets = {},
+): AlarmRecord[] {
+  const byId = new Map(prev.map((a) => [a.id, a]))
+  const out: AlarmRecord[] = []
+  for (const d of defs) {
+    if (d.kind !== 'valve') continue
+    const tg = tags[d.name]
+    if (!tg) continue
+    const id = `${d.name}:DEV`
+    const existing = byId.get(id)
+    const supKind: Suppression | undefined =
+      sup.shelvedIds?.has(id) ? 'shelved' : sup.oosTags?.has(d.name) ? 'oos' : undefined
+    const isIn = (tg.DEVT ?? 0) >= DEV_DELAY
+    if (isIn) {
+      let rec: AlarmRecord = existing && existing.phase !== 'cleared'
+        ? existing
+        : { id, tag: d.name, level: 'DEV', phase: 'active', since: t, priority: 'medium', value: Math.abs((tg.OP ?? 0) - (tg.POS ?? 0)) }
+      if ((rec.sup ?? undefined) !== supKind) {
+        const { sup: _old, ...rest } = rec
+        rec = supKind ? { ...rest, sup: supKind } : (rest as AlarmRecord)
+      }
+      out.push(rec)
+    } else if (existing) {
+      if (supKind) continue
+      if (existing.phase === 'active') {
+        const { sup: _s, ...rest } = existing
+        out.push({ ...(rest as AlarmRecord), phase: 'cleared' })
+      } else if (existing.phase === 'cleared') {
+        out.push(existing)
       }
     }
   }

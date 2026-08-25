@@ -250,6 +250,61 @@ test('author tools: zoom, cross-screen clipboard, segment editing', async ({ pag
   expect(pts.map((q) => q.y)).toEqual([776, 696])
 })
 
+test('scenario injection: trip a pump from the Events menu', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.goto('/')
+  await page.evaluate(() => {
+    const doc = {
+      schemaVersion: 4,
+      meta: { name: 'Trip demo', author: '', created: '', modified: '' },
+      settings: { gridPx: 8, tagSeparator: '-' },
+      sheets: [{ id: 'sh1', name: 'S1', drawingNumber: '', revision: '0', sheetSize: 'A3', nodes: [], edges: [] }],
+      hmiScreens: [{
+        id: 'scr1', name: 'Screen 1', theme: 'classic',
+        widgets: [
+          { id: 'p', type: 'pump', x: 100, y: 90, w: 56, h: 56, tag: 'P-1' },
+          { id: 't', type: 'tank', x: 500, y: 40, w: 96, h: 128, tag: 'TK-1', props: { capacity: 500, level0: 40 } },
+        ],
+        pipes: [
+          { id: 'e1', points: [{ x: 0, y: 118 }, { x: 110, y: 118 }] },
+          { id: 'e2', points: [{ x: 150, y: 118 }, { x: 510, y: 100 }] },
+        ],
+      }],
+    }
+    const pid = (window as unknown as { __pid: { useStore: { getState(): { loadIntoStore(d: unknown): void } } } }).__pid
+    pid.useStore.getState().loadIntoStore(doc)
+  })
+  await page.getByTestId('open-hmi').click()
+  await page.getByTestId('hmi-run-toggle').click()
+  // start the pump, let it ramp
+  await page.evaluate(() => {
+    const pid = (window as unknown as { __pid: { useSimStore: { getState(): { writeTag(t: string, s: string, v: number): void } } } }).__pid
+    pid.useSimStore.getState().writeTag('P-1', 'RUN', 1)
+  })
+  const sim = () => page.evaluate(() => {
+    const pid = (window as unknown as { __pid: { useSimStore: { getState(): { tags: Record<string, Record<string, number>> } } } }).__pid
+    return pid.useSimStore.getState().tags
+  })
+  await expect.poll(async () => (await sim())['P-1']!.RAMP, { timeout: 8000 }).toBe(1)
+  // trip it from the Events menu
+  await page.getByTestId('hmi-events').click()
+  await page.getByTestId('event-row').filter({ hasText: 'Trip pump P-1' }).click()
+  await page.keyboard.press('Escape')
+  await expect.poll(async () => (await sim())['P-1']!.RUN, { timeout: 4000 }).toBe(0) // breaker opened
+  // the faceplate shows FAULT and offers a reset
+  const canvas = page.getByTestId('hmi-canvas')
+  const b = (await canvas.boundingBox())!
+  await page.mouse.click(b.x + (128 / 1600) * b.width, b.y + (118 / 1000) * b.height)
+  await expect(page.getByTestId('faceplate')).toContainText('FAULT')
+  await page.getByTestId('fp-fault-reset').click()
+  await expect(page.getByTestId('faceplate')).toContainText('STOPPED')
+  await page.getByTestId('fp-close').click()
+  // and the journal recorded the upset
+  await page.getByRole('button', { name: /Journal/ }).click()
+  await expect(page.getByTestId('alarm-journal')).toContainText('TRIPPED')
+  await page.getByTestId('hmi-run-toggle').click()
+})
+
 test('multi-sheet import generates a plant overview', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.goto('/')

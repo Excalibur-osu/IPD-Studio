@@ -46,14 +46,15 @@ describe('buildNetwork', () => {
     expect(bot.fromBottom).toBe(true)
     expect(top.fromBottom).toBe(false)
   })
-  it('a second pipe leaving a pump joins no branch instead of fabricating a source', () => {
+  it('a second pipe leaving a pump becomes a real leg (fan-out), never a fabricated source', () => {
     const screen = S(
       [W('t0', 'tank', 0, 80, 96, 128, 'TK-T'), W('p', 'pump', 200, 110, 56, 56, 'P-1'), W('ta', 'tank', 400, 0, 96, 128, 'TK-A'), W('tb', 'tank', 400, 300, 96, 128, 'TK-B')],
       [P('in', [90, 140], [210, 140]), P('outA', [250, 130], [410, 60]), P('outB', [250, 150], [410, 360])],
     )
     const net = buildNetwork(screen)
     expect(net.branches.filter((b) => b.from.kind === 'source')).toHaveLength(0)
-    expect(net.branches).toHaveLength(1)
+    expect(net.branches).toHaveLength(2)
+    expect(net.branches.every((b) => b.from.kind === 'tank' && b.from.tag === 'TK-T')).toBe(true)
   })
   it('two independent pipes make two branches; pipeFlowMap spreads branch flow to pipes', () => {
     const screen = S([], [P('a', [0, 0], [100, 0]), P('b', [0, 50], [100, 50])])

@@ -46,4 +46,14 @@ describe('pushCommand', () => {
     j = pushCommand(j, cmd(9.0, 'LIC-1', 'MODE', 0, 1), 10)
     expect(j).toHaveLength(3)
   })
+
+  it('discrete toggles never coalesce — a trip and its reset stay two lines', () => {
+    let j: JournalEntry[] = []
+    j = pushCommand(j, cmd(1.0, 'P-1', 'FAULT', 0, 1), 10)
+    j = pushCommand(j, cmd(1.5, 'P-1', 'FAULT', 1, 0), 10)
+    expect(j).toHaveLength(2)
+    j = pushCommand(j, cmd(2.0, 'P-1', 'RUN', 0, 1), 10)
+    j = pushCommand(j, cmd(2.2, 'P-1', 'RUN', 1, 0), 10)
+    expect(j).toHaveLength(4)
+  })
 })

@@ -5,7 +5,7 @@ import type { SimModel } from './sim/engine'
 import { buildSimModel, initTags, tick } from './sim/engine'
 import type { AlarmRecord, JournalEntry, SuppressionSets } from './sim/alarms'
 import type { Tags } from './sim/engine'
-import { ackAlarms, alarmEvents, evalAlarms } from './sim/alarms'
+import { ackAlarms, alarmEvents, deviceAlarms, evalAlarms } from './sim/alarms'
 import { pushCommand } from './sim/commands'
 import { pipeFlowMap } from './sim/network'
 import { makeRng } from './sim/noise'
@@ -41,6 +41,8 @@ interface SimStoreState {
    *  time it un-shelves; tags taken out of service. */
   shelved: Record<string, number>
   oos: Record<string, true>
+  /** Scenario-plugged pipe ids (flow × 0.25 through them). */
+  plugged: string[]
   /** Pass every screen for a plant-wide run (navigation keeps simulating). */
   enterRun(screens: HmiScreen | HmiScreen[]): void
   exitRun(): void
@@ -53,7 +55,12 @@ interface SimStoreState {
   shelve(id: string, minutes: number): void
   unshelve(id: string): void
   toggleOos(tag: string): void
+  /** Scenario: choke the busiest line (flow × 0.25); clearPlugs undoes. */
+  plugArtery(): void
+  clearPlugs(): void
 }
+
+const PLUG_FACTOR = 0.25
 
 /** Suppressed-by-design: a flow measurement whose branch has pumps that are
  *  all commanded off is EXPECTED to read nothing — its low alarms are noise. */
@@ -74,28 +81,29 @@ function supSets(shelved: Record<string, number>, oos: Record<string, true>, tag
 
 export const useSimStore = create<SimStoreState>()((set, get) => ({
   mode: 'edit', playing: false, speed: 1, t: 0,
-  tags: {}, pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {}, historyT: [], shelved: {}, oos: {},
+  tags: {}, pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {}, historyT: [], shelved: {}, oos: {}, plugged: [],
 
   enterRun: (screens) => {
     model = buildSimModel(screens)
     rng = makeRng(SEED)
-    set({ mode: 'run', playing: true, t: 0, tags: initTags(model), pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {}, historyT: [], shelved: {}, oos: {} })
+    set({ mode: 'run', playing: true, t: 0, tags: initTags(model), pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {}, historyT: [], shelved: {}, oos: {}, plugged: [] })
   },
   exitRun: () => {
     model = null
-    set({ mode: 'edit', playing: false, t: 0, tags: {}, pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {}, historyT: [], shelved: {}, oos: {} })
+    set({ mode: 'edit', playing: false, t: 0, tags: {}, pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {}, historyT: [], shelved: {}, oos: {}, plugged: [] })
   },
   playPause: () => set((s) => ({ playing: !s.playing })),
   setSpeed: (speed) => set({ speed }),
   reset: () => {
     if (!model) return
     rng = makeRng(SEED)
-    set({ t: 0, tags: initTags(model), pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {}, historyT: [], shelved: {}, oos: {}, playing: true })
+    set({ t: 0, tags: initTags(model), pipeFlows: {}, equipFlows: {}, alarms: [], journal: [], history: {}, historyT: [], shelved: {}, oos: {}, plugged: [], playing: true })
   },
   tickOnce: (dt) => {
     if (!model) return
     const s = get()
-    const { tags, branchFlows } = tick(model, s.tags, dt, rng)
+    const { tags, branchFlows } = tick(model, s.tags, dt, rng,
+      s.plugged.length > 0 ? { pipeFactor: (id) => (s.plugged.includes(id) ? PLUG_FACTOR : 1) } : undefined)
     const t = s.t + dt
     const history: Record<string, number[]> = { ...s.history }
     const historyT = [...s.historyT, t].slice(-HISTORY_CAP)
@@ -121,7 +129,11 @@ export const useSimStore = create<SimStoreState>()((set, get) => ({
       delete shelved[id]
       journal0 = pushCommand(journal0, { t, tag: id.split(':')[0]!, what: 'CMD', sig: 'SHELVE', from: 1, to: 0 }, JOURNAL_CAP)
     }
-    const alarms = evalAlarms(model.defs, tags, s.alarms, t, supSets(shelved, s.oos, tags))
+    const sup = supSets(shelved, s.oos, tags)
+    const alarms = [
+      ...evalAlarms(model.defs, tags, s.alarms, t, sup),
+      ...deviceAlarms(model.defs, tags, s.alarms, t, sup),
+    ]
     const journal = [...alarmEvents(s.alarms, alarms, t).reverse(), ...journal0].slice(0, JOURNAL_CAP)
     const equipFlows: Record<string, number> = {}
     for (const b of model.net.branches) {
@@ -157,7 +169,8 @@ export const useSimStore = create<SimStoreState>()((set, get) => ({
   shelve: (id, minutes) =>
     set((s) => {
       const shelved = { ...s.shelved, [id]: s.t + minutes * 60 }
-      const alarms = model ? evalAlarms(model.defs, s.tags, s.alarms, s.t, supSets(shelved, s.oos, s.tags)) : s.alarms
+      const sup = supSets(shelved, s.oos, s.tags)
+      const alarms = model ? [...evalAlarms(model.defs, s.tags, s.alarms, s.t, sup), ...deviceAlarms(model.defs, s.tags, s.alarms, s.t, sup)] : s.alarms
       return {
         shelved, alarms,
         journal: pushCommand(s.journal, { t: s.t, tag: id.split(':')[0]!, what: 'CMD', sig: 'SHELVE', from: 0, to: minutes }, JOURNAL_CAP),
@@ -168,19 +181,39 @@ export const useSimStore = create<SimStoreState>()((set, get) => ({
       if (!(id in s.shelved)) return s
       const shelved = { ...s.shelved }
       delete shelved[id]
-      const alarms = model ? evalAlarms(model.defs, s.tags, s.alarms, s.t, supSets(shelved, s.oos, s.tags)) : s.alarms
+      const sup = supSets(shelved, s.oos, s.tags)
+      const alarms = model ? [...evalAlarms(model.defs, s.tags, s.alarms, s.t, sup), ...deviceAlarms(model.defs, s.tags, s.alarms, s.t, sup)] : s.alarms
       return {
         shelved, alarms,
         journal: pushCommand(s.journal, { t: s.t, tag: id.split(':')[0]!, what: 'CMD', sig: 'SHELVE', from: 1, to: 0 }, JOURNAL_CAP),
       }
     }),
+  plugArtery: () =>
+    set((s) => {
+      // the busiest un-plugged pipe: the artery an operator would notice
+      const candidates = Object.entries(s.pipeFlows)
+        .filter(([id]) => !s.plugged.includes(id))
+        .sort((a, b) => b[1] - a[1])
+      const pick = candidates[0]
+      if (!pick || pick[1] <= 0) return s
+      return {
+        plugged: [...s.plugged, pick[0]],
+        journal: pushCommand(s.journal, { t: s.t, tag: 'LINE', what: 'CMD', sig: 'PLUG', from: 0, to: 1 }, JOURNAL_CAP),
+      }
+    }),
+  clearPlugs: () =>
+    set((s) => (s.plugged.length === 0 ? s : {
+      plugged: [],
+      journal: pushCommand(s.journal, { t: s.t, tag: 'LINE', what: 'CMD', sig: 'PLUG', from: 1, to: 0 }, JOURNAL_CAP),
+    })),
   toggleOos: (tag) =>
     set((s) => {
       const oos = { ...s.oos }
       const on = !(tag in oos)
       if (on) oos[tag] = true
       else delete oos[tag]
-      const alarms = model ? evalAlarms(model.defs, s.tags, s.alarms, s.t, supSets(s.shelved, oos, s.tags)) : s.alarms
+      const sup = supSets(s.shelved, oos, s.tags)
+      const alarms = model ? [...evalAlarms(model.defs, s.tags, s.alarms, s.t, sup), ...deviceAlarms(model.defs, s.tags, s.alarms, s.t, sup)] : s.alarms
       return {
         oos, alarms,
         journal: pushCommand(s.journal, { t: s.t, tag, what: 'CMD', sig: 'OOS', from: on ? 0 : 1, to: on ? 1 : 0 }, JOURNAL_CAP),

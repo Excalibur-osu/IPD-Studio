@@ -134,6 +134,64 @@ test('capture zoomed segment editing', async ({ page }) => {
   await page.screenshot({ path: '/tmp/hmi-zoom-segments.png' })
 })
 
+test('capture manifold flows and process events', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.setViewportSize({ width: 1680, height: 1000 })
+  await page.goto('/')
+  await page.evaluate(() => {
+    const doc = {
+      schemaVersion: 4,
+      meta: { name: 'Manifold demo', author: '', created: '', modified: '' },
+      settings: { gridPx: 8, tagSeparator: '-' },
+      sheets: [{ id: 'sh1', name: 'S1', drawingNumber: '', revision: '0', sheetSize: 'A3', nodes: [], edges: [] }],
+      hmiScreens: [{
+        id: 'scr1', name: 'Header & manifold', theme: 'classic',
+        widgets: [
+          { id: 'p1', type: 'pump', x: 160, y: 420, w: 64, h: 64, tag: 'P-1' },
+          { id: 'j1', type: 'symbol', x: 540, y: 440, w: 16, h: 16, props: { symbolId: 'fit.junction' } },
+          { id: 'va', type: 'valve', x: 760, y: 240, w: 56, h: 40, tag: 'LV-A', props: { throttle: true } },
+          { id: 'vb', type: 'valve', x: 760, y: 620, w: 56, h: 40, tag: 'LV-B', props: { throttle: true } },
+          { id: 'ta', type: 'tank', x: 1100, y: 140, w: 120, h: 200, tag: 'TK-A', props: { level0: 30 } },
+          { id: 'tb', type: 'tank', x: 1100, y: 540, w: 120, h: 200, tag: 'TK-B', props: { level0: 55 } },
+          { id: 'ft', type: 'display', x: 380, y: 340, w: 112, h: 44, tag: 'FT-1', props: { bindPipe: 'e2', unit: 'm³/h', max: 12 } },
+        ],
+        pipes: [
+          { id: 'e1', points: [{ x: 40, y: 452 }, { x: 170, y: 452 }] },
+          { id: 'e2', points: [{ x: 224, y: 452 }, { x: 544, y: 452 }] },
+          { id: 'e3', points: [{ x: 548, y: 444 }, { x: 548, y: 264 }, { x: 764, y: 264 }] },
+          { id: 'e4', points: [{ x: 816, y: 264 }, { x: 1104, y: 264 }] },
+          { id: 'e5', points: [{ x: 548, y: 456 }, { x: 548, y: 640 }, { x: 764, y: 640 }] },
+          { id: 'e6', points: [{ x: 816, y: 640 }, { x: 1104, y: 640 }] },
+        ],
+      }],
+    }
+    const pid = (window as unknown as { __pid: { useStore: { getState(): { loadIntoStore(d: unknown): void } } } }).__pid
+    pid.useStore.getState().loadIntoStore(doc)
+  })
+  await page.getByTestId('open-hmi').click()
+  await page.getByTestId('hmi-run-toggle').click()
+  await page.getByTestId('hmi-speed').click() // 5×
+  await page.evaluate(() => {
+    const pid = (window as unknown as { __pid: { useSimStore: { getState(): { writeTag(t: string, s: string, v: number): void } } } }).__pid
+    const sim = pid.useSimStore.getState()
+    sim.writeTag('P-1', 'RUN', 1)
+    sim.writeTag('LV-A', 'OP', 50)
+    sim.writeTag('LV-B', 'OP', 100)
+  })
+  await page.waitForTimeout(1500)
+  // stick LV-A then command it further open: deviation alarm after ~5 sim-s
+  await page.evaluate(() => {
+    const pid = (window as unknown as { __pid: { useSimStore: { getState(): { writeTag(t: string, s: string, v: number): void } } } }).__pid
+    const sim = pid.useSimStore.getState()
+    sim.writeTag('LV-A', 'STUCK', 1)
+    sim.writeTag('LV-A', 'OP', 90)
+  })
+  await page.waitForTimeout(1600)
+  await page.getByTestId('hmi-events').click()
+  await page.waitForTimeout(250)
+  await page.screenshot({ path: '/tmp/hmi-simdepth.png' })
+})
+
 test('capture generated plant overview', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })

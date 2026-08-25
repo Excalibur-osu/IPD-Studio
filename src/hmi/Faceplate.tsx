@@ -147,10 +147,16 @@ export default function Faceplate({ widget, onClose }: { widget: HmiWidget; onCl
 
       {kind === 'motor' && (
         <>
-          <p className="fp-state">{(t.RUN ?? 0) >= 0.5 ? 'RUNNING' : 'STOPPED'}</p>
+          <p className="fp-state" style={(t.FAULT ?? 0) >= 0.5 ? { color: '#ff6b6b' } : undefined}>
+            {(t.FAULT ?? 0) >= 0.5 ? 'FAULT'
+              : (t.RUN ?? 0) >= 0.5 ? ((t.RAMP ?? 1) < 1 ? 'STARTING' : 'RUNNING') : 'STOPPED'}
+          </p>
           <div className="fp-row">
             <button data-testid="fp-start" onClick={() => write(tag, 'RUN', 1)}>Start</button>
             <button data-testid="fp-stop" onClick={() => write(tag, 'RUN', 0)}>Stop</button>
+            {(t.FAULT ?? 0) >= 0.5 && (
+              <button data-testid="fp-fault-reset" onClick={() => write(tag, 'FAULT', 0)}>Reset fault</button>
+            )}
           </div>
         </>
       )}
@@ -167,8 +173,11 @@ export default function Faceplate({ widget, onClose }: { widget: HmiWidget; onCl
 
       {kind === 'throttle' && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <VBar label="Position" value={t.OP ?? 0} min={0} max={100} unit="%" color="#26c281" />
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 4 }}>
+            <VBar label="Position" value={t.POS ?? t.OP ?? 0} min={0} max={100} unit="%" color="#26c281" />
+            {t.POS !== undefined && Math.abs((t.OP ?? 0) - t.POS) > 1 && (
+              <VBar label="Command" value={t.OP ?? 0} min={0} max={100} unit="%" color="#9b8cff" />
+            )}
           </div>
           <input data-testid="fp-op" type="range" min={0} max={100} value={t.OP ?? 0}
             onChange={(e) => write(tag, 'OP', Number(e.target.value))} style={{ width: '100%' }} />

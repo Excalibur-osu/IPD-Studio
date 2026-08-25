@@ -91,7 +91,16 @@ pipe** — press **⊙ pick**, then click the tank or pipe right on the canvas
 
 The physics is deliberately simple and honest about it: pumps deliver rated
 flow through open valves, tanks integrate level, sources feed by pressure,
-measurements drift realistically. RUN starts **calm**, the way a real plant
+measurements drift realistically. **Headers and manifolds work**: a line
+that fans out splits the pump's flow across its open legs by conductance
+(closing one leg sends everything down the other — a proportional split,
+not a pressure solve, and documented as such). Equipment has **dynamics**:
+pumps spin up over ~2 s (STARTING pulse), throttling valves stroke toward
+their command at 25%/s — and if command and position disagree too long, a
+**DEV deviation alarm** annunciates (a stuck valve can't hide). The **⚡
+Events** menu injects training upsets — trip a pump (breaker opens, FAULT
+until reset from the faceplate), stick a valve, freeze a transmitter, plug
+the busiest line — every one journaled, all undone by Reset. RUN starts **calm**, the way a real plant
 hands over: pumps stopped, every hand valve in a flow path closed, undriven
 throttling valves at 0% — nothing moves and nothing alarms until the
 operator lines up valves and starts pumps (or a control loop acts). Lines

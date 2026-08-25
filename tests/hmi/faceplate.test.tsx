@@ -52,9 +52,14 @@ describe('Faceplate', () => {
     expect(host.innerHTML).toContain('data-testid="fp-auto"')
     expect(host.innerHTML).toContain('data-testid="fp-man"')
   })
-  it('writeTag flips pump state and the faceplate reflects it', async () => {
+  it('writeTag flips pump state and the faceplate reflects it (STARTING → RUNNING)', async () => {
     await act(async () => useSimStore.getState().writeTag('P-1', 'RUN', 1))
-    const host = await mount(<Faceplate widget={w('p')} onClose={() => {}} />)
+    let host = await mount(<Faceplate widget={w('p')} onClose={() => {}} />)
+    expect(host.innerHTML).toContain('STARTING') // spin-up ramp in progress
+    // ~2s of sim time completes the ramp
+    await act(async () => { for (let i = 0; i < 11; i++) useSimStore.getState().tickOnce(0.2) })
+    document.body.innerHTML = ''
+    host = await mount(<Faceplate widget={w('p')} onClose={() => {}} />)
     expect(host.innerHTML).toContain('RUNNING')
   })
 })

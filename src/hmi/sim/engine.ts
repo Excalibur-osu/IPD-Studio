@@ -1,8 +1,8 @@
 import type { HmiScreen } from '../model'
 import type { TagDef } from './tags'
 import { buildTagDefs } from './tags'
-import type { Branch, FlowNetwork } from './network'
-import { buildNetwork } from './network'
+import type { FlowNetwork } from './network'
+import { buildNetwork, solveFlows } from './network'
 
 export interface ControllerSpec {
   tag: string
@@ -20,6 +20,11 @@ const PUMP_RATED = 10
 const GRAVITY = 4
 const KP = 1.5
 const KI = 0.4
+/** Equipment dynamics: pump spin-up seconds, valve stroke %/s, and the
+ *  deviation band+delay that raises a valve DEV alarm. */
+const RAMP_S = 2
+const STROKE_RATE = 25
+const DEV_LIMIT = 10
 
 /** Compile one screen — or the whole plant (every screen) so RUN keeps
  *  simulating while the operator navigates between pages. Tag defs merge
@@ -84,8 +89,12 @@ export function initTags(model: SimModel): Tags {
   for (const d of model.defs) {
     switch (d.kind) {
       case 'tank': tags[d.name] = { PV: d.level0 ?? 40 }; break
-      case 'motor': tags[d.name] = { RUN: 0 }; break
-      case 'valve': tags[d.name] = { OP: driven.has(d.name) ? 40 : 0 }; break
+      case 'motor': tags[d.name] = { RUN: 0, RAMP: 0 }; break
+      case 'valve': {
+        const op = driven.has(d.name) ? 40 : 0
+        tags[d.name] = { OP: op, POS: op, DEVT: 0 }
+        break
+      }
       case 'valveOnOff': tags[d.name] = { OPEN: piped.has(d.name) ? 0 : 1 }; break
       case 'display': tags[d.name] = { PV: d.base ?? (d.min + d.max) / 2 }; break
       case 'controller': tags[d.name] = { PV: 0, SP: 50, OP: 40, MODE: 1, I: 0 }; break
@@ -96,31 +105,14 @@ export function initTags(model: SimModel): Tags {
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
-function branchFlow(b: Branch, tags: Tags, tankLevel: (t: string) => number): number {
-  // Calm-start physics: free-end sources are PASSIVE — flow needs a running
-  // pump on the branch. Only tank-sourced branches move without one (gravity),
-  // and gravity to a dead end needs a valve in the path: an unvalved stub
-  // (a line ending in an off-page arrow) must not drain a tank forever with
-  // no way for the operator to stop it.
-  let driver: number
-  if (b.pumps.length > 0) driver = b.pumps.every((p) => (tags[p]?.RUN ?? 0) >= 0.5) ? PUMP_RATED : 0
-  else if (b.from.kind === 'tank') {
-    const uncontrollableStub = b.to.kind === 'sink' && b.valves.length === 0
-    driver = b.fromBottom && !uncontrollableStub ? GRAVITY : 0 // top lines (vent/relief) don't siphon liquid
-  }
-  else driver = 0
-  for (const v of b.valves) {
-    const t = tags[v]
-    const frac = t?.OP !== undefined ? clamp(t.OP / 100, 0, 1) : (t?.OPEN ?? 1) >= 0.5 ? 1 : 0
-    driver *= frac
-  }
-  if (b.from.kind === 'tank' && tankLevel(b.from.tag) <= 0.5) return 0
-  if (b.to.kind === 'tank' && tankLevel(b.to.tag) >= 99.5) return 0
-  return driver
-}
-
 /** One simulation step. Pure: never mutates its inputs. */
-export function tick(model: SimModel, prev: Tags, dt: number, rng: () => number): { tags: Tags; branchFlows: Record<string, number> } {
+export function tick(
+  model: SimModel,
+  prev: Tags,
+  dt: number,
+  rng: () => number,
+  opts?: { pipeFactor?: (pipeId: string) => number },
+): { tags: Tags; branchFlows: Record<string, number> } {
   const tags: Tags = Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, { ...v }]))
 
   // 1) controllers drive their valve OP: PI in AUTO, operator OP pass-through in MAN
@@ -154,10 +146,41 @@ export function tick(model: SimModel, prev: Tags, dt: number, rng: () => number)
     if (valve && valve.OP !== undefined) valve.OP = op
   }
 
-  // 2) branch flows from the previous tick's levels
+  // 1.5) equipment dynamics: pumps spin up, valves stroke toward command,
+  // deviation time accumulates (a stuck valve stops chasing)
+  for (const d of model.defs) {
+    const t = tags[d.name]
+    if (!t) continue
+    if (d.kind === 'motor') {
+      if ((t.FAULT ?? 0) >= 0.5 && (t.RUN ?? 0) >= 0.5) t.RUN = 0 // a trip opens the breaker
+      const commanded = (t.RUN ?? 0) >= 0.5 && (t.FAULT ?? 0) < 0.5
+      t.RAMP = commanded ? Math.min(1, (t.RAMP ?? 0) + dt / RAMP_S) : 0
+    }
+    if (d.kind === 'valve') {
+      const cmd = t.OP ?? 0
+      const pos = t.POS ?? cmd
+      t.POS = (t.STUCK ?? 0) >= 0.5 ? pos : pos + clamp(cmd - pos, -STROKE_RATE * dt, STROKE_RATE * dt)
+      t.DEVT = Math.abs(cmd - t.POS) > DEV_LIMIT ? (t.DEVT ?? 0) + dt : 0
+    }
+  }
+
+  // 2) branch flows from the previous tick's levels — calm-start doctrine
+  // lives in solveFlows: passive free ends, gravity only from tank bottoms
+  // with a controllable path, pumps split across their legs by conductance
   const level = (tag: string) => prev[tag]?.PV ?? 0
-  const branchFlows: Record<string, number> = {}
-  for (const b of model.net.branches) branchFlows[b.id] = branchFlow(b, tags, level)
+  const frac = (v: string) => {
+    const t = tags[v]
+    if (!t) return 1
+    if (t.POS !== undefined) return clamp(t.POS / 100, 0, 1)
+    if (t.OP !== undefined) return clamp(t.OP / 100, 0, 1)
+    return (t.OPEN ?? 1) >= 0.5 ? 1 : 0
+  }
+  const pumpOn = (p: string) => {
+    const t = tags[p]
+    if (!t || (t.FAULT ?? 0) >= 0.5 || (t.RUN ?? 0) < 0.5) return 0
+    return t.RAMP ?? 1
+  }
+  const branchFlows = solveFlows(model.net, frac, pumpOn, level, opts?.pipeFactor, { rated: PUMP_RATED, gravity: GRAVITY })
 
   // 3) integrate tanks
   for (const d of model.defs) {
@@ -175,11 +198,13 @@ export function tick(model: SimModel, prev: Tags, dt: number, rng: () => number)
   for (const d of model.defs) {
     if (d.kind !== 'display') continue
     const t = tags[d.name]!
+    if ((t.FROZEN ?? 0) >= 0.5) continue // scenario: transmitter input frozen
     if (d.bindTank) {
       t.PV = clamp((tags[d.bindTank]?.PV ?? 0) + (rng() - 0.5) * 0.8, 0, 100)
     } else if (d.bindPipe) {
-      const b = model.net.branches.find((br) => br.pipeIds.includes(d.bindPipe!))
-      t.PV = b ? branchFlows[b.id]! : 0
+      let f = 0
+      for (const br of model.net.branches) if (br.pipeIds.includes(d.bindPipe!)) f += branchFlows[br.id]!
+      t.PV = f
     } else {
       const base = d.base ?? (d.min + d.max) / 2
       const wander = (rng() - 0.5) * (d.max - d.min) * 0.01

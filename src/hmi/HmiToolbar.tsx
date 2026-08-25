@@ -5,6 +5,58 @@ import Modal from '../panels/Modal'
 
 const mmss = (t: number) => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}`
 
+/** Training scenario injector: trip pumps, stick valves, freeze bound
+ *  transmitters, choke the busiest line. Everything is journaled and Reset
+ *  restores the plant. */
+function EventsModal({ onClose }: { onClose(): void }) {
+  const doc = useStore((s) => s.doc)
+  const tags = useSimStore((s) => s.tags)
+  const plugged = useSimStore((s) => s.plugged)
+  const write = useSimStore((s) => s.writeTag)
+  const plugArtery = useSimStore((s) => s.plugArtery)
+  const clearPlugs = useSimStore((s) => s.clearPlugs)
+  const seen = new Set<string>()
+  const pumps: string[] = []
+  const valves: string[] = []
+  const bound: string[] = []
+  for (const sc of doc.hmiScreens) {
+    for (const w of sc.widgets) {
+      if (!w.tag || seen.has(w.tag)) continue
+      seen.add(w.tag)
+      if (w.type === 'pump') pumps.push(w.tag)
+      else if (w.type === 'valve' && w.props?.throttle === true) valves.push(w.tag)
+      else if (typeof w.props?.bindTank === 'string' || typeof w.props?.bindPipe === 'string') bound.push(w.tag)
+    }
+  }
+  const toggle = (tag: string, sig: string) => write(tag, sig, (tags[tag]?.[sig] ?? 0) >= 0.5 ? 0 : 1)
+  const row = (label: string, active: boolean, onClick: () => void, key: string) => (
+    <button key={key} data-testid="event-row" onClick={onClick}
+      style={{ textAlign: 'left', padding: '6px 10px', ...(active ? { background: '#fde8e8', border: '1px solid #c53030', color: '#9b1c1c', fontWeight: 600 } : {}) }}>
+      {active ? '↩ ' : '⚡ '}{label}
+    </button>
+  )
+  return (
+    <Modal title="Process events (training)" onClose={onClose}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {pumps.slice(0, 6).map((t) => row(
+          (tags[t]?.FAULT ?? 0) >= 0.5 ? `Clear ${t} trip` : `Trip pump ${t}`,
+          (tags[t]?.FAULT ?? 0) >= 0.5, () => toggle(t, 'FAULT'), `f-${t}`))}
+        {valves.slice(0, 6).map((t) => row(
+          (tags[t]?.STUCK ?? 0) >= 0.5 ? `Free valve ${t}` : `Stick valve ${t}`,
+          (tags[t]?.STUCK ?? 0) >= 0.5, () => toggle(t, 'STUCK'), `s-${t}`))}
+        {bound.slice(0, 6).map((t) => row(
+          (tags[t]?.FROZEN ?? 0) >= 0.5 ? `Unfreeze ${t}` : `Freeze transmitter ${t}`,
+          (tags[t]?.FROZEN ?? 0) >= 0.5, () => toggle(t, 'FROZEN'), `z-${t}`))}
+        {row(plugged.length > 0 ? `Clear plugged lines (${plugged.length})` : 'Plug the busiest line',
+          plugged.length > 0, () => (plugged.length > 0 ? clearPlugs() : plugArtery()), 'plug')}
+        <p style={{ fontSize: 11, color: '#889', margin: '6px 0 0' }}>
+          Injected upsets land in the journal; Reset restores the plant.
+        </p>
+      </div>
+    </Modal>
+  )
+}
+
 export default function HmiToolbar({ onExit, tool, setTool, onImport, onUndo, onRedo, zoomed, onFit }: {
   onExit(): void
   tool: 'select' | 'pipe'
@@ -27,6 +79,7 @@ export default function HmiToolbar({ onExit, tool, setTool, onImport, onUndo, on
   const replaceScreen = useStore((s) => s.replaceScreen)
 
   const [confirmReimport, setConfirmReimport] = useState(false)
+  const [eventsOpen, setEventsOpen] = useState(false)
   const reimport = async () => {
     if (!screen?.fromSheetId) return
     const { importSheet } = await import('./importFromPid')
@@ -76,6 +129,8 @@ export default function HmiToolbar({ onExit, tool, setTool, onImport, onUndo, on
           <button data-testid="hmi-play" onClick={() => sim().playPause()}>{playing ? 'Pause' : 'Play'}</button>
           <button data-testid="hmi-speed" onClick={() => sim().setSpeed(speed === 1 ? 5 : 1)}>{speed}×</button>
           <button data-testid="hmi-reset" onClick={() => sim().reset()}>Reset</button>
+          <button data-testid="hmi-events" onClick={() => setEventsOpen(true)}
+            title="Inject a process upset (training scenarios)">⚡ Events</button>
         </>
       ) : (
         <>
@@ -103,6 +158,9 @@ export default function HmiToolbar({ onExit, tool, setTool, onImport, onUndo, on
       )}
       <span className="grow" />
       <span className="demo-note">Training / demo simulation — not for operations</span>
+      {eventsOpen && mode === 'run' && (
+        <EventsModal onClose={() => setEventsOpen(false)} />
+      )}
       {confirmReimport && screen && (
         <Modal title="Re-import screen" onClose={() => setConfirmReimport(false)}>
           <p style={{ margin: '4px 0 12px' }}>
