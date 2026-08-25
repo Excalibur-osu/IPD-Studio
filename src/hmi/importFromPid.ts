@@ -16,8 +16,18 @@ import '../symbols/lib/index'
 export interface ImportCtx { nameOf: Map<string, string> }
 
 const AUTO_PREFIX: Partial<Record<WidgetType, string>> = {
-  tank: 'TK', pump: 'P', valve: 'V', display: 'XI', symbol: 'X',
+  tank: 'TK', pump: 'P', valve: 'V', display: 'XI', symbol: 'X', equip: 'M',
 }
+
+/** Motor-driven equipment the HMI runs as an `equip` widget (Start/Stop,
+ *  ramp, trip). pump.* keeps the dedicated pump widget; the ejector has no
+ *  motor but drives flow, so it stays a pump; hx.* stays a passive graphic. */
+const EQUIP_MOTOR = new Set([
+  'comp.centrifugal', 'comp.recip', 'comp.screw', 'blower', 'agitator', 'motor', 'turbine.steam',
+  'conveyor.belt', 'conveyor.screw', 'bucket-elevator', 'feeder.rotary', 'crusher',
+  'mill.ball', 'extruder', 'blender.ribbon', 'screen.vibrating', 'dryer.rotary',
+  'heater.fired', 'heater.electric', 'boiler', 'cooling-tower',
+])
 
 function categoryOf(node: PlantNode): string {
   try { return getSymbol(node.symbolId).category } catch { return 'custom' }
@@ -42,6 +52,7 @@ function widgetTypeFor(node: PlantNode, category: string): { type: WidgetType; p
   // instruments are decided by their tag, never by category — a VFD box is
   // category 'rotating' but it is not a pump you can start
   if (node.kind !== 'instrument') {
+    if (EQUIP_MOTOR.has(node.symbolId)) return { type: 'equip', props: { symbolId: node.symbolId } }
     if (category === 'rotating') return { type: 'pump', props: undefined }
     if (category === 'control-valves') return { type: 'valve', props: { throttle: true } }
     if (category === 'safety') return { type: 'symbol', props: { symbolId: node.symbolId } }
@@ -93,7 +104,7 @@ export function mapNodes(sheet: Sheet, separator: '-' | ''): { widgets: HmiWidge
       ;({ w, h } = nodeSize(node))
       if (w <= 0 || h <= 0) ({ w, h } = WIDGET_DEFAULT_SIZE[mapped.type])
       if (mapped.type === 'tank') { w = Math.max(w, 64); h = Math.max(h, 80) }
-      if (mapped.type === 'pump') { w = Math.max(w, 40); h = Math.max(h, 40) }
+      if (mapped.type === 'pump' || mapped.type === 'equip') { w = Math.max(w, 40); h = Math.max(h, 40) }
       if (mapped.type === 'symbol') { w = Math.max(w, 12); h = Math.max(h, 12) }
     }
     // a graphic with no real identity (junction dots, untagged hardware)
@@ -102,7 +113,7 @@ export function mapNodes(sheet: Sheet, separator: '-' | ''): { widgets: HmiWidge
     // orientation matters for glyph-true widgets: a rotated gate valve must
     // stay a vertical bowtie, a rotated gauge glass must stay upside down
     const rot = (((node.rotation ?? 0) % 360) + 360) % 360
-    const keepRot = (mapped.type === 'valve' || mapped.type === 'symbol') && (rot === 90 || rot === 180 || rot === 270)
+    const keepRot = (mapped.type === 'valve' || mapped.type === 'symbol' || mapped.type === 'equip') && (rot === 90 || rot === 180 || rot === 270)
     widgets.push({
       id: `imp-${node.id}`,
       type: mapped.type, x: node.x, y: node.y, w, h,
@@ -337,7 +348,7 @@ export function importSheet(doc: ProjectDoc, sheetId: string): HmiScreen {
   // around their footprints exactly like the canvas manhattan router does
   const solidRect = new Map<string, Rect>()
   for (const w of widgets) {
-    if (w.type === 'tank' || w.type === 'pump' || w.type === 'valve' || w.type === 'symbol') {
+    if (w.type === 'tank' || w.type === 'pump' || w.type === 'valve' || w.type === 'symbol' || w.type === 'equip') {
       solidRect.set(w.id, { x: w.x, y: w.y, w: w.w, h: w.h })
     }
   }

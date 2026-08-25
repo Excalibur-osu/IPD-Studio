@@ -4,6 +4,8 @@ import type { HmiScreen, HmiWidget } from '../../src/hmi/model'
 import { buildTagDefs } from '../../src/hmi/sim/tags'
 import { buildSimModel, initTags, tick } from '../../src/hmi/sim/engine'
 import { buildNetwork } from '../../src/hmi/sim/network'
+import { mapNodes } from '../../src/hmi/importFromPid'
+import type { Sheet } from '../../src/model/types'
 import { renderWidget } from '../../src/hmi/widgets/index'
 import { THEMES } from '../../src/hmi/theme'
 import { SECTIONS } from '../../src/hmi/HmiPalette'
@@ -81,6 +83,34 @@ describe('palette equipment items', () => {
       expect(typeof id).toBe('string')
       expect(() => getSymbol(id as string)).not.toThrow()
     }
+  })
+})
+
+describe('import maps motor equipment to equip', () => {
+  const node = (id: string, symbolId: string) =>
+    ({ id, kind: 'equipment', symbolId, x: 100, y: 100 }) as Sheet['nodes'][number]
+  const sheet = (nodes: Sheet['nodes']) => ({ id: 'sh1', name: 'S', nodes, edges: [] }) as unknown as Sheet
+  const typeOf = (symbolId: string) => {
+    const { widgets } = mapNodes(sheet([node('n1', symbolId)]), '-')
+    return { type: widgets[0]?.type, props: widgets[0]?.props }
+  }
+
+  it('compressors, blowers, agitators, conveyors, heaters, boilers become equip', () => {
+    for (const id of ['comp.centrifugal', 'comp.recip', 'comp.screw', 'blower', 'agitator',
+      'turbine.steam', 'conveyor.belt', 'conveyor.screw', 'bucket-elevator', 'feeder.rotary',
+      'crusher', 'mill.ball', 'extruder', 'blender.ribbon', 'screen.vibrating',
+      'heater.fired', 'heater.electric', 'boiler', 'cooling-tower']) {
+      expect(typeOf(id), id).toEqual({ type: 'equip', props: { symbolId: id } })
+    }
+  })
+  it('pumps stay pumps, exchangers stay symbols', () => {
+    expect(typeOf('pump.centrifugal').type).toBe('pump')
+    expect(typeOf('ejector').type).toBe('pump')
+    expect(typeOf('hx.shell-tube').type).toBe('symbol')
+  })
+  it('untagged equip gets an M- auto tag', () => {
+    const { widgets } = mapNodes(sheet([node('n1', 'comp.centrifugal')]), '-')
+    expect(widgets[0]!.tag).toBe('M-1')
   })
 })
 
