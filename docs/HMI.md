@@ -29,11 +29,18 @@ screens have a design time and a runtime:
   editable: drag the round vertex handles, **double-click a run to insert a
   bend, double-click a bend to remove it**, and drag any straight run
   sideways (the ◇ marks) — both corners follow, axis-locked.
-  Edits are undoable and autosaved with the drawing.
+  Screens manage like sheets: **drag the tabs to reorder**, ⧉ duplicates a
+  screen (fresh ids, bindings remapped), ★ marks the **home screen**, names
+  stay unique, and deletes confirm in a proper dialog (undo brings a screen
+  back). Edits are undoable and autosaved with the drawing.
 - **RUN** — the simulator compiles **every screen into one plant** and ticks
-  5×/s. Values move, tanks fill, pipes animate proportional to flow. The
-  screen tabs (and Screen-link buttons) navigate between pages while the
-  plant keeps running — exactly how a real operator station works. Click
+  5×/s, **opening on the ★ home screen** like a real operator station. The
+  toolbar becomes an operator header: screen title, sim clock, alarm counts
+  by priority, and a ⌂ Home button. Values move, tanks fill, pipes animate
+  proportional to flow. The screen tabs (and Screen-link buttons) navigate
+  between pages while the plant keeps running — and every **Screen link
+  wears a priority dot when its target screen has standing alarms**, so
+  trouble is visible from anywhere. Click
   anything tagged to open its **faceplate** — a draggable DCS-style plate
   (Esc closes): pumps get state + Start/Stop + live flow-through; valves a
   position scale with entry; measurements a **scale bar with the alarm

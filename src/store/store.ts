@@ -68,6 +68,10 @@ export interface StoreState {
   replaceScreen(screen: HmiScreen): void
   renameScreen(id: string, name: string): void
   deleteScreen(id: string): void
+  /** At most one home screen; RUN starts there. */
+  setHomeScreen(id: string, on: boolean): void
+  reorderScreens(id: string, toIndex: number): void
+  duplicateScreen(id: string): string
   setScreenTheme(id: string, theme: HmiTheme): void
   addWidget(partial: Omit<HmiWidget, 'id'>): string
   addWidgets(partials: Omit<HmiWidget, 'id'>[]): string[]
@@ -442,7 +446,11 @@ export const useStore = create<StoreState>()(
         },
 
         addScreen() {
-          const screen = createScreen(get().doc.hmiScreens.length + 1)
+          // never reuse a live name — "Screen 2" twice after a delete confuses
+          const names = new Set(get().doc.hmiScreens.map((sc) => sc.name))
+          let n = get().doc.hmiScreens.length + 1
+          while (names.has(`Screen ${n}`)) n++
+          const screen = createScreen(n)
           set((s) => ({
             doc: touched({ ...s.doc, hmiScreens: [...s.doc.hmiScreens, screen] }),
             activeScreenId: screen.id,
@@ -467,10 +475,76 @@ export const useStore = create<StoreState>()(
         },
 
         renameScreen(id, name) {
+          set((s) => {
+            const taken = new Set(s.doc.hmiScreens.filter((sc) => sc.id !== id).map((sc) => sc.name))
+            let unique = name
+            let i = 2
+            while (taken.has(unique)) unique = `${name} ${i++}`
+            return {
+              doc: touched({ ...s.doc, hmiScreens: s.doc.hmiScreens.map((sc) => (sc.id === id ? { ...sc, name: unique } : sc)) }),
+              dirty: true,
+            }
+          })
+        },
+
+        setHomeScreen(id, on) {
           set((s) => ({
-            doc: touched({ ...s.doc, hmiScreens: s.doc.hmiScreens.map((sc) => (sc.id === id ? { ...sc, name } : sc)) }),
+            doc: touched({
+              ...s.doc,
+              hmiScreens: s.doc.hmiScreens.map((sc) => {
+                const { home: _h, ...rest } = sc
+                return sc.id === id && on ? { ...rest, home: true } : rest
+              }),
+            }),
             dirty: true,
           }))
+        },
+
+        reorderScreens(id, toIndex) {
+          set((s) => {
+            const list = [...s.doc.hmiScreens]
+            const from = list.findIndex((sc) => sc.id === id)
+            if (from < 0) return s
+            const [moved] = list.splice(from, 1)
+            list.splice(Math.max(0, Math.min(list.length, toIndex)), 0, moved!)
+            return { doc: touched({ ...s.doc, hmiScreens: list }), dirty: true }
+          })
+        },
+
+        duplicateScreen(id) {
+          const src = get().doc.hmiScreens.find((sc) => sc.id === id)
+          if (!src) return ''
+          const clone = structuredClone(src)
+          clone.id = ulid()
+          delete clone.home       // only one home screen
+          delete clone.fromSheetId // a copy is hand-owned; re-import must not clobber it
+          const pipeMap = new Map<string, string>()
+          clone.pipes = clone.pipes.map((pp) => {
+            const nid = ulid()
+            pipeMap.set(pp.id, nid)
+            return { ...pp, id: nid }
+          })
+          clone.widgets = clone.widgets.map((w) => {
+            const nw = { ...w, id: ulid() }
+            if (typeof nw.props?.bindPipe === 'string') {
+              const mapped = pipeMap.get(nw.props.bindPipe)
+              nw.props = { ...nw.props }
+              if (mapped) nw.props.bindPipe = mapped
+              else delete nw.props.bindPipe
+            }
+            return nw
+          })
+          const taken = new Set(get().doc.hmiScreens.map((sc) => sc.name))
+          let name = `${src.name} copy`
+          let i = 2
+          while (taken.has(name)) name = `${src.name} copy ${i++}`
+          clone.name = name
+          set((s) => ({
+            doc: touched({ ...s.doc, hmiScreens: [...s.doc.hmiScreens, clone] }),
+            activeScreenId: clone.id,
+            dirty: true,
+          }))
+          return clone.id
         },
 
         deleteScreen(id) {

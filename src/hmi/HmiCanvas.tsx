@@ -40,6 +40,8 @@ export interface HmiCanvasProps {
   history?: Record<string, number[]>
   historyT?: number[]
   alarms?: AlarmView[]
+  /** Worst standing-alarm priority per target screen (nav button dots). */
+  navAlarms?: Record<string, 'high' | 'medium' | 'low'>
   /** Briefly pulse every widget carrying this tag (alarm click-through). */
   flashTag?: string | null
   onWidgetClick?(w: HmiWidget): void
@@ -150,7 +152,7 @@ function segmentPoints(points: { x: number; y: number }[], index: number, axis: 
   )
 }
 
-export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onToolDone, armedPick, onPicked, view = null, onViewChange, onCursor, sim, flows, history, historyT, alarms, flashTag, onWidgetClick }: HmiCanvasProps) {
+export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onToolDone, armedPick, onPicked, view = null, onViewChange, onCursor, sim, flows, history, historyT, alarms, navAlarms, flashTag, onWidgetClick }: HmiCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [drag, setDrag] = useState<DragState>(null)
   const [ghost, setGhost] = useState<{ dx: number; dy: number } | null>(null)
@@ -542,6 +544,11 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
         const sigRef = sim ? parseSignalRef(signal) : null
         if (sim && sigRef) {
           values[signal] = sim[sigRef.tag]?.[sigRef.signal] ?? 0
+        }
+        if (w.type === 'nav' && navAlarms) {
+          const target = typeof w.props?.screen === 'string' ? w.props.screen : ''
+          const p = navAlarms[target]
+          if (p) values.__navPrio = p === 'high' ? 3 : p === 'medium' ? 2 : 1
         }
         const recs = (alarms ?? []).filter((a) => a.tag === w.tag)
         const live = recs.filter((a) => !a.sup && a.phase !== 'pending')

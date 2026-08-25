@@ -2,11 +2,17 @@ import type { WidgetView } from './shared'
 
 /** Screen navigation button: clicking it in run mode jumps to props.screen.
  *  The property panel keeps the label in sync with the target screen's name. */
-export default function NavButton({ widget, theme }: WidgetView) {
+export default function NavButton({ widget, theme, sim }: WidgetView) {
   const { w, h } = widget
+  const prio = sim.__navPrio ?? 0
   return (
     <g>
       <rect x={1} y={1} width={w - 2} height={h - 2} rx={6} fill={theme.panel} stroke={theme.equipStroke} strokeWidth={1.5} />
+      {prio > 0 && (
+        <circle cx={w - 24} cy={9} r={4} data-nav-alarm
+          fill={prio >= 3 ? '#ff4d4d' : prio >= 2 ? '#ffb020' : '#ffd94d'}
+          className={prio >= 3 ? 'hmi-blink' : undefined} />
+      )}
       <text x={10} y={h / 2 + 4} fill={theme.text} fontSize={12} fontWeight={600}>
         {widget.label ?? 'Screen'}
       </text>

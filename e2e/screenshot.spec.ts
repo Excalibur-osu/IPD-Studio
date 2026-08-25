@@ -131,6 +131,33 @@ test('capture zoomed segment editing', async ({ page }) => {
   await page.screenshot({ path: '/tmp/hmi-zoom-segments.png' })
 })
 
+test('capture run header, home screen, nav alarm dot', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.setViewportSize({ width: 1680, height: 1000 })
+  await page.goto('/')
+  await page.getByTestId('open-hmi').click()
+  // Screen 1: an alarming tank
+  await page.getByRole('button', { name: 'New screen' }).click()
+  const canvas = page.getByTestId('hmi-canvas')
+  const b = (await canvas.boundingBox())!
+  const at = (wx: number, wy: number) => ({ x: b.x + (wx / 1600) * b.width, y: b.y + (wy / 1000) * b.height })
+  await page.getByText('Tank', { exact: true }).dblclick()
+  await page.mouse.click(at(360, 290).x, at(360, 290).y)
+  await page.getByTestId('prop-tag').fill('TK-1')
+  await page.getByLabel('Start level %').fill('96')
+  // Screen 2 (home): overview with a nav to Screen 1
+  await page.getByTitle('Add screen').click()
+  await page.getByText('Screen link', { exact: true }).dblclick()
+  await page.mouse.click(at(360, 262).x, at(360, 262).y)
+  await page.locator('label:has-text("Go to") select').selectOption({ label: 'Screen 1' })
+  await page.getByTestId('screen-home').click()
+  // run from Screen 1 — RUN must land on the home overview
+  await page.locator('.hmi-tab', { hasText: /^Screen 1$/ }).click()
+  await page.getByTestId('hmi-run-toggle').click()
+  await page.waitForTimeout(900)
+  await page.screenshot({ path: '/tmp/hmi-screens-chrome.png' })
+})
+
 test('capture alarm summary v2 with suppression', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })

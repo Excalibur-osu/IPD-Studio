@@ -1,5 +1,5 @@
 import './hmi.css'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { THEMES } from './theme'
 import { useStore, activeHmiScreen } from '../store/store'
 import { useSimStore, useSimEngine } from './simStore'
@@ -12,6 +12,8 @@ import type { ArmedPick } from './HmiPropertyPanel'
 import type { View } from './view'
 import { copySelection, pastePayload } from './clipboard'
 import { HMI_WORLD } from './model'
+import { worstAlarmByScreen } from './navAlarms'
+import Modal from '../panels/Modal'
 import Faceplate from './Faceplate'
 import AlarmBanner from './AlarmBanner'
 
@@ -27,22 +29,18 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   const activeScreenId = useStore((s) => s.activeScreenId)
   const addScreen = useStore((s) => s.addScreen)
 
-  /** Build a new HMI screen from a P&ID sheet (prompted pick when several). */
-  const runImport = async () => {
+  const [pickingSheet, setPickingSheet] = useState(false)
+  const importFrom = async (sheetId: string) => {
     const s = useStore.getState()
     const { importSheet } = await import('./importFromPid')
-    let sheet = s.doc.sheets[0]!
-    if (s.doc.sheets.length > 1) {
-      const pick = window.prompt(
-        `Build HMI from which sheet?\n${s.doc.sheets.map((sh, i) => `${i + 1}: ${sh.name}`).join('\n')}`,
-        '1',
-      )
-      if (!pick) return
-      const idx = Number(pick) - 1
-      if (Number.isNaN(idx) || !s.doc.sheets[idx]) return
-      sheet = s.doc.sheets[idx]!
-    }
-    s.addImportedScreen(importSheet(s.doc, sheet.id))
+    s.addImportedScreen(importSheet(s.doc, sheetId))
+    setPickingSheet(false)
+  }
+  /** Build a new HMI screen from a P&ID sheet (modal pick when several). */
+  const runImport = () => {
+    const s = useStore.getState()
+    if (s.doc.sheets.length > 1) setPickingSheet(true)
+    else void importFrom(s.doc.sheets[0]!.id)
   }
   const [selection, setSelection] = useState<string[]>([])
   const [tool, setTool] = useState<'select' | 'pipe'>('select')
@@ -81,6 +79,11 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   const alarms = useSimStore((s) => s.alarms)
   const history = useSimStore((s) => s.history)
   const historyT = useSimStore((s) => s.historyT)
+  const allScreens = useStore((s) => s.doc.hmiScreens)
+  const navAlarms = useMemo(
+    () => (mode === 'run' ? worstAlarmByScreen(allScreens, alarms) : undefined),
+    [mode, allScreens, alarms],
+  )
 
   useEffect(() => {
     setSelection([])
@@ -141,7 +144,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
 
   return (
     <div className={`hmi${mode === 'run' ? ' run-mode' : ''}`}>
-      <HmiToolbar onExit={onExit} tool={tool} setTool={setTool} onImport={() => void runImport()}
+      <HmiToolbar onExit={onExit} tool={tool} setTool={setTool} onImport={runImport}
         onUndo={() => undoRedo('undo')} onRedo={() => undoRedo('redo')}
         zoomed={view !== null} onFit={() => setView(null)} />
       <div className="hmi-side"><HmiPalette /></div>
@@ -167,6 +170,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
                 history={mode === 'run' ? history : undefined}
                 historyT={mode === 'run' ? historyT : undefined}
                 alarms={mode === 'run' ? alarms : undefined}
+                navAlarms={navAlarms}
                 flashTag={flashTag}
                 onWidgetClick={(w) => setFaceplate(w.id)}
               />
@@ -181,7 +185,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
           <div className="hmi-empty">
             <p>No HMI screens yet.</p>
             <button onClick={addScreen}>New screen</button>
-            <button data-testid="hmi-import-empty" onClick={() => void runImport()}>Build from P&ID sheet…</button>
+            <button data-testid="hmi-import-empty" onClick={runImport}>Build from P&ID sheet…</button>
             <p style={{ fontSize: 12, opacity: 0.7 }}>Tip: load the “HMI demo” template from the P&ID toolbar, then come back here and press RUN.</p>
           </div>
         )}
@@ -189,6 +193,19 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
       <div className="hmi-props">
         <HmiPropertyPanel selection={selection} onSelect={setSelection} armedPick={armedPick} onArmPick={setArmedPick} />
       </div>
+      {pickingSheet && (
+        <Modal title="Build HMI from which sheet?" onClose={() => setPickingSheet(false)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {useStore.getState().doc.sheets.map((sh) => (
+              <button key={sh.id} data-testid="pick-sheet" style={{ textAlign: 'left', padding: '8px 10px' }}
+                onClick={() => void importFrom(sh.id)}>
+                <strong>{sh.name}</strong>
+                <span style={{ opacity: 0.6, marginLeft: 8 }}>{sh.nodes.length} symbols · {sh.edges.length} lines</span>
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
       <StatusBar screenName={screen?.name} selection={selection.length}
         notice={armedPick ? `Click a ${armedPick.kind === 'tank' ? 'tank widget' : 'pipe'} on the canvas to bind — Esc cancels` : notice} />
     </div>

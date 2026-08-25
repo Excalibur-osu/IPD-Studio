@@ -250,6 +250,31 @@ test('author tools: zoom, cross-screen clipboard, segment editing', async ({ pag
   expect(pts.map((q) => q.y)).toEqual([776, 696])
 })
 
+test('screens: duplicate, home start, delete modal', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.goto('/')
+  await page.getByTestId('open-hmi').click()
+  await page.getByRole('button', { name: 'New screen' }).click()
+  await page.getByText('Tank', { exact: true }).dblclick()
+  // duplicate the active screen: copy becomes active with a unique name
+  await page.getByTestId('screen-dup').click()
+  await expect(page.locator('.hmi-tab.active')).toContainText('Screen 1 copy')
+  await expect(page.getByTestId('hmi-canvas').locator('g.hmi-widget')).toHaveCount(1)
+  // make the copy the home screen, then run from Screen 1: RUN lands on home
+  await page.getByTestId('screen-home').click()
+  await page.locator('.hmi-tab', { hasText: /^Screen 1$/ }).click()
+  await page.getByTestId('hmi-run-toggle').click()
+  await expect(page.getByTestId('run-title')).toContainText('Screen 1 copy')
+  await expect(page.getByTestId('run-home')).toBeDisabled()
+  await page.getByTestId('hmi-run-toggle').click()
+  // delete via the modal (no native confirm anymore)
+  await page.locator('.hmi-tab', { hasText: 'Screen 1 copy' }).click()
+  await page.locator('.hmi-tab.active .sheet-close', { hasText: '×' }).click()
+  await expect(page.getByRole('dialog')).toContainText('Delete')
+  await page.getByTestId('screen-delete-confirm').click()
+  await expect(page.locator('.hmi-tab', { hasText: 'Screen 1 copy' })).toHaveCount(0)
+})
+
 test('alarm summary v2: shelve and out-of-service', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.goto('/')

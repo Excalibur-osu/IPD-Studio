@@ -83,6 +83,8 @@ export interface HmiScreen {
   pipes: HmiPipe[]
   /** Source sheet when created via import; enables Re-import. */
   fromSheetId?: string
+  /** RUN opens on the home screen (at most one carries the flag). */
+  home?: boolean
 }
 
 /** Logical canvas size; the SVG scales to fit its container. */

@@ -29,6 +29,10 @@ const PICKER_TYPES = [
 
 export function loadAnyText(name: string, text: string): void {
   if (name.endsWith('.xml') || text.trimStart().startsWith('<?xml') || text.includes('<PlantModel')) {
+    // a DEXPI import starts a fresh doc — flag the silent HMI wipe the audit found
+    const cur = useStore.getState().doc
+    const hasHmi = cur.hmiScreens.some((sc) => sc.widgets.length > 0 || sc.pipes.length > 0)
+    if (hasHmi && !window.confirm('Importing this DEXPI file starts a NEW document — your current HMI screens are discarded. Continue?')) return
     const { sheet, warnings } = importDexpi(text)
     const doc = createEmptyDoc(sheet.name || name.replace(/\.[^.]+$/, ''))
     doc.sheets = [sheet]
