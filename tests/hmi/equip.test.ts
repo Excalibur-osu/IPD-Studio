@@ -6,6 +6,8 @@ import { buildSimModel, initTags, tick } from '../../src/hmi/sim/engine'
 import { buildNetwork } from '../../src/hmi/sim/network'
 import { renderWidget } from '../../src/hmi/widgets/index'
 import { THEMES } from '../../src/hmi/theme'
+import { SECTIONS } from '../../src/hmi/HmiPalette'
+import { getSymbol } from '../../src/symbols/registry'
 import '../../src/symbols/lib/index'
 
 const rng = () => 0.5
@@ -65,6 +67,20 @@ describe('equip in the flow network', () => {
     r.tags['K-101']!.RUN = 1
     for (let i = 0; i < 15; i++) r = tick(model, r.tags, 0.2, rng)
     expect(Object.values(r.branchFlows).some((f) => f > 0)).toBe(true)
+  })
+})
+
+describe('palette equipment items', () => {
+  const items = SECTIONS.flatMap((s) => s.items).filter((it) => it.type === 'equip')
+  it('offers the five motor-equipment presets', () => {
+    expect(items.map((it) => it.label)).toEqual(['Agitator', 'Compressor', 'Blower', 'Conveyor', 'Heater'])
+  })
+  it('every preset symbolId resolves in the registry', () => {
+    for (const it of items) {
+      const id = it.props?.symbolId
+      expect(typeof id).toBe('string')
+      expect(() => getSymbol(id as string)).not.toThrow()
+    }
   })
 })
 

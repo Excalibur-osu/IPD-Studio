@@ -470,10 +470,10 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
     const raw = e.dataTransfer.getData(HMI_DRAG_MIME)
     if (!raw) return
     e.preventDefault()
-    const { type } = JSON.parse(raw) as { type: WidgetType }
+    const { type, props } = JSON.parse(raw) as { type: WidgetType; props?: HmiWidget['props'] }
     const pt = toWorld(e)
     const size = WIDGET_DEFAULT_SIZE[type]
-    const id = st().addWidget({ type, x: snap8(pt.x - size.w / 2), y: snap8(pt.y - size.h / 2), ...size })
+    const id = st().addWidget({ type, x: snap8(pt.x - size.w / 2), y: snap8(pt.y - size.h / 2), ...size, ...(props ? { props } : {}) })
     onSelect([id])
   }
 

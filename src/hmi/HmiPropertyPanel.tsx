@@ -352,7 +352,7 @@ export default function HmiPropertyPanel({ selection, onSelect, armedPick, onArm
       )}
       {w.type === 'button' && <NumProp w={w} k="writeValue" label="Write value" />}
       {w.type === 'switch' && (<><StrProp w={w} k="onLabel" label="On label" /><StrProp w={w} k="offLabel" label="Off label" /></>)}
-      {w.type === 'symbol' && <StrProp w={w} k="symbolId" label="Symbol id" placeholder="valve.gate" />}
+      {(w.type === 'symbol' || w.type === 'equip') && <StrProp w={w} k="symbolId" label="Symbol id" placeholder="valve.gate" />}
     </div>
   )
 }

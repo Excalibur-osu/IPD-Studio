@@ -6,12 +6,20 @@ import { useStore } from '../store/store'
 
 export const HMI_DRAG_MIME = 'application/x-hmi-widget'
 
-const SECTIONS: { title: string; items: { type: WidgetType; label: string }[] }[] = [
+export interface PaletteItem { type: WidgetType; label: string; props?: HmiWidget['props'] }
+
+export const SECTIONS: { title: string; items: PaletteItem[] }[] = [
   {
     title: 'Equipment',
     items: [
       { type: 'tank', label: 'Tank' }, { type: 'pump', label: 'Pump' },
-      { type: 'valve', label: 'Valve' }, { type: 'symbol', label: 'P&ID symbol' },
+      { type: 'valve', label: 'Valve' },
+      { type: 'equip', label: 'Agitator', props: { symbolId: 'agitator' } },
+      { type: 'equip', label: 'Compressor', props: { symbolId: 'comp.centrifugal' } },
+      { type: 'equip', label: 'Blower', props: { symbolId: 'blower' } },
+      { type: 'equip', label: 'Conveyor', props: { symbolId: 'conveyor.belt' } },
+      { type: 'equip', label: 'Heater', props: { symbolId: 'heater.fired' } },
+      { type: 'symbol', label: 'P&ID symbol' },
     ],
   },
   {
@@ -36,22 +44,24 @@ const SECTIONS: { title: string; items: { type: WidgetType; label: string }[] }[
 ]
 
 const PREVIEW_SIM: Partial<Record<WidgetType, Record<string, number>>> = {
-  tank: { PV: 62 }, pump: { RUN: 1 }, valve: { OP: 60 }, display: { PV: 48.3 },
+  tank: { PV: 62 }, pump: { RUN: 1 }, equip: { RUN: 1 }, valve: { OP: 60 }, display: { PV: 48.3 },
   gauge: { PV: 65 }, trend: { PV: 52 }, lamp: { on: 1 }, switch: { on: 1 },
   bar: { PV: 58, SP: 65 },
 }
 const TREND_PREVIEW = [30, 35, 42, 40, 48, 55, 52, 60, 58, 66, 63, 70]
 
-function ItemPreview({ type }: { type: WidgetType }) {
+function ItemPreview({ item }: { item: PaletteItem }) {
+  const { type } = item
   const size = WIDGET_DEFAULT_SIZE[type]
   const widget: HmiWidget = {
     id: `pal-${type}`, type, x: 0, y: 0, ...size,
     label: type === 'label' ? 'Text' : type === 'button' ? 'START' : type === 'nav' ? 'Screen' : type === 'panel' ? 'Group' : undefined,
-    props: type === 'valve' ? { throttle: true }
+    props: item.props
+      ?? (type === 'valve' ? { throttle: true }
       : type === 'symbol' ? { symbolId: 'vessel.column-tray' }
       : type === 'lamp' || type === 'switch' ? { signal: 'on' }
       : type === 'bar' ? { H: 80, L: 20 }
-      : undefined,
+      : undefined),
   }
   const pad = 14
   return (
@@ -71,20 +81,20 @@ export default function HmiPalette() {
           <h4 style={{ margin: '8px 0 4px', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.6, color: '#667' }}>{sec.title}</h4>
           {sec.items.map((it) => (
             <div
-              key={it.type}
+              key={`${it.type}:${it.label}`}
               className="hmi-pal-item"
               draggable
               onDragStart={(e) => {
-                e.dataTransfer.setData(HMI_DRAG_MIME, JSON.stringify({ type: it.type }))
+                e.dataTransfer.setData(HMI_DRAG_MIME, JSON.stringify({ type: it.type, props: it.props }))
                 e.dataTransfer.effectAllowed = 'copy'
               }}
               onDoubleClick={() => {
                 const size = WIDGET_DEFAULT_SIZE[it.type]
-                addWidget({ type: it.type, x: 320, y: 240, ...size })
+                addWidget({ type: it.type, x: 320, y: 240, ...size, ...(it.props ? { props: it.props } : {}) })
               }}
               title="Drag onto the canvas (or double-click to place)"
             >
-              <ItemPreview type={it.type} />
+              <ItemPreview item={it} />
               <span>{it.label}</span>
             </div>
           ))}
