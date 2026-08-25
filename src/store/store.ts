@@ -65,6 +65,9 @@ export interface StoreState {
   setActiveScreen(id: string): void
   addScreen(): string
   addImportedScreen(screen: HmiScreen): void
+  /** Batch import (multi-sheet + optional overview): ONE undo step; if an
+   *  incoming screen claims home, existing homes yield. Activates the first. */
+  addImportedScreens(screens: HmiScreen[]): void
   replaceScreen(screen: HmiScreen): void
   renameScreen(id: string, name: string): void
   deleteScreen(id: string): void
@@ -465,6 +468,24 @@ export const useStore = create<StoreState>()(
             activeScreenId: screen.id,
             dirty: true,
           }))
+        },
+
+        addImportedScreens(screens) {
+          if (screens.length === 0) return
+          set((s) => {
+            const incomingHome = screens.some((sc) => sc.home)
+            const existing = incomingHome
+              ? s.doc.hmiScreens.map((sc) => {
+                  const { home: _h, ...rest } = sc
+                  return rest
+                })
+              : s.doc.hmiScreens
+            return {
+              doc: touched({ ...s.doc, hmiScreens: [...existing, ...screens] }),
+              activeScreenId: screens[0]!.id,
+              dirty: true,
+            }
+          })
         },
 
         replaceScreen(screen) {

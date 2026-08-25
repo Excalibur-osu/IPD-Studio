@@ -30,17 +30,29 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
   const addScreen = useStore((s) => s.addScreen)
 
   const [pickingSheet, setPickingSheet] = useState(false)
-  const importFrom = async (sheetId: string) => {
+  const [pickedSheets, setPickedSheets] = useState<Set<string>>(new Set())
+  const [withOverview, setWithOverview] = useState(true)
+  const importFrom = async (sheetIds: string[], overview: boolean) => {
     const s = useStore.getState()
     const { importSheet } = await import('./importFromPid')
-    s.addImportedScreen(importSheet(s.doc, sheetId))
+    const { buildOverview } = await import('./overview')
+    const imported = sheetIds.map((id) => importSheet(s.doc, id))
+    if (imported.length === 0) return
+    // overview first: it is home and becomes the active tab
+    const screens = overview && imported.length > 1 ? [buildOverview(imported), ...imported] : imported
+    s.addImportedScreens(screens)
     setPickingSheet(false)
   }
-  /** Build a new HMI screen from a P&ID sheet (modal pick when several). */
+  /** Build HMI screens from P&ID sheets (modal pick when several). */
   const runImport = () => {
     const s = useStore.getState()
-    if (s.doc.sheets.length > 1) setPickingSheet(true)
-    else void importFrom(s.doc.sheets[0]!.id)
+    if (s.doc.sheets.length > 1) {
+      setPickedSheets(new Set(s.doc.sheets.map((sh) => sh.id)))
+      setWithOverview(true)
+      setPickingSheet(true)
+    } else {
+      void importFrom([s.doc.sheets[0]!.id], false)
+    }
   }
   const [selection, setSelection] = useState<string[]>([])
   const [tool, setTool] = useState<'select' | 'pipe'>('select')
@@ -194,15 +206,37 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
         <HmiPropertyPanel selection={selection} onSelect={setSelection} armedPick={armedPick} onArmPick={setArmedPick} />
       </div>
       {pickingSheet && (
-        <Modal title="Build HMI from which sheet?" onClose={() => setPickingSheet(false)}>
+        <Modal title="Build HMI from the P&ID" onClose={() => setPickingSheet(false)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {useStore.getState().doc.sheets.map((sh) => (
-              <button key={sh.id} data-testid="pick-sheet" style={{ textAlign: 'left', padding: '8px 10px' }}
-                onClick={() => void importFrom(sh.id)}>
+              <label key={sh.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 2px', cursor: 'pointer' }}>
+                <input type="checkbox" data-testid="pick-sheet" checked={pickedSheets.has(sh.id)}
+                  onChange={(e) => {
+                    const next = new Set(pickedSheets)
+                    if (e.target.checked) next.add(sh.id)
+                    else next.delete(sh.id)
+                    setPickedSheets(next)
+                  }} />
                 <strong>{sh.name}</strong>
-                <span style={{ opacity: 0.6, marginLeft: 8 }}>{sh.nodes.length} symbols · {sh.edges.length} lines</span>
-              </button>
+                <span style={{ opacity: 0.6 }}>{sh.nodes.length} symbols · {sh.edges.length} lines</span>
+              </label>
             ))}
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 2px 2px', cursor: 'pointer', borderTop: '1px solid #e2e2e8', marginTop: 4 }}>
+              <input type="checkbox" data-testid="import-overview" checked={withOverview}
+                onChange={(e) => setWithOverview(e.target.checked)} />
+              <span>Generate a <strong>plant overview</strong> screen (one tile per sheet, becomes ★ home)</span>
+            </label>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+              <button onClick={() => setPickingSheet(false)}>Cancel</button>
+              <button data-testid="import-go" disabled={pickedSheets.size === 0}
+                style={{ background: '#2b6cb0', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 14px' }}
+                onClick={() => {
+                  const order = useStore.getState().doc.sheets.filter((sh) => pickedSheets.has(sh.id)).map((sh) => sh.id)
+                  void importFrom(order, withOverview)
+                }}>
+                Import {pickedSheets.size} sheet{pickedSheets.size === 1 ? '' : 's'}
+              </button>
+            </div>
           </div>
         </Modal>
       )}

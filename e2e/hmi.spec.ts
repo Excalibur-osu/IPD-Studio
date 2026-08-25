@@ -250,6 +250,45 @@ test('author tools: zoom, cross-screen clipboard, segment editing', async ({ pag
   expect(pts.map((q) => q.y)).toEqual([776, 696])
 })
 
+test('multi-sheet import generates a plant overview', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.goto('/')
+  await page.evaluate(() => {
+    const node = (id: string, symbolId: string, kind: string, x: number, y: number, letters?: string, loop?: string) =>
+      ({ id, symbolId, kind, x, y, rotation: 0, ...(letters ? { tag: { letters, loop } } : {}) })
+    const sheet = (id: string, name: string, nodes: unknown[]) =>
+      ({ id, name, drawingNumber: '', revision: '0', sheetSize: 'A3', nodes, edges: [] })
+    const doc = {
+      schemaVersion: 4,
+      meta: { name: 'Multi', author: '', created: '', modified: '' },
+      settings: { gridPx: 8, tagSeparator: '-' },
+      sheets: [
+        sheet('sh1', 'Feed', [node('n1', 'vessel.tank', 'equipment', 100, 100, 'TK', '1'), node('n2', 'instr.bubble', 'instrument', 300, 100, 'LIC', '1')]),
+        sheet('sh2', 'Storage', [node('n3', 'vessel.tank', 'equipment', 100, 100, 'TK', '9')]),
+      ],
+      hmiScreens: [],
+    }
+    const pid = (window as unknown as { __pid: { useStore: { getState(): { loadIntoStore(d: unknown): void } } } }).__pid
+    pid.useStore.getState().loadIntoStore(doc)
+  })
+  await page.getByTestId('open-hmi').click()
+  await page.getByTestId('hmi-import-empty').click()
+  // the dialog offers both sheets (checked) and the overview option
+  await expect(page.getByTestId('pick-sheet')).toHaveCount(2)
+  await expect(page.getByTestId('import-overview')).toBeChecked()
+  await page.getByTestId('import-go').click()
+  // overview + one screen per sheet; overview is active and home-starred
+  await expect(page.locator('.hmi-tab')).toHaveCount(4) // 3 screens + the ＋ button
+  await expect(page.locator('.hmi-tab.active')).toContainText('Plant overview')
+  await expect(page.locator('.hmi-tab.active')).toContainText('★')
+  const canvas = page.getByTestId('hmi-canvas')
+  await expect(canvas.locator('g.hmi-widget')).not.toHaveCount(0)
+  // RUN opens on the overview (it is home) with the operator header
+  await page.getByTestId('hmi-run-toggle').click()
+  await expect(page.getByTestId('run-title')).toContainText('Plant overview')
+  await page.getByTestId('hmi-run-toggle').click()
+})
+
 test('screens: duplicate, home start, delete modal', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.goto('/')

@@ -23,6 +23,9 @@ test('capture a real user document', async ({ page }) => {
   const importBtn = page.getByTestId('hmi-import')
   if (await importBtn.count()) await importBtn.click()
   else await page.getByTestId('hmi-import-empty').click()
+  // multi-sheet docs open the import dialog; take all sheets + overview
+  const go = page.getByTestId('import-go')
+  if (await go.isVisible().catch(() => false)) await go.click()
   await page.waitForTimeout(400)
   await page.screenshot({ path: '/tmp/hmi-user-edit.png' })
   await page.getByTestId('hmi-run-toggle').click()
@@ -129,6 +132,53 @@ test('capture zoomed segment editing', async ({ page }) => {
   await page.mouse.wheel(0, -600)
   await page.waitForTimeout(250)
   await page.screenshot({ path: '/tmp/hmi-zoom-segments.png' })
+})
+
+test('capture generated plant overview', async ({ page }) => {
+  page.on('dialog', (d) => void d.accept())
+  await page.setViewportSize({ width: 1680, height: 1000 })
+  await page.goto('/')
+  await page.evaluate(() => {
+    const node = (id: string, symbolId: string, kind: string, x: number, y: number, letters?: string, loop?: string) =>
+      ({ id, symbolId, kind, x, y, rotation: 0, ...(letters ? { tag: { letters, loop } } : {}) })
+    const sheet = (id: string, name: string, nodes: unknown[]) =>
+      ({ id, name, drawingNumber: '', revision: '0', sheetSize: 'A3', nodes, edges: [] })
+    const doc = {
+      schemaVersion: 4,
+      meta: { name: 'Refinery', author: '', created: '', modified: '' },
+      settings: { gridPx: 8, tagSeparator: '-' },
+      sheets: [
+        sheet('sh1', 'Feed section', [
+          node('n1', 'vessel.tank', 'equipment', 100, 80, 'TK', '101'),
+          node('n2', 'instr.bubble', 'instrument', 320, 80, 'LIC', '101'),
+          node('n3', 'pump.centrifugal', 'equipment', 100, 320, 'P', '101'),
+        ]),
+        sheet('sh2', 'Storage', [
+          node('n4', 'vessel.tank', 'equipment', 100, 80, 'TK', '201'),
+          node('n5', 'vessel.tank', 'equipment', 320, 80, 'TK', '202'),
+        ]),
+        sheet('sh3', 'Utilities', [
+          node('n6', 'pump.centrifugal', 'equipment', 100, 80, 'P', '301'),
+          node('n7', 'instr.bubble', 'instrument', 320, 80, 'FT', '301'),
+        ]),
+      ],
+      hmiScreens: [],
+    }
+    const pid = (window as unknown as { __pid: { useStore: { getState(): { loadIntoStore(d: unknown): void } } } }).__pid
+    pid.useStore.getState().loadIntoStore(doc)
+  })
+  await page.getByTestId('open-hmi').click()
+  await page.getByTestId('hmi-import-empty').click()
+  await page.getByTestId('import-go').click()
+  await page.getByTestId('hmi-run-toggle').click()
+  await page.waitForTimeout(600)
+  // push a tank into alarm so the Feed tile's nav wears its dot
+  await page.evaluate(() => {
+    const pid = (window as unknown as { __pid: { useSimStore: { getState(): { writeTag(t: string, s: string, v: number): void } } } }).__pid
+    pid.useSimStore.getState().writeTag('TK-101', 'PV', 97)
+  })
+  await page.waitForTimeout(700)
+  await page.screenshot({ path: '/tmp/hmi-overview.png' })
 })
 
 test('capture run header, home screen, nav alarm dot', async ({ page }) => {

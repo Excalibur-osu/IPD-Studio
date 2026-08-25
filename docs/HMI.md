@@ -121,7 +121,13 @@ visible lines out with one click.
 
 ## Build from P&ID
 
-**From P&ID…** converts a sheet into an HMI screen: vessels become tanks
+**From P&ID…** converts sheets into HMI screens — pick any set of sheets in
+one go, and optionally **generate a plant overview**: an auto-built L1
+screen with one tile per sheet (its control loops, tank levels and flows as
+live values, plus a Screen link that wears the alarm dot), starred as the
+home screen so RUN opens on it. That completes the ISA-101 ladder: L1
+overview → L2 unit screens → L3 faceplates → L4 trends. Per sheet, the
+import works like this: vessels become tanks
 (stretched vessels keep their stretched footprint, rotated pumps stay
 rotated), pumps become pumps, control valves become throttling valves,
 measurements become value displays bound to what their ISA family actually
