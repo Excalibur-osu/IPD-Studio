@@ -7,6 +7,7 @@ import TagEditor from './TagEditor'
 import { applyAlignment, duplicateSelection } from '../canvas/interactions'
 import { nextLineSeq } from '../isa/autonumber'
 import DatasheetEditor from './DatasheetEditor'
+import FluidsDialog from './FluidsDialog'
 
 const SHEETS: SheetSize[] = ['A4', 'A3', 'A2', 'A1', 'ANSI_B', 'ANSI_D']
 
@@ -197,8 +198,12 @@ function NodeProps({ node }: { node: PlantNode }) {
 
 function EdgeProps({ edge }: { edge: PlantEdge }) {
   const setEdge = useStore((s) => s.setEdge)
+  const setEdgeFluid = useStore((s) => s.setEdgeFluid)
   const doc = useStore((s) => s.doc)
+  const [fluidsOpen, setFluidsOpen] = useState(false)
   const isProcess = edge.lineClass.startsWith('process')
+  const isPipe = isProcess || edge.lineClass.startsWith('pipe.')
+  const fluid = (doc.fluids ?? []).find((f) => f.id === edge.fluidId)
   const ln = edge.lineNumber ?? { size: '', spec: '', service: '', seq: '' }
   const setLn = (patch: Partial<typeof ln>) => { setEdge(edge.id, { lineNumber: { ...ln, ...patch } }); pauseHistory() }
   return (
@@ -217,6 +222,28 @@ function EdgeProps({ edge }: { edge: PlantEdge }) {
         />
         Flow arrow
       </label>
+      {isPipe && (
+        <label className="prop-field">Fluid
+          <div className="tag-row">
+            <span
+              aria-hidden
+              style={{ width: 14, height: 14, borderRadius: 3, alignSelf: 'center', flex: '0 0 auto',
+                background: fluid?.color ?? 'transparent', border: '1px solid #b5b5c5' }}
+            />
+            <select
+              data-testid="edge-fluid"
+              value={edge.fluidId ?? ''}
+              title="Assigning a fluid colors the whole connected run"
+              onChange={(e) => setEdgeFluid(edge.id, e.target.value === '' ? undefined : e.target.value)}
+            >
+              <option value="">— none —</option>
+              {(doc.fluids ?? []).map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+            <button title="Edit fluids…" onClick={() => setFluidsOpen(true)}>✎</button>
+          </div>
+        </label>
+      )}
+      {fluidsOpen && <FluidsDialog onClose={() => setFluidsOpen(false)} />}
       {isProcess && (
         <div className="prop-group">
           <div className="prop-title">Line Number</div>

@@ -303,22 +303,23 @@ const LINK_MARKUP = [
   { tagName: 'path', selector: 'line', attributes: { fill: 'none', 'pointer-events': 'none' } },
 ]
 
-function lineAttrs(edge: PlantEdge): Record<string, Record<string, unknown>> {
+function lineAttrs(edge: PlantEdge, fluidColor?: string): Record<string, Record<string, unknown>> {
   const stroke = strokeFor(edge.lineClass)
+  const ink = fluidColor ?? '#111'
   const marker =
     edge.arrow === 'flow'
-      ? { type: 'path', d: 'M 10 -4 0 0 10 4 Z', fill: '#111' }
+      ? { type: 'path', d: 'M 10 -4 0 0 10 4 Z', fill: ink }
       : { type: 'none' }
   const line: Record<string, unknown> = {
     connection: true,
     fill: 'none',
-    stroke: stroke.double ? '#fff' : '#111',
+    stroke: stroke.double ? '#fff' : ink,
     strokeWidth: stroke.width,
     targetMarker: stroke.double ? { type: 'none' } : marker,
   }
   if (stroke.dasharray) line.strokeDasharray = stroke.dasharray
   const outline: Record<string, unknown> = stroke.double
-    ? { connection: true, fill: 'none', stroke: '#111', strokeWidth: stroke.width + 3, targetMarker: marker }
+    ? { connection: true, fill: 'none', stroke: ink, strokeWidth: stroke.width + 3, targetMarker: marker }
     : { connection: true, fill: 'none', stroke: 'none', strokeWidth: 0, targetMarker: { type: 'none' } }
   return {
     line,
@@ -327,7 +328,7 @@ function lineAttrs(edge: PlantEdge): Record<string, Record<string, unknown>> {
   }
 }
 
-export function makeLink(edge: PlantEdge, nodes?: Map<string, PlantNode>): dia.Link {
+export function makeLink(edge: PlantEdge, nodes?: Map<string, PlantNode>, fluidColor?: string): dia.Link {
   const link = new shapes.standard.Link({
     id: edge.id,
     source: toEnd(edge.source),
@@ -337,13 +338,13 @@ export function makeLink(edge: PlantEdge, nodes?: Map<string, PlantNode>): dia.L
     // jumpover draws the little hop where unrelated lines cross
     connector: { name: 'jumpover', args: { size: 5 } },
     markup: LINK_MARKUP,
-    data: { lineClass: edge.lineClass },
+    data: { lineClass: edge.lineClass, fluidColor },
   })
-  link.attr(lineAttrs(edge))
+  link.attr(lineAttrs(edge, fluidColor))
   return link
 }
 
-export function updateLink(cell: dia.Link, edge: PlantEdge, prev: PlantEdge, nodes?: Map<string, PlantNode>): void {
+export function updateLink(cell: dia.Link, edge: PlantEdge, prev: PlantEdge, nodes?: Map<string, PlantNode>, fluidColor?: string): void {
   if (edge.source !== prev.source || edge.target !== prev.target) {
     cell.source(toEnd(edge.source))
     cell.target(toEnd(edge.target))
@@ -351,9 +352,10 @@ export function updateLink(cell: dia.Link, edge: PlantEdge, prev: PlantEdge, nod
   if (edge.vertices !== prev.vertices) cell.vertices(edge.vertices ?? [])
   // Route choice depends on endpoints, vertices, and node geometry alike.
   refreshLinkRouter(cell, edge, nodes)
-  if (edge.lineClass !== prev.lineClass || edge.arrow !== prev.arrow) {
+  const prevColor = (cell.get('data') as { fluidColor?: string } | undefined)?.fluidColor
+  if (edge.lineClass !== prev.lineClass || edge.arrow !== prev.arrow || fluidColor !== prevColor) {
     cell.removeAttr('line/strokeDasharray')
-    cell.attr(lineAttrs(edge))
-    cell.set('data', { lineClass: edge.lineClass })
+    cell.attr(lineAttrs(edge, fluidColor))
+    cell.set('data', { lineClass: edge.lineClass, fluidColor })
   }
 }

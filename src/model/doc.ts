@@ -33,6 +33,16 @@ export function createSheet(number: number, sheetSize: SheetSize = 'A3'): Sheet 
   }
 }
 
+/** Starter services; the user edits the list freely (Fluids dialog). */
+export const DEFAULT_FLUIDS = [
+  { id: 'fl-water', name: 'Water', color: '#1976d2' },
+  { id: 'fl-steam', name: 'Steam', color: '#d32f2f' },
+  { id: 'fl-air', name: 'Air', color: '#388e3c' },
+  { id: 'fl-slurry', name: 'Slurry', color: '#795548' },
+  { id: 'fl-oil', name: 'Fuel / Oil', color: '#f9a825' },
+  { id: 'fl-gas', name: 'Gas', color: '#7b1fa2' },
+]
+
 export function createEmptyDoc(name = 'Untitled P&ID'): ProjectDoc {
   const now = new Date().toISOString()
   return {
@@ -41,6 +51,7 @@ export function createEmptyDoc(name = 'Untitled P&ID'): ProjectDoc {
     settings: { gridPx: 8, tagSeparator: '-', numberStart: 100 },
     sheets: [createSheet(1)],
     hmiScreens: [],
+    fluids: DEFAULT_FLUIDS,
   }
 }
 

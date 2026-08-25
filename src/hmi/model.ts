@@ -74,6 +74,8 @@ export interface HmiPipe {
   /** P&ID edge id when imported (informational). */
   flowRef?: string
   width?: number
+  /** Service color inherited from the P&ID fluid assignment. */
+  color?: string
   /** End-widget anchors set by the P&ID import: the network attaches these
    *  ends to the named widgets instead of guessing from geometry (packed
    *  imports put several widgets within attach range of one nozzle). */

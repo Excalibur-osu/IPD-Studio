@@ -6,9 +6,15 @@ import { makeElement, makeLink, refreshLinkRouter, updateElement, updateLink } f
 /**
  * Make the JointJS graph mirror the document. The store is immutable, so
  * object identity is the change signal; identical references are skipped.
+ * `colorOf` resolves an edge's fluid color; callers re-run reconcile with an
+ * unchanged sheet when the fluids palette itself changes.
  */
-export function reconcile(graph: dia.Graph, doc: SheetContent, prev: SheetContent | undefined): void {
-  if (doc === prev) return
+export function reconcile(
+  graph: dia.Graph,
+  doc: SheetContent,
+  prev: SheetContent | undefined,
+  colorOf?: (edge: PlantEdge) => string | undefined,
+): void {
   const prevNodes = new Map(prev?.nodes.map((n) => [n.id, n]))
   const prevEdges = new Map(prev?.edges.map((e) => [e.id, e]))
   const nodeMap = new Map(doc.nodes.map((n) => [n.id, n]))
@@ -35,12 +41,17 @@ export function reconcile(graph: dia.Graph, doc: SheetContent, prev: SheetConten
 
   for (const edge of doc.edges) {
     keep.add(edge.id)
+    const color = colorOf?.(edge)
     const cell = graph.getCell(edge.id) as dia.Link | undefined
     if (!cell) {
-      graph.addCell(makeLink(edge, nodeMap))
+      graph.addCell(makeLink(edge, nodeMap, color))
     } else {
       const before = prevEdges.get(edge.id)
-      if (before && before !== edge) updateLink(cell, edge, before, nodeMap)
+      if (before && before !== edge) updateLink(cell, edge, before, nodeMap, color)
+      // A fluids-palette edit restyles lines whose edge objects didn't change.
+      else if (color !== (cell.get('data') as { fluidColor?: string } | undefined)?.fluidColor) {
+        updateLink(cell, edge, edge, nodeMap, color)
+      }
       // Straight-vs-manhattan depends on node geometry, so a moved or
       // rescaled endpoint re-decides the route even when the edge is same.
       else if (touchesMoved(edge)) refreshLinkRouter(cell, edge, nodeMap)

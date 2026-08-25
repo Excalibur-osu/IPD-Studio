@@ -359,6 +359,7 @@ export function importSheet(doc: ProjectDoc, sheetId: string): HmiScreen {
     const dir = portDirection(node.symbolId, end.portId)
     return dir ? rotateDir(dir, node.rotation) : null
   }
+  const fluidColorById = new Map((doc.fluids ?? []).map((f) => [f.id, f.color]))
   const pipes: HmiPipe[] = sheet.edges.filter((e) => isPipeWorthy(e.lineClass)).map((e) => {
     const aPt = endPoint(e.source, nodesById)
     const bPt = endPoint(e.target, nodesById)
@@ -375,8 +376,10 @@ export function importSheet(doc: ProjectDoc, sheetId: string): HmiScreen {
       return solidRect.has(id) ? id : undefined
     }
     const aId = anchor(e.source), bId = anchor(e.target)
+    const color = e.fluidId !== undefined ? fluidColorById.get(e.fluidId) : undefined
     return {
       id: ulid(), flowRef: e.id, width: 5, points,
+      ...(color !== undefined ? { color } : {}),
       ...(aId !== undefined ? { aId } : {}), ...(bId !== undefined ? { bId } : {}),
     }
   })

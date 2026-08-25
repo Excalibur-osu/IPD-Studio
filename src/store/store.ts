@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
 import { ulid } from 'ulid'
-import type { CustomSymbolDef, PlantEdge, PlantNode, ProjectDoc, Sheet, Tag } from '../model/types'
+import type { CustomSymbolDef, Fluid, PlantEdge, PlantNode, ProjectDoc, Sheet, Tag } from '../model/types'
+import { propagateFluid } from '../model/fluidFlow'
 import { registerCustomSymbols } from '../symbols/custom'
 import { isPortEnd } from '../model/types'
 import { createEmptyDoc, createSheet } from '../model/doc'
@@ -50,6 +51,13 @@ export interface StoreState {
   addEdge(partial: Omit<PlantEdge, 'id'>): string
   setEdge(id: string, patch: Partial<Omit<PlantEdge, 'id'>>): void
   setEdgeVertices(id: string, vertices: { x: number; y: number }[]): void
+  /** Assign a service to a line; auto-spreads along the connected run
+   *  (through valves/pumps/fittings, stopping at vessels). One undo step. */
+  setEdgeFluid(id: string, fluidId: string | undefined): void
+  addFluid(name: string, color: string): string
+  updateFluid(id: string, patch: Partial<Omit<Fluid, 'id'>>): void
+  /** Delete a service and clear it from every line on every sheet. */
+  removeFluid(id: string): void
   deleteIds(ids: string[]): void
   deleteSelected(): void
   setSelection(ids: string[]): void
@@ -359,6 +367,42 @@ export const useStore = create<StoreState>()(
 
         setEdgeVertices(id, vertices) {
           get().setEdge(id, { vertices })
+        },
+
+        setEdgeFluid(id, fluidId) {
+          patchSheet((sh) => {
+            const run = new Set(propagateFluid(sh, id))
+            return { ...sh, edges: sh.edges.map((e) => (run.has(e.id) ? { ...e, fluidId } : e)) }
+          })
+        },
+
+        addFluid(name, color) {
+          const id = ulid()
+          set((s) => ({ doc: touched({ ...s.doc, fluids: [...(s.doc.fluids ?? []), { id, name, color }] }), dirty: true }))
+          return id
+        },
+
+        updateFluid(id, patch) {
+          set((s) => ({
+            doc: touched({ ...s.doc, fluids: (s.doc.fluids ?? []).map((f) => (f.id === id ? { ...f, ...patch } : f)) }),
+            dirty: true,
+          }))
+        },
+
+        removeFluid(id) {
+          set((s) => ({
+            doc: touched({
+              ...s.doc,
+              fluids: (s.doc.fluids ?? []).filter((f) => f.id !== id),
+              sheets: s.doc.sheets.map((sh) => ({
+                ...sh,
+                edges: sh.edges.some((e) => e.fluidId === id)
+                  ? sh.edges.map((e) => (e.fluidId === id ? { ...e, fluidId: undefined } : e))
+                  : sh.edges,
+              })),
+            }),
+            dirty: true,
+          }))
         },
 
         deleteIds(ids) {

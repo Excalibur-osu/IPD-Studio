@@ -84,6 +84,18 @@ export interface PlantEdge {
   vertices?: { x: number; y: number }[]
   lineNumber?: LineNumber
   arrow?: 'none' | 'flow'
+  /** Service/medium carried (doc.fluids id); colors the drawn line. */
+  fluidId?: string
+}
+
+/** A process service/medium the user defines once and assigns to lines —
+ *  water blue, steam red, slurry brown. Assignment auto-spreads along the
+ *  connected run (see src/model/fluidFlow.ts). */
+export interface Fluid {
+  id: string
+  name: string
+  /** CSS color for the line stroke. */
+  color: string
 }
 
 export interface ProjectMeta {
@@ -135,6 +147,9 @@ export interface ProjectDoc {
   /** HMI operator screens (HMI Studio workspace). */
   hmiScreens: HmiScreen[]
   customSymbols?: CustomSymbolDef[]
+  /** User-defined process services (line coloring). Optional: docs saved
+   *  before v0.9.13 load without it and fall back to defaults on demand. */
+  fluids?: Fluid[]
 }
 
 /** A validation finding surfaced in the validation panel. */

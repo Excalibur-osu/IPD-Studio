@@ -41,20 +41,28 @@ export default function Canvas() {
 
     let prevSheetId = useStore.getState().activeSheetId
     let prevSheet = activeSheet(useStore.getState())
-    reconcile(graph, prevSheet, undefined)
+    let prevFluids = useStore.getState().doc.fluids
+    // fluid color resolver, rebuilt per pass so palette edits show live
+    const colorOf = () => {
+      const m = new Map((useStore.getState().doc.fluids ?? []).map((f) => [f.id, f.color]))
+      return (e: { fluidId?: string }) => (e.fluidId !== undefined ? m.get(e.fluidId) : undefined)
+    }
+    reconcile(graph, prevSheet, undefined, colorOf())
     renderUnderlay(paper, prevSheet)
     const unsubscribe = useStore.subscribe((s) => {
       const sheet = activeSheet(s)
       if (s.activeSheetId !== prevSheetId) {
         prevSheetId = s.activeSheetId
         prevSheet = sheet
+        prevFluids = s.doc.fluids
         graph.clear()
-        reconcile(graph, sheet, undefined)
+        reconcile(graph, sheet, undefined, colorOf())
         renderUnderlay(paper, sheet)
-      } else if (sheet !== prevSheet) {
+      } else if (sheet !== prevSheet || s.doc.fluids !== prevFluids) {
         const before = prevSheet
         prevSheet = sheet
-        reconcile(graph, sheet, before)
+        prevFluids = s.doc.fluids
+        reconcile(graph, sheet, before, colorOf())
         if (sheet.underlay !== before.underlay) renderUnderlay(paper, sheet)
       }
     })

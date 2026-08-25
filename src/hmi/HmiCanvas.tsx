@@ -524,7 +524,7 @@ export default function HmiCanvas({ screen, selection, onSelect, mode, tool, onT
         const wpx = p.width ?? 4
         return (
           <g key={p.id}>
-            <polyline points={pts} fill="none" stroke={theme.pipe} strokeWidth={wpx} strokeLinejoin="round" />
+            <polyline points={pts} fill="none" stroke={p.color ?? theme.pipe} strokeWidth={wpx} strokeLinejoin="round" />
             {flow > 0 && (
               <polyline points={pts} fill="none" stroke={theme.pipeFlow} strokeWidth={wpx} strokeLinejoin="round"
                 className="hmi-flow" strokeDasharray="10 14"
