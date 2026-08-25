@@ -204,10 +204,19 @@ export function routePipe(a: RouteEnd, b: RouteEnd, others: Rect[], own: Rect[])
   // obstacles ignored (the 'normal'-router special case in shapes.ts)
   if (a.dir && b.dir && b.dir === OPP[a.dir]) {
     const horiz = a.dir === 'left' || a.dir === 'right'
-    const aligned = horiz ? Math.abs(a.y - b.y) <= 1 : Math.abs(a.x - b.x) <= 1
+    const off = horiz ? Math.abs(a.y - b.y) : Math.abs(a.x - b.x)
     const toward = horiz ? Math.sign(b.x - a.x) === DX[a.dir] : Math.sign(b.y - a.y) === DY[a.dir]
     const span = horiz ? Math.abs(b.x - a.x) : Math.abs(b.y - a.y)
-    if (aligned && toward && span <= 120) return [{ x: a.x, y: a.y }, { x: b.x, y: b.y }]
+    if (off <= 1 && toward && span <= 120) return [{ x: a.x, y: a.y }, { x: b.x, y: b.y }]
+    // nozzles a few px out of line must not jog mid-run: hide the offset in
+    // a bend right at the source stub, then run dead straight on b's axis
+    if (off > 1 && off <= 8 && toward && span > STUB * 2) {
+      const j1 = horiz ? { x: a.x + DX[a.dir] * STUB, y: a.y } : { x: a.x, y: a.y + DY[a.dir] * STUB }
+      const j2 = horiz ? { x: j1.x, y: b.y } : { x: b.x, y: j1.y }
+      const lane = others.map((r) => inflate(r, PAD))
+      const clear = ![[j1, j2], [j2, { x: b.x, y: b.y }]].some(([p, q]) => lane.some((r) => segCrossesRect(p!, q!, r)))
+      if (clear) return collapse([{ x: a.x, y: a.y }, j1, j2, { x: b.x, y: b.y }])
+    }
   }
   const blocks = [...others.map((r) => inflate(r, PAD)), ...own]
   const routed = gridRoute(a, b, blocks)

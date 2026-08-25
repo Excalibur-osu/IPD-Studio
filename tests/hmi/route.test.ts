@@ -79,3 +79,25 @@ describe('routePipe', () => {
     expect(pts[pts.length - 1]).toEqual({ x: 200, y: 32 })
   })
 })
+
+describe('near-collinear facing pairs', () => {
+  it('hides a small offset in a jog at the source nozzle, then runs straight', () => {
+    const pts = routePipe({ x: 64, y: 32, dir: 'right' }, { x: 400, y: 36, dir: 'left' }, [], [])
+    assertOrtho(pts)
+    expect(pts[0]).toEqual({ x: 64, y: 32 })
+    expect(pts[pts.length - 1]).toEqual({ x: 400, y: 36 })
+    expect(pts.length).toBe(4)
+    // the jog lives within the port stub, not mid-run
+    expect(pts[1]!.x).toBeLessThanOrEqual(64 + 16)
+    expect(pts[2]!.y).toBe(36)
+  })
+  it('still detours when the near-straight corridor is blocked', () => {
+    const blocker = R(180, 0, 60, 60)
+    const pts = routePipe({ x: 64, y: 32, dir: 'right' }, { x: 400, y: 36, dir: 'left' }, [blocker], [])
+    assertOrtho(pts)
+    const inflated = R(blocker.x - 7, blocker.y - 7, blocker.w + 14, blocker.h + 14)
+    for (let i = 1; i < pts.length; i++) {
+      expect(segCrossesRect(pts[i - 1]!, pts[i]!, inflated), `segment ${i} crosses the blocker`).toBe(false)
+    }
+  })
+})

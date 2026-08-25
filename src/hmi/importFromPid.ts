@@ -145,6 +145,139 @@ function endPoint(end: PlantEdge['source'], nodes: Map<string, PlantNode>): { x:
   return { x: node.x + w / 2, y: node.y + h / 2 }
 }
 
+/** How well an edge's drawn direction matches process flow: >0 keep
+ *  as-drawn, <0 reverse, 0 unknown. Pumps are the strongest witnesses (flow
+ *  enters suction, leaves discharge), then drains, then vessel nozzles
+ *  (bottom = outlet, top = inlet, side = weakly an outlet). Uses unrotated
+ *  port geometry — vessels are almost never rotated, and the scores are
+ *  weak enough for chain propagation to win where it matters. */
+function flowEvidence(edge: PlantEdge, nodesById: Map<string, PlantNode>): number {
+  const endScore = (end: PlantEdge['source'], isSource: boolean): number => {
+    if (!isPortEnd(end)) return 0
+    const node = nodesById.get(end.nodeId)
+    if (!node) return 0
+    let def
+    try { def = getSymbol(node.symbolId) } catch { return 0 }
+    if (def.category === 'rotating') {
+      if (end.portId === 'discharge' || end.portId === 'out') return isSource ? 4 : -4
+      if (end.portId === 'suction' || end.portId === 'in') return isSource ? -4 : 4
+      return 0
+    }
+    if (node.symbolId.startsWith('fit.drain')) return isSource ? -3 : 3
+    if (def.category === 'vessels') {
+      const port = def.ports.find((q) => q.id === end.portId)
+      if (!port) return 0
+      const h = def.gridSize.h * 8
+      if (port.y >= h * 0.7) return isSource ? 2 : -2
+      if (port.y <= h * 0.3) return isSource ? -2 : 2
+      return isSource ? 1 : 0
+    }
+    return 0
+  }
+  return endScore(edge.source, true) + endScore(edge.target, false)
+}
+
+/** The sim's network walker reads pipes upstream -> downstream, but a P&ID
+ *  edge points whichever way the user happened to drag it. Orient every
+ *  imported pipe by process evidence, then propagate through inline devices
+ *  (a valve with flow in on one side flows out the other; a junction with an
+ *  inflow fans out) so whole chains agree. Unknowns keep the drawn arrow. */
+function orientPipes(
+  sheet: Sheet,
+  widgets: HmiWidget[],
+  pipes: HmiPipe[],
+  nodesById: Map<string, PlantNode>,
+): void {
+  const edgeById = new Map(sheet.edges.map((e) => [e.id, e]))
+  const inlineIds = new Set(
+    widgets.filter((w) => w.type === 'valve' || w.type === 'pump' || w.type === 'symbol').map((w) => w.id),
+  )
+  interface PInfo { pipe: HmiPipe; aId?: string; bId?: string; dir: 1 | -1 | 0 }
+  const infos: PInfo[] = []
+  const atWidget = new Map<string, PInfo[]>()
+  for (const p of pipes) {
+    const edge = p.flowRef !== undefined ? edgeById.get(p.flowRef) : undefined
+    if (!edge) continue
+    const aId = isPortEnd(edge.source) ? `imp-${edge.source.nodeId}` : undefined
+    const bId = isPortEnd(edge.target) ? `imp-${edge.target.nodeId}` : undefined
+    const ev = flowEvidence(edge, nodesById)
+    const info: PInfo = { pipe: p, aId, bId, dir: ev > 0 ? 1 : ev < 0 ? -1 : 0 }
+    infos.push(info)
+    for (const id of [aId, bId]) {
+      if (id !== undefined && inlineIds.has(id)) atWidget.set(id, [...(atWidget.get(id) ?? []), info])
+    }
+  }
+  const queue = infos.filter((i) => i.dir !== 0)
+  while (queue.length > 0) {
+    const cur = queue.pop()!
+    for (const [end, id] of [['a', cur.aId], ['b', cur.bId]] as const) {
+      if (id === undefined || !inlineIds.has(id)) continue
+      // does cur flow INTO this widget? as-drawn it flows a -> b
+      const into = cur.dir === 1 ? end === 'b' : end === 'a'
+      for (const q of atWidget.get(id) ?? []) {
+        if (q === cur || q.dir !== 0) continue
+        const qEntersHere = q.bId === id
+        // flow through the device: an inflow orients siblings outward, an
+        // outflow orients siblings inward
+        q.dir = into ? (q.aId === id ? 1 : -1) : (qEntersHere ? 1 : -1)
+        queue.push(q)
+      }
+    }
+  }
+  for (const i of infos) {
+    if (i.dir !== -1) continue
+    i.pipe.points.reverse()
+    const { aId, bId } = i.pipe
+    if (bId !== undefined) i.pipe.aId = bId; else delete i.pipe.aId
+    if (aId !== undefined) i.pipe.bId = aId; else delete i.pipe.bId
+  }
+}
+
+/** The engine pairs a controller to its valve by tag family+loop (LIC-100
+ *  drives LV-100). A P&ID usually leaves the CV body untagged and states the
+ *  association through the signal lines instead — so trace them: controller
+ *  bubble -> (I/P converters, solenoids) -> throttling valve, and tag that
+ *  valve into the loop. A valve the user tagged themselves is never renamed. */
+function wireLoopValves(sheet: Sheet, widgets: HmiWidget[], ctx: ImportCtx, sep: '-' | ''): void {
+  const nodesById = new Map(sheet.nodes.map((n) => [n.id, n]))
+  const widgetByNode = new Map(widgets.map((w) => [w.id, w]))
+  const used = new Set(widgets.map((w) => w.tag).filter((t): t is string => t !== undefined))
+  const sigEdges = sheet.edges.filter((e) => e.lineClass.startsWith('signal'))
+  for (const node of sheet.nodes) {
+    const letters = node.tag?.letters ?? ''
+    const loop = node.tag?.loop
+    if (node.kind !== 'instrument' || !loop) continue
+    if (!letters.includes('C') || letters.endsWith('V')) continue // controllers only
+    let frontier = [node.id]
+    const seen = new Set(frontier)
+    let valveNode: PlantNode | undefined
+    for (let hop = 0; hop < 3 && !valveNode; hop++) {
+      const next: string[] = []
+      for (const edge of sigEdges) {
+        const ids = [edge.source, edge.target].filter(isPortEnd).map((e) => e.nodeId)
+        if (!ids.some((id) => frontier.includes(id))) continue
+        for (const id of ids) {
+          if (seen.has(id)) continue
+          seen.add(id)
+          const n = nodesById.get(id)
+          const w = widgetByNode.get(`imp-${id}`)
+          if (n && n.tag === undefined && w?.type === 'valve' && w.props?.throttle === true) { valveNode = n; break }
+          next.push(id)
+        }
+        if (valveNode) break
+      }
+      frontier = next
+    }
+    if (!valveNode) continue
+    const newTag = `${letters[0]}V${sep}${loop}`
+    if (used.has(newTag)) continue
+    const w = widgetByNode.get(`imp-${valveNode.id}`)!
+    used.add(newTag)
+    w.tag = newTag
+    ctx.nameOf.set(valveNode.id, newTag)
+  }
+}
+
 /** ≤2-hop neighborhood walk from an instrument node over ALL edges, looking
  *  for what this instrument's ISA family actually measures: 'tank' walks to
  *  the nearest vessel (level), 'pipe' to the nearest process run (flow). */
@@ -182,6 +315,7 @@ export function importSheet(doc: ProjectDoc, sheetId: string): HmiScreen {
   if (!sheet) throw new Error(`No sheet ${sheetId}`)
   const { widgets, ctx } = mapNodes(sheet, doc.settings.tagSeparator)
   const nodesById = new Map(sheet.nodes.map((n) => [n.id, n]))
+  wireLoopValves(sheet, widgets, ctx, doc.settings.tagSeparator)
 
   // measurement bindings: transmitters, indicators, and primary elements all
   // read the process (a controller gets its PV from loop pairing instead).
@@ -224,8 +358,18 @@ export function importSheet(doc: ProjectDoc, sheetId: string): HmiScreen {
     const points = verts.length > 0
       ? orthogonalizeVia([aPt, ...verts, bPt], others) // user-drawn bends are kept
       : routePipe({ ...aPt, dir: endDir(e.source) }, { ...bPt, dir: endDir(e.target) }, others, own)
-    return { id: ulid(), flowRef: e.id, width: 5, points }
+    const anchor = (end: PlantEdge['source']): string | undefined => {
+      if (!isPortEnd(end)) return undefined
+      const id = `imp-${end.nodeId}`
+      return solidRect.has(id) ? id : undefined
+    }
+    const aId = anchor(e.source), bId = anchor(e.target)
+    return {
+      id: ulid(), flowRef: e.id, width: 5, points,
+      ...(aId !== undefined ? { aId } : {}), ...(bId !== undefined ? { bId } : {}),
+    }
   })
+  orientPipes(sheet, widgets, pipes, nodesById)
 
   // bindPipe references P&ID edge ids -> retarget to the imported pipe id
   const pipeByEdge = new Map(pipes.map((p) => [p.flowRef!, p.id]))

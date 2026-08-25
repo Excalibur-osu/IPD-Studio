@@ -95,3 +95,143 @@ describe('imported equipment fidelity', () => {
     expect(lg.rotation).toBe(180)
   })
 })
+
+describe('controller-to-valve wiring through signal lines', () => {
+  it('tags the untagged CV a controller signals into the loop (LIC-100 -> LV-100)', async () => {
+    const doc = docWith(
+      [
+        N('tk', 'vessel.tank', 'equipment', 300, 200, { tag: { letters: 'TK', loop: '100' } }),
+        N('lt', 'instr.bubble', 'instrument', 500, 100, { tag: { letters: 'LT', loop: '100' } }),
+        N('lic', 'instr.bubble', 'instrument', 560, 100, { tag: { letters: 'LIC', loop: '100' } }),
+        N('ip', 'instr.converter', 'instrument', 620, 160),
+        N('cv', 'cv.globe', 'valve', 100, 60),
+        N('gv', 'valve.gate', 'valve', 100, 300),
+      ],
+      [
+        { id: 's1', lineClass: 'signal.electric', source: { nodeId: 'lic', portId: 's' }, target: { nodeId: 'ip', portId: 'e' } },
+        { id: 's2', lineClass: 'signal.pneumatic', source: { nodeId: 'ip', portId: 'w' }, target: { nodeId: 'cv', portId: 'sig' } },
+        { id: 'imp', lineClass: 'process.impulse', source: { nodeId: 'lt', portId: 'w' }, target: { nodeId: 'tk', portId: 'e' } },
+      ],
+    )
+    const screen = importSheet(doc, doc.sheets[0]!.id)
+    const cv = screen.widgets.find((w) => w.id === 'imp-cv')!
+    expect(cv.tag).toBe('LV-100')
+    const gv = screen.widgets.find((w) => w.id === 'imp-gv')!
+    expect(gv.tag).not.toBe('LV-100')
+    // and the sim engine now pairs the loop end-to-end
+    const { buildSimModel } = await import('../../src/hmi/sim/engine')
+    const model = buildSimModel([{ ...screen }])
+    const lic = model.controllers.find((c) => c.tag === 'LIC-100')!
+    expect(lic.outTag).toBe('LV-100')
+    expect(lic.pvTag).toBe('LT-100')
+  })
+  it('a CV the P&ID already tagged keeps its tag', () => {
+    const doc = docWith(
+      [
+        N('lic', 'instr.bubble', 'instrument', 560, 100, { tag: { letters: 'LIC', loop: '7' } }),
+        N('cv', 'cv.globe', 'valve', 100, 60, { tag: { letters: 'XV', loop: '9' } }),
+      ],
+      [{ id: 's1', lineClass: 'signal.electric', source: { nodeId: 'lic', portId: 's' }, target: { nodeId: 'cv', portId: 'sig' } }],
+    )
+    const screen = importSheet(doc, doc.sheets[0]!.id)
+    expect(screen.widgets.find((w) => w.id === 'imp-cv')!.tag).toBe('XV-9')
+  })
+})
+
+describe('imported pipe orientation (flow direction)', () => {
+  it('reverses a line the user drew against the flow: bottom outlet chains stay tank-sourced', async () => {
+    // TK-A bottom -> V1 drawn forward; V1 -> TK-B top drawn BACKWARDS (from the tank up to the valve)
+    const doc = docWith(
+      [
+        N('ta', 'vessel.tank', 'equipment', 0, 0, { tag: { letters: 'TK', loop: '1' } }),
+        N('v1', 'valve.gate', 'valve', 16, 200, { rotation: 90 }),
+        N('tb', 'vessel.tank', 'equipment', 0, 400, { tag: { letters: 'TK', loop: '2' } }),
+      ],
+      [
+        { id: 'e1', lineClass: 'process.major', source: { nodeId: 'ta', portId: 's' }, target: { nodeId: 'v1', portId: 'w' } },
+        { id: 'e2', lineClass: 'process.major', source: { nodeId: 'tb', portId: 'n' }, target: { nodeId: 'v1', portId: 'e' } },
+      ],
+    )
+    const screen = importSheet(doc, doc.sheets[0]!.id)
+    const { buildNetwork } = await import('../../src/hmi/sim/network')
+    const net = buildNetwork(screen)
+    const b = net.branches.find((x) => x.from.kind === 'tank' && x.from.tag === 'TK-1')!
+    expect(b).toBeDefined()
+    expect(b.to).toEqual({ kind: 'tank', tag: 'TK-2' })
+    expect(b.fromBottom).toBe(true)
+    expect(net.branches.filter((x) => x.from.kind === 'source')).toHaveLength(0)
+  })
+
+  it('pump suction/discharge ports orient their lines regardless of draw direction', async () => {
+    // both lines drawn backwards: pump.suction -> tank, tank2 <- discharge
+    const doc = docWith(
+      [
+        N('ta', 'vessel.tank', 'equipment', 0, 0, { tag: { letters: 'TK', loop: '1' } }),
+        N('pu', 'pump.centrifugal', 'equipment', 200, 20),
+        N('tb', 'vessel.tank', 'equipment', 500, 0, { tag: { letters: 'TK', loop: '2' } }),
+      ],
+      [
+        { id: 'e1', lineClass: 'process.major', source: { nodeId: 'pu', portId: 'suction' }, target: { nodeId: 'ta', portId: 'e' } },
+        { id: 'e2', lineClass: 'process.major', source: { nodeId: 'tb', portId: 'w' }, target: { nodeId: 'pu', portId: 'discharge' } },
+      ],
+    )
+    const screen = importSheet(doc, doc.sheets[0]!.id)
+    const { buildNetwork } = await import('../../src/hmi/sim/network')
+    const net = buildNetwork(screen)
+    const b = net.branches.find((x) => x.pumps.length === 1)!
+    expect(b).toBeDefined()
+    expect(b.from).toEqual({ kind: 'tank', tag: 'TK-1' })
+    expect(b.to).toEqual({ kind: 'tank', tag: 'TK-2' })
+  })
+
+  it('orientation propagates through valve chains from a single evidence end', async () => {
+    // TK-A.s -> Va forward, middle drawn backwards (Vb -> Va), then Vb -> TK-B.n forward
+    const doc = docWith(
+      [
+        N('ta', 'vessel.tank', 'equipment', 0, 0, { tag: { letters: 'TK', loop: '1' } }),
+        N('va', 'valve.gate', 'valve', 16, 200, { rotation: 90 }),
+        N('vb', 'valve.gate', 'valve', 16, 320, { rotation: 90 }),
+        N('tb', 'vessel.tank', 'equipment', 0, 480, { tag: { letters: 'TK', loop: '2' } }),
+      ],
+      [
+        { id: 'e1', lineClass: 'process.major', source: { nodeId: 'ta', portId: 's' }, target: { nodeId: 'va', portId: 'w' } },
+        { id: 'e2', lineClass: 'process.major', source: { nodeId: 'vb', portId: 'w' }, target: { nodeId: 'va', portId: 'e' } },
+        { id: 'e3', lineClass: 'process.major', source: { nodeId: 'vb', portId: 'e' }, target: { nodeId: 'tb', portId: 'n' } },
+      ],
+    )
+    const screen = importSheet(doc, doc.sheets[0]!.id)
+    const { buildNetwork } = await import('../../src/hmi/sim/network')
+    const net = buildNetwork(screen)
+    const b = net.branches.find((x) => x.from.kind === 'tank' && x.from.tag === 'TK-1')!
+    expect(b).toBeDefined()
+    expect(b.to).toEqual({ kind: 'tank', tag: 'TK-2' })
+    expect(b.valves).toHaveLength(2)
+  })
+})
+
+describe('pipe endpoint anchoring', () => {
+  it('a chain into a tank right below its valve attaches to the tank, not back to the valve', async () => {
+    // cv.globe directly above the vessel, outlet port ON the vessel boundary —
+    // geometric attachment used to resolve to the valve (later in z-order)
+    const doc = docWith(
+      [
+        N('t2', 'vessel.horizontal', 'equipment', 200, 0, { tag: { letters: 'TK', loop: '2' } }),
+        N('v8', 'valve.gate', 'valve', 232, 100, { rotation: 90 }),
+        N('cv', 'cv.globe', 'valve', 220, 180, { rotation: 270, tag: { letters: 'LV', loop: '1' } }),
+        N('t3', 'vessel.vertical', 'equipment', 216, 228, { tag: { letters: 'TK', loop: '3' } }),
+      ],
+      [
+        { id: 'e1', lineClass: 'process.major', source: { nodeId: 't2', portId: 's' }, target: { nodeId: 'v8', portId: 'w' } },
+        { id: 'e2', lineClass: 'process.major', source: { nodeId: 'v8', portId: 'e' }, target: { nodeId: 'cv', portId: 'w' } },
+        { id: 'e3', lineClass: 'process.major', source: { nodeId: 'cv', portId: 'e' }, target: { nodeId: 't3', portId: 'n' } },
+      ],
+    )
+    const screen = importSheet(doc, doc.sheets[0]!.id)
+    const { buildNetwork } = await import('../../src/hmi/sim/network')
+    const net = buildNetwork(screen)
+    const b = net.branches.find((x) => x.from.kind === 'tank' && x.from.tag === 'TK-2')!
+    expect(b).toBeDefined()
+    expect(b.to).toEqual({ kind: 'tank', tag: 'TK-3' })
+    expect(b.valves).toContain('LV-1')
+  })
+})

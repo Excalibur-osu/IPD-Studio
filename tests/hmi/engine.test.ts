@@ -79,9 +79,10 @@ describe('engine tick', () => {
     const { tags } = run((t) => { t['P-1']!.RUN = 1; t['LV-1']!.OP = 0; t['HV-1']!.OPEN = 0 })
     expect(tags['TK-1']!.PV).toBeCloseTo(40, 0)
   })
-  it('free-end sources are passive: an open path with no pump moves nothing', () => {
-    // screen: source -> open on/off valve -> tank, NO pump anywhere
-    const passive: HmiScreen = {
+  it('a supply header feeds through its hand valve; valveless stubs stay passive', () => {
+    // screen: source -> on/off valve -> tank (a battery-limit header), plus a
+    // bare source -> tank stub with no valve (impulse-like, must stay dead)
+    const header: HmiScreen = {
       id: 's2', name: 'S2', theme: 'classic',
       widgets: [
         { id: 'v', type: 'valve', x: 200, y: 95, w: 48, h: 32, tag: 'HV-2' },
@@ -90,15 +91,26 @@ describe('engine tick', () => {
       pipes: [
         { id: 'a', points: [{ x: 0, y: 111 }, { x: 210, y: 111 }] },
         { id: 'b', points: [{ x: 240, y: 111 }, { x: 510, y: 100 }] },
+        { id: 'stub', points: [{ x: 0, y: 60 }, { x: 510, y: 60 }] },
       ],
     }
-    const model = buildSimModel(passive)
-    let tags = initTags(model)
+    const model = buildSimModel(header)
     const rng = makeRng(1)
+    // calm start: HV-2 comes up closed, nothing moves
+    let tags = initTags(model)
     let flows: Record<string, number> = {}
     for (let i = 0; i < 25; i++) { const r = tick(model, tags, 0.2, rng); tags = r.tags; flows = r.branchFlows }
     expect(Object.values(flows).every((f) => f === 0)).toBe(true)
     expect(tags['TK-2']!.PV).toBe(40)
+    // operator opens the hand valve: the header supplies, the tank fills
+    tags = initTags(model)
+    tags['HV-2']!.OPEN = 1
+    for (let i = 0; i < 25; i++) { const r = tick(model, tags, 0.2, rng); tags = r.tags; flows = r.branchFlows }
+    expect(Object.values(flows).some((f) => f > 0)).toBe(true)
+    expect(tags['TK-2']!.PV).toBeGreaterThan(40)
+    // the valveless stub branch never flows even then
+    const stubBranch = model.net.branches.find((b) => b.pipeIds.includes('stub'))!
+    expect(flows[stubBranch.id]).toBe(0)
   })
   it('tank clamps at 0 and never goes negative', () => {
     const { tags } = run((t) => { t['TK-1']!.PV = 1 }, 60)

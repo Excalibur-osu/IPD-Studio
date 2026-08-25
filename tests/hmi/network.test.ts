@@ -64,3 +64,32 @@ describe('buildNetwork', () => {
     expect(flows.a === 7 || flows.b === 7).toBe(true)
   })
 })
+
+describe('endpoint attachment', () => {
+  it('anchored pipe ends beat geometric lookup', () => {
+    const screen = {
+      id: 's', name: 'S', theme: 'classic' as const,
+      widgets: [
+        { id: 'tk', type: 'tank' as const, x: 100, y: 100, w: 96, h: 128, tag: 'TK-1' },
+        // decoy valve overlapping the endpoint region, later in z-order
+        { id: 'v', type: 'valve' as const, x: 130, y: 60, w: 48, h: 32, tag: 'HV-9' },
+      ],
+      pipes: [{ id: 'p1', points: [{ x: 0, y: 104 }, { x: 148, y: 104 }], bId: 'tk' }],
+    }
+    const net = buildNetwork(screen)
+    expect(net.branches).toHaveLength(1)
+    expect(net.branches[0]!.to).toEqual({ kind: 'tank', tag: 'TK-1' })
+  })
+  it('without anchors, exact containment beats an inflated near-miss later in z-order', () => {
+    const screen = {
+      id: 's', name: 'S', theme: 'classic' as const,
+      widgets: [
+        { id: 'tk', type: 'tank' as const, x: 100, y: 100, w: 96, h: 128, tag: 'TK-1' },
+        { id: 'v', type: 'valve' as const, x: 120, y: 60, w: 48, h: 32, tag: 'HV-9' }, // inflated rect reaches y=106
+      ],
+      pipes: [{ id: 'p1', points: [{ x: 0, y: 106 }, { x: 144, y: 106 }] }],
+    }
+    const net = buildNetwork(screen)
+    expect(net.branches[0]!.to).toEqual({ kind: 'tank', tag: 'TK-1' })
+  })
+})
