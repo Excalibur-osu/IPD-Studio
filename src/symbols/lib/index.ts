@@ -15,6 +15,7 @@ import { controlHardware, controlHardware2 } from './control'
 import { annotations, annotations2 } from './annotation'
 import { solids } from './solids'
 import { utilities } from './utilities'
+import { frequentItems } from './frequent'
 
 registerSymbols([
   bubble,
@@ -42,4 +43,5 @@ registerSymbols([
   ...annotations2,
   ...solids,
   ...utilities,
+  ...frequentItems,
 ])

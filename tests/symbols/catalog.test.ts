@@ -43,6 +43,39 @@ const PHASE1_IDS = [
   'ann.offpage', 'ann.arrow', 'ann.text', 'ann.noteflag', 'ann.cloud',
 ]
 
+const PHASE4_IDS = [
+  'valve.solenoid', 'valve.mov', 'valve.foot', 'valve.ballcheck', 'valve.float',
+  'acc.afr', 'acc.siphon',
+  'fit.pulsation-dampener', 'fit.funnel',
+  'fan', 'hx.coil',
+]
+
+describe('phase-4 catalog (frequent-industry additions)', () => {
+  it('registers every phase-4 id', () => {
+    for (const id of PHASE4_IDS) expect(() => getSymbol(id), id).not.toThrow()
+  })
+  it('actuated on/off valves carry a signal port', () => {
+    for (const id of ['valve.solenoid', 'valve.mov']) {
+      const def = getSymbol(id)
+      expect(def.ports.some((p) => p.kind === 'signal'), id).toBe(true)
+      expect(def.ports.filter((p) => p.kind === 'process'), id).toHaveLength(2)
+      expect(def.tagRule).toBe('valve')
+    }
+    expect(getSymbol('valve.solenoid').render({})).toContain('>S<')
+    expect(getSymbol('valve.mov').render({})).toContain('>M<')
+  })
+  it('foot valve hangs off a single suction port; funnel drains downward', () => {
+    expect(getSymbol('valve.foot').ports).toHaveLength(1)
+    expect(getSymbol('fit.funnel').ports).toHaveLength(1)
+    expect(getSymbol('fit.pulsation-dampener').render({})).toContain('stroke-dasharray')
+  })
+  it('fan and coil are equipment', () => {
+    expect(getSymbol('fan').tagRule).toBe('equipment')
+    expect(getSymbol('hx.coil').tagRule).toBe('equipment')
+    expect(getSymbol('hx.coil').ports).toHaveLength(2)
+  })
+})
+
 describe('phase-3 catalog', () => {
   it('registers every phase-3 id', () => {
     for (const id of PHASE3_IDS) expect(() => getSymbol(id), id).not.toThrow()

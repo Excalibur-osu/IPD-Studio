@@ -96,7 +96,7 @@ describe('import maps motor equipment to equip', () => {
   }
 
   it('compressors, blowers, agitators, conveyors, heaters, boilers become equip', () => {
-    for (const id of ['comp.centrifugal', 'comp.recip', 'comp.screw', 'blower', 'agitator',
+    for (const id of ['comp.centrifugal', 'comp.recip', 'comp.screw', 'blower', 'fan', 'agitator',
       'turbine.steam', 'conveyor.belt', 'conveyor.screw', 'bucket-elevator', 'feeder.rotary',
       'crusher', 'mill.ball', 'extruder', 'blender.ribbon', 'screen.vibrating',
       'heater.fired', 'heater.electric', 'boiler', 'cooling-tower']) {

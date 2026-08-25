@@ -23,7 +23,7 @@ const AUTO_PREFIX: Partial<Record<WidgetType, string>> = {
  *  ramp, trip). pump.* keeps the dedicated pump widget; the ejector has no
  *  motor but drives flow, so it stays a pump; hx.* stays a passive graphic. */
 const EQUIP_MOTOR = new Set([
-  'comp.centrifugal', 'comp.recip', 'comp.screw', 'blower', 'agitator', 'motor', 'turbine.steam',
+  'comp.centrifugal', 'comp.recip', 'comp.screw', 'blower', 'fan', 'agitator', 'motor', 'turbine.steam',
   'conveyor.belt', 'conveyor.screw', 'bucket-elevator', 'feeder.rotary', 'crusher',
   'mill.ball', 'extruder', 'blender.ribbon', 'screen.vibrating', 'dryer.rotary',
   'heater.fired', 'heater.electric', 'boiler', 'cooling-tower',
