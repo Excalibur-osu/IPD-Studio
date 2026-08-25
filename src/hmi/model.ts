@@ -44,7 +44,7 @@ const MEASURE = {
  *  spec to check against. Unknown keys are WARNED about, never dropped — an
  *  older build must not eat a newer document's props. */
 export const WIDGET_SCHEMA: Record<WidgetType, Record<string, PropKind>> = {
-  tank: { capacity: 'number', level0: 'number', ...LIMITS, ...ALARM_Q },
+  tank: { capacity: 'number', level0: 'number', shape: 'string', ...LIMITS, ...ALARM_Q },
   pump: {},
   valve: { throttle: 'boolean' },
   display: { ...MEASURE, spark: 'boolean' },

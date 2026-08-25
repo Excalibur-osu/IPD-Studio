@@ -10,7 +10,7 @@ import { loadDoc } from '../../src/model/migrate'
  * Adding a prop in a future phase = add it in both places, deliberately.
  */
 const LEDGER = [
-  'capacity', 'level0', 'throttle',
+  'capacity', 'level0', 'throttle', 'shape',
   'LL', 'L', 'H', 'HH',
   'unit', 'min', 'max', 'base',
   'bindTank', 'bindPipe', 'controller',

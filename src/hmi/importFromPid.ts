@@ -7,6 +7,9 @@ import type { HmiPipe, HmiScreen, HmiWidget, WidgetType } from './model'
 import { HMI_WORLD, WIDGET_DEFAULT_SIZE } from './model'
 import { formatTag } from '../isa/tag'
 import { getSymbol } from '../symbols/registry'
+import { portDirection, rotateDir } from '../canvas/shapes'
+import { orthogonalizeVia, routePipe } from './routePipes'
+import type { Dir, Rect } from './routePipes'
 // side-effect: fill the symbol registry (same import the catalog tests use)
 import '../symbols/lib/index'
 
@@ -20,10 +23,22 @@ function categoryOf(node: PlantNode): string {
   try { return getSymbol(node.symbolId).category } catch { return 'custom' }
 }
 
+/** Vessel symbols whose silhouette the HMI tank widget preserves — a cone
+ *  roof or an agitator is how operators recognize which vessel is which. */
+const TANK_SHAPE: Record<string, string> = {
+  'vessel.horizontal': 'horizontal',
+  'vessel.tank': 'cone',
+  'vessel.silo': 'cone',
+  'vessel.cstr': 'agitated',
+}
+
 function widgetTypeFor(node: PlantNode, category: string): { type: WidgetType; props: HmiWidget['props'] } | null {
   if (node.kind === 'annotation') return null
   const letters = node.tag?.letters ?? ''
-  if (node.kind === 'equipment' && category === 'vessels') return { type: 'tank', props: undefined }
+  if (node.kind === 'equipment' && category === 'vessels') {
+    const shape = TANK_SHAPE[node.symbolId]
+    return { type: 'tank', props: shape ? { shape } : undefined }
+  }
   // instruments are decided by their tag, never by category — a VFD box is
   // category 'rotating' but it is not a pump you can start
   if (node.kind !== 'instrument') {
@@ -84,9 +99,14 @@ export function mapNodes(sheet: Sheet, separator: '-' | ''): { widgets: HmiWidge
     // a graphic with no real identity (junction dots, untagged hardware)
     // carries no tag text — auto names like "X-3" are bookkeeping, not labels
     const hasIdentity = node.tag !== undefined || !!node.label?.trim()
+    // orientation matters for glyph-true widgets: a rotated gate valve must
+    // stay a vertical bowtie, a rotated gauge glass must stay upside down
+    const rot = (((node.rotation ?? 0) % 360) + 360) % 360
+    const keepRot = (mapped.type === 'valve' || mapped.type === 'symbol') && (rot === 90 || rot === 180 || rot === 270)
     widgets.push({
       id: `imp-${node.id}`,
       type: mapped.type, x: node.x, y: node.y, w, h,
+      ...(keepRot ? { rotation: rot as 90 | 180 | 270 } : {}),
       tag: mapped.type === 'symbol' && !hasIdentity ? undefined : name,
       label: node.label, props: mapped.props,
     })
@@ -179,12 +199,33 @@ export function importSheet(doc: ProjectDoc, sheetId: string): HmiScreen {
     if (binding.bindTank ?? binding.bindPipe) widget.props = { ...widget.props, ...binding }
   }
 
-  const pipes: HmiPipe[] = sheet.edges.filter((e) => isPipeWorthy(e.lineClass)).map((e) => ({
-    id: ulid(),
-    flowRef: e.id,
-    width: 5, // process runs read as the main arteries of the mimic
-    points: [endPoint(e.source, nodesById), ...(e.vertices ?? []), endPoint(e.target, nodesById)],
-  }))
+  // solid graphics stay where the P&ID put them — routed pipes must go
+  // around their footprints exactly like the canvas manhattan router does
+  const solidRect = new Map<string, Rect>()
+  for (const w of widgets) {
+    if (w.type === 'tank' || w.type === 'pump' || w.type === 'valve' || w.type === 'symbol') {
+      solidRect.set(w.id, { x: w.x, y: w.y, w: w.w, h: w.h })
+    }
+  }
+  const endDir = (end: PlantEdge['source']): Dir | null => {
+    if (!isPortEnd(end)) return null
+    const node = nodesById.get(end.nodeId)
+    if (!node) return null
+    const dir = portDirection(node.symbolId, end.portId)
+    return dir ? rotateDir(dir, node.rotation) : null
+  }
+  const pipes: HmiPipe[] = sheet.edges.filter((e) => isPipeWorthy(e.lineClass)).map((e) => {
+    const aPt = endPoint(e.source, nodesById)
+    const bPt = endPoint(e.target, nodesById)
+    const ownIds = [e.source, e.target].filter(isPortEnd).map((end) => `imp-${end.nodeId}`)
+    const own = ownIds.map((id) => solidRect.get(id)).filter((r): r is Rect => r !== undefined)
+    const others = [...solidRect.entries()].filter(([id]) => !ownIds.includes(id)).map(([, r]) => r)
+    const verts = e.vertices ?? []
+    const points = verts.length > 0
+      ? orthogonalizeVia([aPt, ...verts, bPt], others) // user-drawn bends are kept
+      : routePipe({ ...aPt, dir: endDir(e.source) }, { ...bPt, dir: endDir(e.target) }, others, own)
+    return { id: ulid(), flowRef: e.id, width: 5, points }
+  })
 
   // bindPipe references P&ID edge ids -> retarget to the imported pipe id
   const pipeByEdge = new Map(pipes.map((p) => [p.flowRef!, p.id]))
@@ -198,18 +239,6 @@ export function importSheet(doc: ProjectDoc, sheetId: string): HmiScreen {
         w.props = props
       }
     }
-  }
-
-  // orthogonalize: a diagonal segment reads as sloppy on an HMI — insert an
-  // elbow (horizontal-first) so imported runs look drawn, not rubber-banded
-  for (const p of pipes) {
-    const out: { x: number; y: number }[] = [p.points[0]!]
-    for (let i = 1; i < p.points.length; i++) {
-      const a = out[out.length - 1]!, b = p.points[i]!
-      if (Math.abs(b.x - a.x) > 6 && Math.abs(b.y - a.y) > 6) out.push({ x: b.x, y: a.y })
-      out.push(b)
-    }
-    p.points = out
   }
 
   // uniform scale-to-fit with a 40px margin (never upscales)

@@ -17,10 +17,17 @@ export default function SymbolGraphic({ widget, theme, sim }: WidgetView) {
   }
   const on = (sim.RUN ?? sim.OPEN ?? 0) >= 0.5
   const color = on ? theme.running : theme.equipStroke
-  const scale = Math.min(widget.w / sw, widget.h / sh)
+  // imported rotation: the widget box is already the rotated footprint, so
+  // 90/270 fit the glyph's swapped extents and spin it about the box center
+  const rot = widget.rotation ?? 0
+  const swapped = rot === 90 || rot === 270
+  const scale = Math.min(widget.w / (swapped ? sh : sw), widget.h / (swapped ? sw : sh))
+  const transform = rot === 0
+    ? `scale(${scale})`
+    : `translate(${widget.w / 2} ${widget.h / 2}) rotate(${rot}) scale(${scale}) translate(${-sw / 2} ${-sh / 2})`
   return (
     <g data-hmi-symbol={id}>
-      <g color={color} transform={`scale(${scale})`} dangerouslySetInnerHTML={{ __html: inner }} />
+      <g color={color} transform={transform} dangerouslySetInnerHTML={{ __html: inner }} />
       <text x={widget.w / 2} y={widget.h + 12} textAnchor="middle" fill={theme.text} fontSize={10} fontWeight={600}
         stroke={theme.bg} strokeWidth={3} paintOrder="stroke">{widget.tag ?? widget.label ?? ''}</text>
     </g>

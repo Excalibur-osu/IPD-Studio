@@ -239,7 +239,7 @@ export function portDirection(symbolId: string, portId: string): Direction | nul
 
 const CLOCKWISE: Record<Direction, Direction> = { top: 'right', right: 'bottom', bottom: 'left', left: 'top' }
 
-function rotateDir(dir: Direction, rotation: number): Direction {
+export function rotateDir(dir: Direction, rotation: number): Direction {
   let d = dir
   const turns = (((rotation % 360) + 360) % 360) / 90
   for (let i = 0; i < turns; i++) d = CLOCKWISE[d]
