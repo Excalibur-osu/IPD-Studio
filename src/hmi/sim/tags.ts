@@ -38,6 +38,7 @@ function defFor(w: HmiWidget): TagDef | null {
         deadband: num(p.deadband), alarmDelay: num(p.alarmDelay), priority: prio(p.priority),
       }
     case 'pump':
+    case 'equip':
       return { name: w.tag, kind: 'motor', min: 0, max: 1 }
     case 'valve':
       return { name: w.tag, kind: p.throttle === true ? 'valve' : 'valveOnOff', min: 0, max: 100 }

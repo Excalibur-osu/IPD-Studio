@@ -5,7 +5,7 @@ export type HmiTheme = 'classic' | 'hp'
 export type WidgetType =
   | 'tank' | 'pump' | 'valve' | 'display' | 'gauge' | 'trend'
   | 'lamp' | 'button' | 'switch' | 'label' | 'symbol'
-  | 'bar' | 'panel' | 'nav'
+  | 'bar' | 'panel' | 'nav' | 'equip'
 
 export interface HmiWidget {
   id: string
@@ -56,6 +56,7 @@ export const WIDGET_SCHEMA: Record<WidgetType, Record<string, PropKind>> = {
   switch: { signal: 'signalRef', onLabel: 'string', offLabel: 'string' },
   label: {},
   symbol: { symbolId: 'symbolRef' },
+  equip: { symbolId: 'symbolRef' },
   panel: {},
   nav: { screen: 'screenRef' },
 }
@@ -73,6 +74,11 @@ export interface HmiPipe {
   /** P&ID edge id when imported (informational). */
   flowRef?: string
   width?: number
+  /** End-widget anchors set by the P&ID import: the network attaches these
+   *  ends to the named widgets instead of guessing from geometry (packed
+   *  imports put several widgets within attach range of one nozzle). */
+  aId?: string
+  bId?: string
 }
 
 export interface HmiScreen {
@@ -102,6 +108,7 @@ export const WIDGET_DEFAULT_SIZE: Record<WidgetType, { w: number; h: number }> =
   switch: { w: 64, h: 32 },
   label: { w: 96, h: 24 },
   symbol: { w: 64, h: 64 },
+  equip: { w: 64, h: 64 },
   bar: { w: 56, h: 144 },
   panel: { w: 320, h: 208 },
   nav: { w: 120, h: 32 },
