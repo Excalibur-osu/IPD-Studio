@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IPD Studio — free browser P&ID editor + HMI simulator</title>
+<meta name="description" content="Draw intelligent P&IDs with real ISA-5.1 symbols and validated tags, then run your plant as a live HMI training simulation. Free, open source, in your browser.">
+<link rel="icon" href="media/icon-192.png">
+<meta property="og:title" content="IPD Studio">
+<meta property="og:description" content="Intelligent P&ID editor + HMI training simulator — free, in your browser.">
+<meta property="og:image" content="https://coldbari.github.io/IPD-Studio/media/social.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+:root {
+  --bg: #0d1220; --bg2: #131a2c; --card: #171f33; --line: #26304a;
+  --ink: #eef2fa; --dim: #c7d2e8; --mute: #7d8db0; --blue: #4da3ff;
+  --grad: linear-gradient(135deg, #f7b733, #ec4899);
+}
+* { margin: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font: 16px/1.6 -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg); color: var(--ink);
+  background-image: radial-gradient(#26304a 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+a { color: var(--blue); text-decoration: none; }
+.wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+header.hero { padding: 88px 0 56px; text-align: center; }
+.hero h1 { font-size: clamp(44px, 8vw, 76px); letter-spacing: -1px; }
+.hero h1 span { color: var(--blue); }
+.hero .tag { margin: 14px auto 0; max-width: 640px; font-size: clamp(17px, 2.6vw, 22px); color: var(--dim); }
+.cta { margin-top: 34px; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.btn { display: inline-block; padding: 13px 26px; border-radius: 10px; font-weight: 700; font-size: 16px; }
+.btn.primary { background: var(--blue); color: #08101f; }
+.btn.primary:hover { background: #6db4ff; }
+.btn.ghost { border: 1.5px solid var(--line); color: var(--dim); }
+.btn.ghost:hover { border-color: var(--blue); color: var(--ink); }
+.btn.coffee { background: var(--grad); color: #fff; }
+.btn.coffee:hover { filter: brightness(1.08); }
+.sub { margin-top: 14px; font-size: 13.5px; color: var(--mute); }
+.shot { margin: 26px auto 0; max-width: 980px; }
+.shot img, .shot video { width: 100%; border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 26px 70px rgba(0,0,0,.5); display: block; }
+section { padding: 64px 0; }
+h2 { font-size: clamp(26px, 4vw, 34px); text-align: center; }
+.lead { max-width: 680px; margin: 12px auto 0; text-align: center; color: var(--dim); }
+.grid { margin-top: 40px; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
+.card .emoji { font-size: 26px; }
+.card h3 { margin: 10px 0 6px; font-size: 17px; }
+.card p { font-size: 14.5px; color: var(--mute); }
+.duo { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.duo figure img { width: 100%; border-radius: 10px; border: 1px solid var(--line); display: block; }
+.duo figcaption { margin-top: 8px; font-size: 13.5px; color: var(--mute); text-align: center; }
+@media (max-width: 720px) { .duo { grid-template-columns: 1fr; } }
+.strip { background: var(--bg2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.lic { max-width: 760px; margin: 26px auto 0; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 24px 28px; font-size: 15px; color: var(--dim); }
+.lic strong { color: var(--ink); }
+footer { padding: 44px 0 60px; text-align: center; color: var(--mute); font-size: 14px; }
+footer .links { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>IPD <span>Studio</span></h1>
+    <p class="tag">Intelligent P&amp;ID editor + HMI training simulator — free, open source, entirely in your browser.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://pid-studio-praharsh.web.app">▶ Launch the app</a>
+      <a class="btn ghost" href="https://github.com/Coldbari/IPD-Studio">⭐ Star on GitHub</a>
+      <a class="btn coffee" href="https://github.com/sponsors/Coldbari">☕ Buy me a coffee</a>
+    </div>
+    <p class="sub">No account. No install. No upload — drawings never leave your machine.</p>
+    <div class="shot">
+      <video src="media/demo-full.mp4" poster="media/editor.png" controls muted playsinline></video>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>The $2,600/year tool, for $0</h2>
+    <p class="lead">Browser diagramming tools treat a P&amp;ID as clipart. Intelligent P&amp;ID suites are desktop-only and cost thousands per seat. IPD Studio puts real engineering data behind the drawing — free forever under the AGPL.</p>
+    <div class="grid">
+      <div class="card"><div class="emoji">🏭</div><h3>195+ real ISA symbols</h3><p>Instrument bubbles, control valves with actuators &amp; fail actions, safety devices, flow elements, vessels, exchangers, solids handling — plus your own imported SVG symbols.</p></div>
+      <div class="card"><div class="emoji">🏷️</div><h3>Tags that mean something</h3><p>Type FIC and the editor knows it's a Flow Indicating Controller. Loop numbers auto-assign, duplicates flag live, control loops derive from the tags.</p></div>
+      <div class="card"><div class="emoji">🖥️</div><h3>Run your plant as an HMI</h3><p>One-click import into a live operator screen: DCS faceplates, PI control loops, ISA-18.2 alarms, trends, startable pumps and compressors — and trip them for training.</p></div>
+      <div class="card"><div class="emoji">🎨</div><h3>Fluid services</h3><p>Water blue, steam red, slurry brown — assign a fluid to one line and the color flows through the whole connected run, into the HMI too.</p></div>
+      <div class="card"><div class="emoji">📄</div><h3>Real deliverables</h3><p>Generated ISA-5.4 loop diagrams, ISA-20 datasheets, instrument index &amp; line list CSV, DEXPI XML, layered DXF for AutoCAD — from the model, not typed by hand.</p></div>
+      <div class="card"><div class="emoji">🔌</div><h3>Local-first &amp; offline</h3><p>Installable PWA. Versioned open JSON file format. DXF underlay to redraw legacy drawings. Everything runs without internet.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="strip">
+  <div class="wrap">
+    <h2>From drawing to running plant</h2>
+    <div class="duo">
+      <figure><img src="media/fluids.png" alt="P&ID with fluid services coloring the line runs" loading="lazy"><figcaption>Draw with validated tags; fluid colors spread along each run.</figcaption></figure>
+      <figure><img src="media/hmi.png" alt="HMI Studio running the same plant" loading="lazy"><figcaption>The same plant in HMI Studio — levels move, pumps start, alarms ring.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Free for engineers. Protected from freeloaders.</h2>
+    <div class="lic">
+      <p><strong>Use it at work, free.</strong> Draw commercial P&amp;IDs, run paid training — your drawings are yours. The AGPL-3.0 covers the software, not your documents.</p>
+      <p style="margin-top:12px"><strong>Copy it, and you share back.</strong> Anyone redistributing or hosting a modified IPD Studio must publish their source. Want a closed-source or white-label version instead? <a href="https://github.com/Coldbari/IPD-Studio/blob/main/COMMERCIAL-LICENSE.md">A commercial license is available</a>.</p>
+      <p style="margin-top:12px"><strong>Want to contribute?</strong> Good first issues are waiting — <a href="https://github.com/Coldbari/IPD-Studio/blob/main/CONTRIBUTING.md">the guide</a> takes you from fork to merged PR.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="https://pid-studio-praharsh.web.app">Launch app</a>
+      <a href="https://github.com/Coldbari/IPD-Studio">GitHub</a>
+      <a href="https://github.com/Coldbari/IPD-Studio/issues">Issues</a>
+      <a href="https://github.com/Coldbari/IPD-Studio/discussions">Discussions</a>
+      <a href="https://github.com/sponsors/Coldbari">☕ Support</a>
+    </div>
+    <div>© 2026 Praharsh Nagpure · AGPL-3.0 · Not affiliated with the International Society of Automation</div>
+  </div>
+</footer>
+
+</body>
+</html>
