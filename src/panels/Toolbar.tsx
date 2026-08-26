@@ -134,11 +134,11 @@ export default function Toolbar({ onOpenHmi }: { onOpenHmi?: () => void } = {}) 
       <button onClick={onOpenHmi} title="Switch to the HMI workspace" data-testid="open-hmi">HMI ⇄</button>
       <span className="tb-grow" />
       <a
+        className="tb-coffee"
         href="https://github.com/sponsors/Coldbari"
         target="_blank"
         rel="noreferrer"
         title="IPD Studio is free & open source — a coffee keeps the pumps running ☕"
-        style={{ alignSelf: 'center', fontSize: 12, textDecoration: 'none', color: '#c2255c', marginRight: 8, whiteSpace: 'nowrap' }}
       >
         ☕ Buy me a coffee
       </a>
