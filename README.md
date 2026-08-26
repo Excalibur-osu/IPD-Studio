@@ -10,20 +10,21 @@ Local-first: no backend, no account, no upload. Drawings live on your machine.
 **▶ Try it now: [pid-studio-praharsh.web.app](https://pid-studio-praharsh.web.app)** — pick *Templates → Sample plant* for a demo.
 
 <p align="center">
-  <img src="docs/media/demo.gif" alt="IPD Studio demo: drawing the sample plant, coloring fluid services, and running the HMI simulation" width="840">
+  <img src="docs/media/demo.gif" alt="IPD Studio demo: drawing a plant P&ID, coloring fluid services, and opening it in HMI Studio" width="840">
 </p>
-<p align="center"><em>Draw the P&ID → color the services → run it as a live HMI simulation.</em></p>
+<p align="center"><em>A real drawing session, sped up: place instruments → draw the loops → color the services → open it in HMI Studio.<br>
+<strong><a href="docs/media/demo-full.mp4">▶ Watch the full 2½-minute video</a></strong></em></p>
 
 <p align="center">
-  <img src="docs/media/editor.png" alt="The P&ID editor: ISA symbol palette, validated tags, property panel" width="840">
+  <img src="docs/media/editor.png" alt="The P&ID editor: ISA symbol palette, typical loops, multi-sheet drawing with validation and advisor" width="840">
 </p>
-<p align="center"><em>The editor: ISA-5.1 palette with instrument presets, validated tags, live advisor.</em></p>
+<p align="center"><em>The editor: ISA-5.1 palette with instrument presets and typical loops, multi-sheet drawings, live validation & advisor.</em></p>
 
 <p align="center">
   <img src="docs/media/fluids.png" alt="Fluid services: water, steam, and slurry coloring whole line runs" width="49%">
-  <img src="docs/media/hmi.png" alt="HMI Studio running the imported plant with live levels, valves, and faceplates" width="49%">
+  <img src="docs/media/hmi.png" alt="HMI Studio: the same plant as an operator screen with tanks, valves, pumps, and live displays" width="49%">
 </p>
-<p align="center"><em>Left: fluid services color whole line runs (water/steam/slurry). Right: the same plant imported into HMI Studio and running.</em></p>
+<p align="center"><em>Left: fluid services color whole line runs (water/steam/slurry). Right: the same plant in HMI Studio — tanks, valves, pumps, and displays ready to simulate.</em></p>
 
 ## Why
 
