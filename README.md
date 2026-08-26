@@ -1,5 +1,6 @@
 # IPD Studio
 
+[![CI](https://github.com/Coldbari/IPD-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/Coldbari/IPD-Studio/actions/workflows/ci.yml)
 [![Buy me a coffee](https://img.shields.io/badge/%E2%98%95%20Buy%20me%20a%20coffee-keep%20the%20pumps%20running-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/Coldbari)
 [![Live demo](https://img.shields.io/badge/Live%20demo-%E2%96%B6-2b6cb0)](https://pid-studio-praharsh.web.app)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)](LICENSE)
