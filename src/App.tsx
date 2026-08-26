@@ -8,6 +8,8 @@ import SheetTabs from './panels/SheetTabs'
 import StatusBar from './panels/StatusBar'
 import SearchOverlay from './panels/SearchOverlay'
 import QuickLineEditor from './panels/QuickLineEditor'
+import UpdateToast from './panels/UpdateToast'
+import WelcomeOverlay from './panels/WelcomeOverlay'
 
 const HmiWorkspace = lazy(() => import('./hmi/HmiWorkspace'))
 
@@ -45,6 +47,7 @@ export default function App() {
     return (
       <Suspense fallback={<div style={{ padding: 24 }}>Loading HMI workspace…</div>}>
         <HmiWorkspace onExit={() => setWorkspace('pid')} />
+        <UpdateToast />
       </Suspense>
     )
   }
@@ -74,6 +77,8 @@ export default function App() {
       <StatusBar />
       <SearchOverlay />
       <QuickLineEditor />
+      <UpdateToast />
+      <WelcomeOverlay />
     </div>
   )
 }
