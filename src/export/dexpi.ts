@@ -106,9 +106,9 @@ export function dexpiXml(doc: ProjectDoc, sheetId: string): string {
   const { w, h } = sheetPx(sheet.sheetSize)
   const body: string[] = [
     el('PlantInformation', {
-      Application: 'PID Studio',
+      Application: 'IPD Studio',
       ApplicationVersion: '0.2.0',
-      OriginatingSystem: 'PID Studio',
+      OriginatingSystem: 'IPD Studio',
       Date: new Date().toISOString(),
       Units: 'px',
       SchemaVersion: '4.2.0',

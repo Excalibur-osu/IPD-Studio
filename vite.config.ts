@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['icon-192.png', 'icon-512.png'],
       manifest: {
-        name: 'PID Studio',
-        short_name: 'PID Studio',
+        name: 'IPD Studio',
+        short_name: 'IPD Studio',
         description: 'Open-source intelligent P&ID editor',
         theme_color: '#2b6cb0',
         background_color: '#ffffff',

@@ -43,7 +43,7 @@ describe('dexpiXml', () => {
     expect(XMLValidator.validate(xml)).toBe(true)
     const parsed = new XMLParser({ ignoreAttributes: false }).parse(xml)
     expect(parsed.PlantModel).toBeDefined()
-    expect(parsed.PlantModel.PlantInformation['@_Application']).toBe('PID Studio')
+    expect(parsed.PlantModel.PlantInformation['@_Application']).toBe('IPD Studio')
     expect(parsed.PlantModel.Drawing['@_Name']).toBe('Sheet 1')
   })
 

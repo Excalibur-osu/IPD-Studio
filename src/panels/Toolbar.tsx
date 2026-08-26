@@ -53,7 +53,7 @@ export default function Toolbar({ onOpenHmi }: { onOpenHmi?: () => void } = {}) 
 
   return (
     <header className="toolbar">
-      <strong className="app-name">PID Studio</strong>
+      <strong className="app-name">IPD Studio</strong>
       <span className="doc-name">{name}{dirty ? ' •' : ''}</span>
       <span className="tb-sep" />
       <button onClick={newDoc}>New</button>

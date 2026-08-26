@@ -1,4 +1,4 @@
-# PID Studio
+# IPD Studio
 
 **Open-source, browser-based intelligent P&ID editor.** Drag ISA-5.1-style
 symbols onto a sheet, connect process and signal lines with proper orthogonal
@@ -7,14 +7,28 @@ engineering deliverables.
 
 Local-first: no backend, no account, no upload. Drawings live on your machine.
 
-**▶ Try it now: [pid-studio-praharsh.web.app](https://pid-studio-praharsh.web.app)** — pick *Templates → Sample* for a demo plant.
+**▶ Try it now: [pid-studio-praharsh.web.app](https://pid-studio-praharsh.web.app)** — pick *Templates → Sample plant* for a demo.
 
-![PID Studio editing the sample plant](docs/screenshot.png)
+<p align="center">
+  <img src="docs/media/demo.gif" alt="IPD Studio demo: drawing the sample plant, coloring fluid services, and running the HMI simulation" width="840">
+</p>
+<p align="center"><em>Draw the P&ID → color the services → run it as a live HMI simulation.</em></p>
+
+<p align="center">
+  <img src="docs/media/editor.png" alt="The P&ID editor: ISA symbol palette, validated tags, property panel" width="840">
+</p>
+<p align="center"><em>The editor: ISA-5.1 palette with instrument presets, validated tags, live advisor.</em></p>
+
+<p align="center">
+  <img src="docs/media/fluids.png" alt="Fluid services: water, steam, and slurry coloring whole line runs" width="49%">
+  <img src="docs/media/hmi.png" alt="HMI Studio running the imported plant with live levels, valves, and faceplates" width="49%">
+</p>
+<p align="center"><em>Left: fluid services color whole line runs (water/steam/slurry). Right: the same plant imported into HMI Studio and running.</em></p>
 
 ## Why
 
 Every browser diagramming tool treats a P&ID as clipart. Every intelligent
-P&ID tool is a $2,600+/year desktop install. PID Studio is the missing thing:
+P&ID tool is a $2,600+/year desktop install. IPD Studio is the missing thing:
 **data behind the drawing, in the browser, free (AGPL).**
 
 - Tags are parsed and validated against ISA-5.1 letter tables — type `FIC` and
@@ -63,7 +77,7 @@ P&ID tool is a $2,600+/year desktop install. PID Studio is the missing thing:
   validation
 - **DEXPI-oriented export *and import*** — Proteus Schema 4.2-shaped XML with
   a documented model mapping ([docs/DEXPI-MAPPING.md](docs/DEXPI-MAPPING.md));
-  PID Studio files round-trip, foreign files map via ComponentClass
+  IPD Studio files round-trip, foreign files map via ComponentClass
 - **CAD interop** — layered R12 **DXF export** (opens in AutoCAD/LibreCAD),
   and **DXF underlay import**: load a legacy drawing as a locked gray
   background and redraw intelligently on top
@@ -87,8 +101,8 @@ P&ID tool is a $2,600+/year desktop install. PID Studio is the missing thing:
 ## Quick start
 
 ```bash
-git clone https://github.com/Coldbari/pid-studio.git
-cd pid-studio
+git clone https://github.com/PraharshNagpure/IPD-Studio.git
+cd IPD-Studio
 npm install
 npm run dev     # open http://localhost:5173, Templates → Sample for a demo plant
 npm test        # 600+ unit tests
@@ -121,8 +135,8 @@ issue is a valuable contribution.
 
 ## Support the project
 
-PID Studio is built and maintained free. If it saves you a license fee, you
-can [sponsor the project on GitHub](https://github.com/sponsors/Coldbari) —
+IPD Studio is built and maintained free. If it saves you a license fee, you
+can [sponsor the project on GitHub](https://github.com/sponsors/PraharshNagpure) —
 sponsorship pays for the time that turns issues into releases.
 
 ## Symbols & standards

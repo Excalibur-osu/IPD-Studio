@@ -20,7 +20,7 @@ const LAYERS = ['PROCESS', 'SIGNAL', 'SYMBOLS', 'TEXT', 'FRAME'] as const
 type Layer = (typeof LAYERS)[number]
 
 function header(): string {
-  let out = pair(999, 'PID Studio DXF export — model geometry; signal decorations and manhattan routing simplified')
+  let out = pair(999, 'IPD Studio DXF export — model geometry; signal decorations and manhattan routing simplified')
   out += pair(0, 'SECTION') + pair(2, 'TABLES')
   out += pair(0, 'TABLE') + pair(2, 'LAYER') + pair(70, LAYERS.length)
   for (const name of LAYERS) {

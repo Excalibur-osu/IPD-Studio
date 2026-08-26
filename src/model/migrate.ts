@@ -42,7 +42,7 @@ function migrateV1(v1: V1Doc): ProjectDoc {
 /** Parse + validate + migrate a raw JSON payload into the current schema. */
 export function loadDoc(raw: unknown): ProjectDoc {
   if (typeof raw !== 'object' || raw === null) {
-    throw new DocError('Not a PID Studio document')
+    throw new DocError('Not a IPD Studio document')
   }
   const version = (raw as { schemaVersion?: unknown }).schemaVersion
   if (version === 1) {

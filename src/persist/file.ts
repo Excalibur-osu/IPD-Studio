@@ -17,12 +17,12 @@ interface FilePickerWindow extends Window {
   showOpenFilePicker?: (opts: unknown) => Promise<FileSystemFileHandle[]>
 }
 
-/** PID Studio's own drawing extension. Old .pnid.json / .json files still open. */
+/** IPD Studio's own drawing extension. Old .pnid.json / .json files still open. */
 export const PNID_EXT = '.pnid'
 export const PNID_MIME = 'application/x-pnid'
 
 const PICKER_TYPES = [
-  { description: 'PID Studio drawing', accept: { [PNID_MIME]: [PNID_EXT] } },
+  { description: 'IPD Studio drawing', accept: { [PNID_MIME]: [PNID_EXT] } },
   { description: 'Legacy JSON drawing', accept: { 'application/json': ['.json'] } },
   { description: 'DEXPI / Proteus XML', accept: { 'application/xml': ['.xml'] } },
 ]

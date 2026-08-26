@@ -80,7 +80,7 @@ async function openDroppedFile(file: File): Promise<void> {
   try {
     loadAnyText(file.name, text)
   } catch {
-    window.alert(`Could not read ${file.name} as a PID Studio drawing`)
+    window.alert(`Could not read ${file.name} as an IPD Studio drawing`)
   }
 }
 

@@ -19,7 +19,7 @@ function fixture() {
 }
 
 describe('importDexpi round-trip', () => {
-  it('restores PID Studio exports (symbols, tags, positions, line classes)', () => {
+  it('restores IPD Studio exports (symbols, tags, positions, line classes)', () => {
     const doc = fixture()
     const xml = dexpiXml(doc, doc.sheets[0]!.id)
     const { sheet, warnings } = importDexpi(xml)

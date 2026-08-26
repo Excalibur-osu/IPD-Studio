@@ -1,6 +1,6 @@
 # DWG import spike — findings (v0.3)
 
-**Question:** can PID Studio open native AutoCAD DWG files in the browser?
+**Question:** can IPD Studio open native AutoCAD DWG files in the browser?
 
 ## What was evaluated
 

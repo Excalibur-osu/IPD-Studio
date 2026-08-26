@@ -1,4 +1,4 @@
-# Contributing to PID Studio
+# Contributing to IPD Studio
 
 Thanks for helping build the free, browser-native intelligent P&ID tool.
 All contributions are welcome: bug fixes, new symbols, HMI widgets, docs,

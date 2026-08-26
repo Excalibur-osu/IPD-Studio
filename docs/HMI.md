@@ -1,6 +1,6 @@
 # HMI Studio
 
-HMI Studio is PID Studio's operate-mode workspace: build operator mimic
+HMI Studio is IPD Studio's operate-mode workspace: build operator mimic
 screens from a widget palette — or generate one from your P&ID in one click —
 and run them as a live, interactive **training/demo simulation**. It is not a
 SCADA runtime and never talks to real devices.

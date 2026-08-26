@@ -5,7 +5,9 @@ import { DEFAULT_FLUIDS } from '../model/doc'
 /** Manage the document's process services: name + line color. Assigning a
  *  fluid to a line spreads it along the connected run automatically. */
 export default function FluidsDialog({ onClose }: { onClose(): void }) {
-  const fluids = useStore((s) => s.doc.fluids ?? [])
+  // NB: select the raw field — `?? []` inside the selector mints a new array
+  // every snapshot and loops React when the doc has no fluids yet
+  const fluids = useStore((s) => s.doc.fluids) ?? []
   const addFluid = useStore((s) => s.addFluid)
   const updateFluid = useStore((s) => s.updateFluid)
   const removeFluid = useStore((s) => s.removeFluid)

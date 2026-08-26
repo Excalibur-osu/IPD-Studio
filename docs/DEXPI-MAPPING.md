@@ -1,11 +1,11 @@
-# PID Studio → DEXPI/Proteus mapping
+# IPD Studio → DEXPI/Proteus mapping
 
-PID Studio exports a **DEXPI-oriented XML file in the Proteus Schema 4.2
+IPD Studio exports a **DEXPI-oriented XML file in the Proteus Schema 4.2
 shape** (`Toolbar → DEXPI`). It is designed for interoperability with
 DEXPI-consuming tools but is **not certified** against the DEXPI conformance
 suite. Geometry is in CSS pixels; 1 mm = 3.7795 px.
 
-| PID Studio model | Proteus/DEXPI element |
+| IPD Studio model | Proteus/DEXPI element |
 |---|---|
 | Project + sheet metadata | `PlantInformation` (Application, ProjectName, DrawingNumber) |
 | Sheet + size | `Drawing` with `Extent` (Min/Max in px) |
