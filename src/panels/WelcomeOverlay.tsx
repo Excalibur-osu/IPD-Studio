@@ -5,6 +5,9 @@ import { loadDoc } from '../model/migrate'
 import samplePlant from '../../examples/sample-plant.pnid.json'
 
 const KEY = 'pid.ui.welcomed'
+/** Streamed from the project site — 23 MB doesn't belong in the PWA bundle. */
+const DEMO_URL = 'https://coldbari.github.io/IPD-Studio/media/demo-full.mp4'
+const DEMO_POSTER = 'https://coldbari.github.io/IPD-Studio/media/editor.png'
 
 const seen = (): boolean => {
   try { return localStorage.getItem(KEY) === '1' } catch { return true }
@@ -13,30 +16,36 @@ const markSeen = (): void => {
   try { localStorage.setItem(KEY, '1') } catch { /* private mode */ }
 }
 
-/** First-visit welcome: three ways in, shown once per browser. */
+/** First-visit welcome: the demo plays right here, ways in below. Shown once. */
 export default function WelcomeOverlay() {
   const [open, setOpen] = useState(() => !seen())
   if (!open) return null
   const close = () => { markSeen(); setOpen(false) }
   return (
-    <Modal title="Welcome to IPD Studio 👋" onClose={close} width={430}>
+    <Modal title="Welcome to IPD Studio 👋" onClose={close} width={560}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <p style={{ fontSize: 13, color: '#556', margin: 0 }}>
           Free, open-source P&ID drawing with real ISA symbols — and an HMI
-          simulator that brings your plant to life. Pick a starting point:
+          simulator that brings your plant to life. Here's 2½ minutes of it:
         </p>
-        <button data-testid="welcome-sample" style={{ padding: '10px 12px', textAlign: 'left' }}
-          onClick={() => { useStore.getState().loadIntoStore(loadDoc(samplePlant)); close() }}>
-          🏭 <strong>Open the sample plant</strong> — a tagged, wired unit to explore
-        </button>
-        <a href="https://github.com/Coldbari/IPD-Studio/blob/main/docs/media/demo-full.mp4"
-          target="_blank" rel="noreferrer" onClick={close}
-          style={{ padding: '10px 12px', border: '1px solid #ccc', borderRadius: 4, background: '#fff', textDecoration: 'none', color: 'inherit' }}>
-          ▶ <strong>Watch the 2½-minute demo</strong> — drawing to running HMI
-        </a>
-        <button data-testid="welcome-blank" style={{ padding: '10px 12px', textAlign: 'left' }} onClick={close}>
-          ✏️ <strong>Start drawing</strong> — blank sheet, symbols on the left
-        </button>
+        <video
+          data-testid="welcome-video"
+          src={DEMO_URL}
+          poster={DEMO_POSTER}
+          controls
+          playsInline
+          preload="metadata"
+          style={{ width: '100%', borderRadius: 6, background: '#0d1220', border: '1px solid #d5d5d5' }}
+        />
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button data-testid="welcome-sample" style={{ flex: 1, padding: '10px 12px' }}
+            onClick={() => { useStore.getState().loadIntoStore(loadDoc(samplePlant)); close() }}>
+            🏭 <strong>Open the sample plant</strong>
+          </button>
+          <button data-testid="welcome-blank" style={{ flex: 1, padding: '10px 12px' }} onClick={close}>
+            ✏️ <strong>Start drawing</strong>
+          </button>
+        </div>
         <p style={{ fontSize: 11, color: '#889', margin: 0 }}>
           Everything stays on your machine — no account, no upload.
         </p>
