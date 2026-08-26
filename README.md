@@ -152,7 +152,19 @@ geometric conventions. This project is not affiliated with or endorsed by the
 International Society of Automation. "ISA" is referenced solely to describe
 the drawing conventions the symbols follow.
 
-## License
+## License & commercial use
 
-AGPL-3.0-only — free forever, and every hosted derivative must publish its
-source. See [LICENSE](LICENSE).
+**AGPL-3.0-only** — free forever for everyone, including professional use:
+draw commercial P&IDs, run paid training, keep every drawing. The license
+covers the software, not your documents.
+
+The protection: anyone who **redistributes or hosts a modified IPD Studio**
+— including as a web service — must publish their complete source under the
+AGPL as well. Proprietary copies are not permitted.
+
+Want to embed IPD Studio in a closed-source product or host a modified
+version without publishing your changes? A **paid commercial license** is
+available — see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) or write to
+praharshchamp610@gmail.com.
+
+Copyright © 2026 Praharsh Nagpure. See [LICENSE](LICENSE).
