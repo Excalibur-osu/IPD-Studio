@@ -1,5 +1,10 @@
 # IPD Studio
 
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/Coldbari)
+[![Live demo](https://img.shields.io/badge/Live%20demo-%E2%96%B6-2b6cb0)](https://pid-studio-praharsh.web.app)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)](LICENSE)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
+
 **Open-source, browser-based intelligent P&ID editor.** Drag ISA-5.1-style
 symbols onto a sheet, connect process and signal lines with proper orthogonal
 routing, tag instruments with validated ISA tags — and generate real

@@ -133,6 +133,15 @@ export default function Toolbar({ onOpenHmi }: { onOpenHmi?: () => void } = {}) 
       <span className="tb-sep" />
       <button onClick={onOpenHmi} title="Switch to the HMI workspace" data-testid="open-hmi">HMI ⇄</button>
       <span className="tb-grow" />
+      <a
+        href="https://github.com/sponsors/Coldbari"
+        target="_blank"
+        rel="noreferrer"
+        title="IPD Studio is free & open source — sponsoring funds new features"
+        style={{ alignSelf: 'center', fontSize: 12, textDecoration: 'none', color: '#c2255c', marginRight: 8, whiteSpace: 'nowrap' }}
+      >
+        ♥ Sponsor
+      </a>
       <ExportMenu />
     </header>
   )
