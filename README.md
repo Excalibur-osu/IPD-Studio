@@ -14,6 +14,7 @@ engineering deliverables.
 Local-first: no backend, no account, no upload. Drawings live on your machine.
 
 **▶ Try it now: [pid-studio-praharsh.web.app](https://pid-studio-praharsh.web.app)** — pick *Templates → Sample plant* for a demo.
+**🌐 Project site: [coldbari.github.io/IPD-Studio](https://coldbari.github.io/IPD-Studio/)**
 
 <p align="center">
   <img src="docs/media/demo.gif" alt="IPD Studio demo: drawing a plant P&ID, coloring fluid services, and opening it in HMI Studio" width="840">
