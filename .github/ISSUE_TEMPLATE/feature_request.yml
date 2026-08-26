@@ -1,0 +1,27 @@
+name: Feature request
+description: A capability, symbol, or workflow you're missing
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you need to do?
+      description: Describe the engineering task, not just the button — "I need to mark insulation spec breaks on lines", not "add a button".
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: How do you handle it today?
+      placeholder: "In AutoCAD Plant 3D we…, currently I work around it by…"
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - P&ID editor
+        - Symbols / palette
+        - HMI Studio
+        - Import/export (DEXPI, DXF, CSV)
+        - Validation / tagging
+        - Other

@@ -1,0 +1,31 @@
+name: Bug report
+description: Something broken in the editor, HMI, import/export, or a symbol
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+      placeholder: "Drew a line from the pump to the tank, pressed undo, and the line came back."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the sample plant (Templates → Sample)
+        2. …
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser + OS
+      placeholder: "Chrome 139 / macOS 15"
+  - type: textarea
+    id: file
+    attributes:
+      label: Drawing file (optional)
+      description: If the bug needs a specific drawing, paste the .pnid JSON or attach it zipped. Files never leave your machine otherwise.

@@ -7,6 +7,10 @@ engineering deliverables.
 
 Local-first: no backend, no account, no upload. Drawings live on your machine.
 
+**▶ Try it now: [pid-studio-praharsh.web.app](https://pid-studio-praharsh.web.app)** — pick *Templates → Sample* for a demo plant.
+
+![PID Studio editing the sample plant](docs/screenshot.png)
+
 ## Why
 
 Every browser diagramming tool treats a P&ID as clipart. Every intelligent
@@ -20,13 +24,25 @@ P&ID tool is a $2,600+/year desktop install. PID Studio is the missing thing:
 - The instrument index and line list are generated from the model, not typed
 - The document is versioned open JSON, designed to map onto DEXPI
 
-## Features (v0.3)
+## Features (v0.9)
 
-- **HMI Studio (v0.6)** — build operator screens from your P&ID and run them
-  as a live training simulation: faceplates, PI control loops auto-wired from
-  your ISA tags, alarms with acknowledge, flow animation, classic and ISA-101
-  high-performance themes ([docs](docs/HMI.md))
-- **180+ parametric symbols, 200+ palette entries** — instrument bubbles (all
+- **HMI Studio** — build operator screens from your P&ID (or import them in
+  one click) and run them as a live training simulation: DCS-style faceplates,
+  PI control loops auto-wired from your ISA tags, ISA-18.2 alarms (priorities,
+  deadband, shelve/out-of-service), multi-pen trends with a real time axis,
+  motor-driven equipment (pumps, compressors, conveyors) you can start, stop,
+  and trip, flow-network simulation with fan-out, training upsets (trip a
+  pump, stick a valve, plug a line), classic and ISA-101 high-performance
+  themes ([docs](docs/HMI.md))
+- **Fluid services** — define media once (Water blue, Steam red, Slurry
+  brown…), assign one to a line and the color spreads along the whole
+  connected run; imported HMI pipes inherit it
+- **Full instrumentation palette** — a 60-entry ISA-5.1 preset catalog
+  (every element/transmitter/indicator/controller/converter/switch for
+  flow, pressure, level, temperature, analysis + more), searchable by
+  shortcut (`FT`) or full name ("flow transmitter"), placed pre-tagged with
+  per-type auto-numbering
+- **195+ parametric symbols** — instrument bubbles (all
   16 ISA display/location variants from one parameterized symbol), control
   valves with 7 actuator types and fail-action marks, 14 manual valve types,
   safety/relief devices, 14 flow elements, level/temperature/pressure
@@ -34,7 +50,9 @@ P&ID tool is a $2,600+/year desktop install. PID Studio is the missing thing:
   reactors, separators, heat exchangers, fired heaters, cooling towers,
   ISA-5.2 logic gates (AND/OR/NOT), DCS/PLC/SIS system boxes, fittings,
   solids handling (conveyors, crushers, dryers, clarifiers), boilers, flares,
-  MCC/UPS/IS barriers, steam trap variants — plus **your own imported SVG
+  MCC/UPS/IS barriers, steam trap variants, solenoid (XV) and motor-operated
+  (MOV) valves, foot/ball-check/float valves, air filter regulators, pulsation
+  dampeners, drain funnels, fans, coils — plus **your own imported SVG
   symbols** with a click-to-place port editor
 - **16 line classes** with correct ISA rendering: heavy/light process,
   impulse, electric (dashed), pneumatic (double slash), hydraulic, capillary,
@@ -69,10 +87,12 @@ P&ID tool is a $2,600+/year desktop install. PID Studio is the missing thing:
 ## Quick start
 
 ```bash
+git clone https://github.com/Coldbari/pid-studio.git
+cd pid-studio
 npm install
-npm run dev     # open http://localhost:5173, press "Sample" for a demo plant
-npm test        # 247 unit tests
-npx playwright test   # e2e
+npm run dev     # open http://localhost:5173, Templates → Sample for a demo plant
+npm test        # 600+ unit tests
+npx playwright test   # e2e suite (starts its own dev server)
 ```
 
 ## File format
@@ -83,9 +103,27 @@ Drawings save as `.pnid.json` — versioned, human-readable JSON
 
 ## Roadmap
 
-- **v0.4** — real-time collaboration (opt-in self-hosted sync; the no-backend
-  local-first default stays), review comments, DEXPI conformance hardening,
-  in-app DWG per the [spike findings](docs/DWG-IMPORT-SPIKE.md)
+- Custom **HMI widgets from your own SVG** with animation bindings (level
+  fills, spin-on-run) — the same import pipeline the P&ID symbols already have
+- Legend sheet generation (line classes + fluid colors in use)
+- Real-time collaboration (opt-in self-hosted sync; the no-backend
+  local-first default stays), review comments
+- DEXPI conformance hardening; in-app DWG per the
+  [spike findings](docs/DWG-IMPORT-SPIKE.md)
+
+## Contributing
+
+PRs, symbol requests, and bug reports are all welcome — start with
+[CONTRIBUTING.md](CONTRIBUTING.md) for the fork→branch→PR flow, the
+architecture in one paragraph, and the how-to for adding a symbol. If you're
+a practicing I&C or process engineer, even a "this convention is wrong"
+issue is a valuable contribution.
+
+## Support the project
+
+PID Studio is built and maintained free. If it saves you a license fee, you
+can [sponsor the project on GitHub](https://github.com/sponsors/Coldbari) —
+sponsorship pays for the time that turns issues into releases.
 
 ## Symbols & standards
 

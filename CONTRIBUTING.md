@@ -1,5 +1,72 @@
 # Contributing to PID Studio
 
+Thanks for helping build the free, browser-native intelligent P&ID tool.
+All contributions are welcome: bug fixes, new symbols, HMI widgets, docs,
+translations of engineering conventions you know from your industry — even a
+well-written bug report with a `.pnid` file attached moves the project.
+
+## Your first contribution, step by step
+
+1. **Fork** the repo on GitHub (button top-right), then clone your fork:
+
+   ```bash
+   git clone https://github.com/<your-username>/pid-studio.git
+   cd pid-studio
+   npm install
+   npm run dev        # editor at http://localhost:5173
+   ```
+
+2. **Pick something.** Issues labeled `good first issue` are sized for a first
+   PR; `help wanted` are bigger but unclaimed. Or just fix what bugs you.
+   For anything large, open an issue first so we agree on the approach
+   before you invest the time.
+
+3. **Branch** off `main`:
+
+   ```bash
+   git checkout -b feat/foot-valve-symbol   # feat/… fix/… docs/…
+   ```
+
+4. **Make the change, tests first.** Logic changes start with a failing test
+   (see "Tests are the contract" below). Run the gates locally:
+
+   ```bash
+   npm test             # unit (vitest)
+   npx playwright test  # e2e (starts its own dev server)
+   npm run build        # type-check + production build
+   ```
+
+5. **Commit** in the conventional style used throughout the history:
+
+   ```
+   feat(pid): foot valve symbol with strainer hatch
+   fix(hmi): trend hover cursor froze the wrong window
+   ```
+
+6. **Push and open a Pull Request** against `main`:
+
+   ```bash
+   git push -u origin feat/foot-valve-symbol
+   ```
+
+   The PR template asks how you verified it — fill it honestly. CI-less for
+   now, so your local test run *is* the gate.
+
+7. **Review.** Expect concrete feedback; push follow-up commits to the same
+   branch (no force-push needed). Once approved it's squash-merged, and your
+   change ships to [the live app](https://pid-studio-praharsh.web.app) with
+   the next release.
+
+## What we especially need
+
+- **Symbols** you miss from real drawings (follow "Adding a symbol" below —
+  and the IP rule, always)
+- **Industry review**: wrong conventions, wrong letter combinations, things a
+  practicing I&C engineer would flinch at — file issues, you don't need to code
+- **HMI widgets** and simulation depth (see `src/hmi/`)
+- **Import/export fidelity**: DEXPI conformance, DXF quirks from real CAD files
+- **Docs and examples**: a good example plant teaches more than a manual
+
 ## Dev setup
 
 ```bash
