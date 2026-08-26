@@ -4,6 +4,21 @@ declare global {
   interface Window { __pid: any }
 }
 
+test('fluids are reachable from the toolbar with nothing selected', async ({ page }) => {
+  await page.goto('/')
+  await page.waitForFunction(() => Boolean(window.__pid))
+  await page.getByTestId('tb-fluids').click()
+  await expect(page.getByRole('dialog', { name: 'Fluids / services' })).toBeVisible()
+  const before = await page.evaluate(() => (window.__pid.useStore.getState().doc.fluids ?? []).length)
+  await page.getByTestId('fluid-add').click()
+  const after = await page.evaluate(() => (window.__pid.useStore.getState().doc.fluids ?? []).length)
+  expect(after).toBe(before + 1)
+  // rename sticks
+  await page.getByRole('dialog').locator('input:not([type="color"])').last().fill('Brine')
+  const names = await page.evaluate(() => (window.__pid.useStore.getState().doc.fluids ?? []).map((f: any) => f.name))
+  expect(names).toContain('Brine')
+})
+
 test('fluid assignment colors the connected run on canvas', async ({ page }) => {
   await page.goto('/')
   await page.waitForFunction(() => Boolean(window.__pid))
