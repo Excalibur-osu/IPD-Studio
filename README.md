@@ -1,6 +1,6 @@
 # IPD Studio
 
-[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/Coldbari)
+[![Buy me a coffee](https://img.shields.io/badge/%E2%98%95%20Buy%20me%20a%20coffee-keep%20the%20pumps%20running-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/Coldbari)
 [![Live demo](https://img.shields.io/badge/Live%20demo-%E2%96%B6-2b6cb0)](https://pid-studio-praharsh.web.app)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)](LICENSE)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
@@ -139,11 +139,16 @@ architecture in one paragraph, and the how-to for adding a symbol. If you're
 a practicing I&C or process engineer, even a "this convention is wrong"
 issue is a valuable contribution.
 
-## Support the project
+## ☕ Buy me a coffee
 
-IPD Studio is built and maintained free. If it saves you a license fee, you
-can [sponsor the project on GitHub](https://github.com/sponsors/Coldbari) —
-sponsorship pays for the time that turns issues into releases.
+IPD Studio is free, and stays free. But behind every calm-starting plant and
+every routed pipe there's a developer running on coffee.
+
+**[☕ Buy me a coffee → keep the pumps running](https://github.com/sponsors/Coldbari)**
+
+One coffee a month keeps the symbols coming; a bigger one moves your feature
+requests to the front of the queue. If this tool just saved you a $2,600/year
+license — a coffee is a pretty good deal for both of us. 😄
 
 ## Symbols & standards
 

@@ -137,10 +137,10 @@ export default function Toolbar({ onOpenHmi }: { onOpenHmi?: () => void } = {}) 
         href="https://github.com/sponsors/Coldbari"
         target="_blank"
         rel="noreferrer"
-        title="IPD Studio is free & open source — sponsoring funds new features"
+        title="IPD Studio is free & open source — a coffee keeps the pumps running ☕"
         style={{ alignSelf: 'center', fontSize: 12, textDecoration: 'none', color: '#c2255c', marginRight: 8, whiteSpace: 'nowrap' }}
       >
-        ♥ Sponsor
+        ☕ Buy me a coffee
       </a>
       <ExportMenu />
     </header>
