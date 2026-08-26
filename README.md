@@ -101,7 +101,7 @@ P&ID tool is a $2,600+/year desktop install. IPD Studio is the missing thing:
 ## Quick start
 
 ```bash
-git clone https://github.com/PraharshNagpure/IPD-Studio.git
+git clone https://github.com/Coldbari/IPD-Studio.git
 cd IPD-Studio
 npm install
 npm run dev     # open http://localhost:5173, Templates → Sample for a demo plant
@@ -136,7 +136,7 @@ issue is a valuable contribution.
 ## Support the project
 
 IPD Studio is built and maintained free. If it saves you a license fee, you
-can [sponsor the project on GitHub](https://github.com/sponsors/PraharshNagpure) —
+can [sponsor the project on GitHub](https://github.com/sponsors/Coldbari) —
 sponsorship pays for the time that turns issues into releases.
 
 ## Symbols & standards
