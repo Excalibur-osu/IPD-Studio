@@ -86,7 +86,7 @@ export function datasheetMatrixCsv(doc: ProjectDoc): string {
   return lines.join('\n') + '\n'
 }
 
-function download(filename: string, content: string, type: string) {
+export function download(filename: string, content: string, type: string) {
   const blob = new Blob([content], { type })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)

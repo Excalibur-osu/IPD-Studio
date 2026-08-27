@@ -56,6 +56,11 @@ P&ID tool is a $2,600+/year desktop install. IPD Studio is the missing thing:
   and trip, flow-network simulation with fan-out, training upsets (trip a
   pump, stick a valve, plug a line), classic and ISA-101 high-performance
   themes ([docs](docs/HMI.md))
+- **Budget & cost estimator** — set a project budget and watch the estimate
+  grow live as you draw: every component carries a budgetary market price
+  (editable per project or per component), grouped cost breakdown with
+  installed-cost factors (Lang-style), over-budget warning in the status
+  bar, and a cost estimate CSV export
 - **Fluid services** — define media once (Water blue, Steam red, Slurry
   brown…), assign one to a line and the color spreads along the whole
   connected run; imported HMI pipes inherit it

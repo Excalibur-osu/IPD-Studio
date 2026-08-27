@@ -6,6 +6,7 @@ import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
 import TagEditor from './TagEditor'
 import { applyAlignment, duplicateSelection } from '../canvas/interactions'
 import { nextLineSeq } from '../isa/autonumber'
+import { unitCost } from '../model/costs'
 import DatasheetEditor from './DatasheetEditor'
 import FluidsDialog from './FluidsDialog'
 
@@ -102,6 +103,8 @@ function NodeProps({ node }: { node: PlantNode }) {
   const setLabelOffset = useStore((s) => s.setLabelOffset)
   const rotateNode = useStore((s) => s.rotateNode)
   const setNodeStretch = useStore((s) => s.setNodeStretch)
+  const setNodeCost = useStore((s) => s.setNodeCost)
+  const doc = useStore((s) => s.doc)
   const [datasheetOpen, setDatasheetOpen] = useState(false)
   const sx = node.scaleX ?? node.scale ?? 1
   const sy = node.scaleY ?? node.scale ?? 1
@@ -121,6 +124,18 @@ function NodeProps({ node }: { node: PlantNode }) {
           </label>
         ))}
       {def.tagRule !== 'none' && <TagEditor node={node} />}
+      {node.kind !== 'annotation' && (
+        <label className="prop-field">Cost ({doc.budget?.currency ?? '$'})
+          <input
+            data-testid="node-cost" type="number" min={0}
+            value={node.cost ?? ''}
+            placeholder={`${unitCost(node, doc.budget)} (budgetary)`}
+            title="Exact price for this component — leave empty to use the budgetary default"
+            onChange={(e) => { setNodeCost(node.id, e.target.value === '' ? undefined : Number(e.target.value)); pauseHistory() }}
+            onBlur={resumeHistory}
+          />
+        </label>
+      )}
       {node.symbolId === 'ann.offpage' && <OffPageLink node={node} />}
       <label className="prop-field">Label
         <input value={node.label ?? ''} onChange={(e) => { setLabel(node.id, e.target.value); pauseHistory() }} onBlur={resumeHistory} placeholder="Service / name" />

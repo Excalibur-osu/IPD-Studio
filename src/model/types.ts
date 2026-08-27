@@ -68,6 +68,8 @@ export interface PlantNode {
   link?: { sheetId: string; nodeId: string }
   /** ISA-20-style datasheet values, keyed by datasheet field key. */
   datasheet?: Record<string, string>
+  /** Exact per-instance price (beats project overrides and table defaults). */
+  cost?: number
 }
 
 export type EdgeEnd = { nodeId: string; portId: string } | { x: number; y: number }
@@ -150,6 +152,18 @@ export interface ProjectDoc {
   /** User-defined process services (line coloring). Optional: docs saved
    *  before v0.9.13 load without it and fall back to defaults on demand. */
   fluids?: Fluid[]
+  /** Project budget & pricing (v0.10.0+, optional). */
+  budget?: BudgetSettings
+}
+
+/** Budget settings: display currency, optional target, Lang-style installed
+ *  cost factor, and per-price-bucket unit price overrides. */
+export interface BudgetSettings {
+  currency: string
+  total?: number
+  /** 1 = hardware only, ~3 typical installed, ~5 Lang full plant. */
+  installFactor?: number
+  overrides?: Record<string, number>
 }
 
 /** A validation finding surfaced in the validation panel. */

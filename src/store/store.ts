@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
 import { ulid } from 'ulid'
-import type { CustomSymbolDef, Fluid, PlantEdge, PlantNode, ProjectDoc, Sheet, Tag } from '../model/types'
+import type { BudgetSettings, CustomSymbolDef, Fluid, PlantEdge, PlantNode, ProjectDoc, Sheet, Tag } from '../model/types'
 import { propagateFluid } from '../model/fluidFlow'
 import { registerCustomSymbols } from '../symbols/custom'
 import { isPortEnd } from '../model/types'
@@ -54,6 +54,10 @@ export interface StoreState {
   /** Assign a service to a line; auto-spreads along the connected run
    *  (through valves/pumps/fittings, stopping at vessels). One undo step. */
   setEdgeFluid(id: string, fluidId: string | undefined): void
+  /** Budget & pricing (doc.budget) — all undoable. */
+  setBudget(patch: Partial<BudgetSettings>): void
+  setPriceOverride(key: string, price: number | undefined): void
+  setNodeCost(id: string, cost: number | undefined): void
   addFluid(name: string, color: string): string
   updateFluid(id: string, patch: Partial<Omit<Fluid, 'id'>>): void
   /** Delete a service and clear it from every line on every sheet. */
@@ -367,6 +371,29 @@ export const useStore = create<StoreState>()(
 
         setEdgeVertices(id, vertices) {
           get().setEdge(id, { vertices })
+        },
+
+        setBudget(patch) {
+          set((s) => ({
+            doc: touched({ ...s.doc, budget: { currency: '$', ...s.doc.budget, ...patch } }),
+            dirty: true,
+          }))
+        },
+
+        setPriceOverride(key, price) {
+          set((s) => {
+            const overrides = { ...s.doc.budget?.overrides }
+            if (price === undefined) delete overrides[key]
+            else overrides[key] = price
+            return { doc: touched({ ...s.doc, budget: { currency: '$', ...s.doc.budget, overrides } }), dirty: true }
+          })
+        },
+
+        setNodeCost(id, cost) {
+          patchSheet((sh) => ({
+            ...sh,
+            nodes: sh.nodes.map((n) => (n.id === id ? { ...n, cost } : n)),
+          }))
         },
 
         setEdgeFluid(id, fluidId) {
