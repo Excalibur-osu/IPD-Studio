@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Modal from './Modal'
 import { useStore } from '../store/store'
 import { DEFAULT_PRICES, projectCost } from '../model/costs'
-import { CURRENCIES, FX_DATE, currencyOf, money, moneyShort, toDisplay, toUsd } from '../model/currency'
+import {
+  CURRENCIES, FX_DATE, bestScale, currencyOf, money, moneyShort,
+  scaleUnits, toDisplay, toUsd, trimNum,
+} from '../model/currency'
 import { download } from '../export/csv'
 
 const FACTORS: [number, string][] = [
@@ -59,6 +62,18 @@ export default function BudgetDialog({ onClose }: { onClose(): void }) {
   const remaining = target !== undefined ? target - report.total : undefined
   const factor = budget?.installFactor ?? 1
   const pct = target !== undefined && target > 0 ? Math.min(report.total / target, 1.35) : undefined
+
+  // Budget entry scale, so nobody types 70500000: pick "Cr" and type 7.05.
+  // Auto-picked from the stored value, then left alone once chosen; re-picked
+  // when the currency changes because lakh/crore only apply to rupees.
+  const units = scaleUnits(cur)
+  const shownTarget = target === undefined ? 0 : toDisplay(target, cur)
+  const [unitLabel, setUnitLabel] = useState(() => bestScale(shownTarget, units).label)
+  useEffect(() => {
+    setUnitLabel(bestScale(target === undefined ? 0 : toDisplay(target, cur), units).label)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cur.code])
+  const unit = units.find((u) => u.label === unitLabel) ?? units[0]!
 
   const exportCsv = () => {
     const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s)
@@ -123,17 +138,30 @@ export default function BudgetDialog({ onClose }: { onClose(): void }) {
         <div className="bd-controls">
           <label>
             <span className="bd-k">Budget target</span>
-            <input
-              data-testid="budget-total" type="number" min={0} placeholder="not set"
-              value={target === undefined ? '' : Math.round(toDisplay(target, cur))}
-              onChange={(e) => setBudget({
-                total: e.target.value === '' ? undefined : toUsd(Number(e.target.value), cur),
-              })}
-            />
+            <span className="bd-target">
+              <input
+                data-testid="budget-total" type="number" min={0} step="any" placeholder="not set"
+                value={target === undefined ? '' : trimNum(shownTarget / unit.mult)}
+                onChange={(e) => setBudget({
+                  total: e.target.value === '' ? undefined : toUsd(Number(e.target.value) * unit.mult, cur),
+                })}
+              />
+              <select
+                data-testid="budget-scale" value={unit.label}
+                onChange={(e) => setUnitLabel(e.target.value)}
+                title={`Scale — type 7.05 and pick ${units[units.length - 1]!.label} instead of counting zeros`}
+              >
+                {units.map((u) => <option key={u.label} value={u.label} title={u.title}>{u.label}</option>)}
+              </select>
+            </span>
+            {target !== undefined && unit.mult > 1 && (
+              <span className="bd-hint">= {money(target, cur)}</span>
+            )}
           </label>
           <label>
             <span className="bd-k">Currency</span>
             <select
+              data-testid="budget-currency"
               value={cur.code}
               onChange={(e) => setBudget({ currency: e.target.value })}
               title={`Indicative rates of ${FX_DATE}. Prices are stored in USD and converted for display.`}
@@ -145,7 +173,8 @@ export default function BudgetDialog({ onClose }: { onClose(): void }) {
           </label>
           <label className="bd-grow">
             <span className="bd-k">Estimate covers</span>
-            <select value={factor} onChange={(e) => setBudget({ installFactor: Number(e.target.value) })}>
+            <select data-testid="budget-factor" value={factor}
+              onChange={(e) => setBudget({ installFactor: Number(e.target.value) })}>
               {FACTORS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
             </select>
           </label>

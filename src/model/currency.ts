@@ -69,3 +69,43 @@ export function moneyShort(usd: number, cur: Currency): string {
   if (a >= 1e3) return `${cur.symbol}${(v / 1e3).toFixed(1)}k`
   return cur.symbol + Math.round(v).toLocaleString('en-US')
 }
+
+/**
+ * Scale units for entering large budgets, so nobody has to count zeros.
+ * Indian currencies get lakh/crore, everyone else gets K/M/B.
+ */
+export interface ScaleUnit {
+  label: string
+  /** Display-currency units per 1 of this scale. */
+  mult: number
+  title: string
+}
+
+const WESTERN: ScaleUnit[] = [
+  { label: '—', mult: 1, title: 'plain units' },
+  { label: 'K', mult: 1e3, title: 'thousand' },
+  { label: 'M', mult: 1e6, title: 'million' },
+  { label: 'B', mult: 1e9, title: 'billion' },
+]
+
+const INDIAN: ScaleUnit[] = [
+  { label: '—', mult: 1, title: 'plain rupees' },
+  { label: 'K', mult: 1e3, title: 'thousand' },
+  { label: 'Lakh', mult: 1e5, title: '1 lakh = 1,00,000' },
+  { label: 'Cr', mult: 1e7, title: '1 crore = 1,00,00,000 (100 lakh)' },
+]
+
+export const scaleUnits = (cur: Currency): ScaleUnit[] => (cur.code === 'INR' ? INDIAN : WESTERN)
+
+/** The largest unit that still leaves a value of 1 or more — what a person would say out loud. */
+export function bestScale(shown: number, units: ScaleUnit[]): ScaleUnit {
+  const a = Math.abs(shown)
+  if (!Number.isFinite(a) || a < 1) return units[0]!
+  return [...units].reverse().find((u) => a >= u.mult) ?? units[0]!
+}
+
+/** Trim a scaled value for an input: 7.0500 -> "7.05", 60 -> "60". */
+export function trimNum(v: number): string {
+  if (!Number.isFinite(v)) return ''
+  return String(Number(v.toFixed(4)))
+}
