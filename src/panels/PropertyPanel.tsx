@@ -6,8 +6,8 @@ import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
 import TagEditor from './TagEditor'
 import { applyAlignment, duplicateSelection } from '../canvas/interactions'
 import { nextLineSeq } from '../isa/autonumber'
-import { unitCost } from '../model/costs'
-import { currencyOf, toDisplay, toUsd } from '../model/currency'
+import { DEFAULT_PRICES, priceKeyFor, unitCost } from '../model/costs'
+import { currencyOf, money, toDisplay, toUsd } from '../model/currency'
 import DatasheetEditor from './DatasheetEditor'
 import FluidsDialog from './FluidsDialog'
 
@@ -104,14 +104,9 @@ function NodeProps({ node }: { node: PlantNode }) {
   const setLabelOffset = useStore((s) => s.setLabelOffset)
   const rotateNode = useStore((s) => s.rotateNode)
   const setNodeStretch = useStore((s) => s.setNodeStretch)
-  const setNodeCost = useStore((s) => s.setNodeCost)
-  const doc = useStore((s) => s.doc)
   const [datasheetOpen, setDatasheetOpen] = useState(false)
   const sx = node.scaleX ?? node.scale ?? 1
   const sy = node.scaleY ?? node.scale ?? 1
-  // Costs are stored in USD; the Cost field shows and accepts the project's
-  // display currency, same as the Budget dialog.
-  const priceCur = currencyOf(doc.budget?.currency)
   return (
     <>
       <div className="prop-title">{def.name}</div>
@@ -128,19 +123,7 @@ function NodeProps({ node }: { node: PlantNode }) {
           </label>
         ))}
       {def.tagRule !== 'none' && <TagEditor node={node} />}
-      {node.kind !== 'annotation' && (
-        <label className="prop-field">Cost ({priceCur.code})
-          <input
-            data-testid="node-cost" type="number" min={0}
-            value={node.cost === undefined ? '' : Math.round(toDisplay(node.cost, priceCur))}
-            placeholder={`${Math.round(toDisplay(unitCost(node, doc.budget), priceCur))} (budgetary)`}
-            title={`Exact price for this component — leave empty to use the budgetary default.${
-              priceCur.code === 'USD' ? '' : ` Entered in ${priceCur.code}, stored in USD.`}`}
-            onChange={(e) => { setNodeCost(node.id, e.target.value === '' ? undefined : toUsd(Number(e.target.value), priceCur)); pauseHistory() }}
-            onBlur={resumeHistory}
-          />
-        </label>
-      )}
+      {node.kind !== 'annotation' && <CostField node={node} />}
       {node.symbolId === 'ann.offpage' && <OffPageLink node={node} />}
       <label className="prop-field">Label
         <input value={node.label ?? ''} onChange={(e) => { setLabel(node.id, e.target.value); pauseHistory() }} onBlur={resumeHistory} placeholder="Service / name" />
@@ -328,5 +311,64 @@ export default function PropertyPanel({ onCollapse }: { onCollapse?: () => void 
       )}
       {body}
     </aside>
+  )
+}
+
+
+/**
+ * Price for one placed component: what the budgetary table says it costs, the
+ * size that price assumes, and a field to override it with a real quote.
+ *
+ * Three prices can apply, most specific winning — this component's own cost,
+ * the project-wide override from the Budget dialog, then the researched table
+ * default. The note under the field says which one is in force so a number on
+ * the drawing is never unexplained.
+ */
+function CostField({ node }: { node: PlantNode }) {
+  const doc = useStore((s) => s.doc)
+  const setNodeCost = useStore((s) => s.setNodeCost)
+  const cur = currencyOf(doc.budget?.currency)
+  const key = priceKeyFor(node)
+  const entry = key ? DEFAULT_PRICES[key] : undefined
+  const projectOverride = key ? doc.budget?.overrides?.[key] : undefined
+  /** The budgetary price this component would use with no cost of its own. */
+  const fallback = unitCost({ ...node, cost: undefined }, doc.budget)
+  const overridden = node.cost !== undefined
+  return (
+    <div className="prop-field prop-cost">
+      <span className="prop-cost-head">
+        Cost ({cur.code})
+        {entry?.ev === 'est' && (
+          <span className="prop-est" title="No published price found — this default comes from a cost correlation or a component build-up, not a vendor listing.">est</span>
+        )}
+      </span>
+      <span className="prop-cost-row">
+        <input
+          data-testid="node-cost" type="number" min={0} step="any"
+          value={node.cost === undefined ? '' : Math.round(toDisplay(node.cost, cur))}
+          placeholder={String(Math.round(toDisplay(fallback, cur)))}
+          title={`Your price for this component. Leave empty to use the budgetary default.${
+            cur.code === 'USD' ? '' : ` Entered in ${cur.code}, stored in USD.`}`}
+          onChange={(e) => { setNodeCost(node.id, e.target.value === '' ? undefined : toUsd(Number(e.target.value), cur)); pauseHistory() }}
+          onBlur={resumeHistory}
+        />
+        {overridden && (
+          <button
+            className="prop-cost-reset" data-testid="node-cost-reset"
+            title="Clear your price and go back to the budgetary default"
+            onClick={() => setNodeCost(node.id, undefined)}
+          >↺</button>
+        )}
+      </span>
+      <span className={`prop-cost-note${overridden ? ' prop-cost-on' : ''}`}>
+        {overridden
+          ? `Your price — overriding ${money(fallback, cur)} ${projectOverride !== undefined ? 'project' : 'budgetary'}`
+          : `${money(fallback, cur)} ${projectOverride !== undefined ? 'project price' : 'budgetary'}`}
+      </span>
+      {entry?.low !== undefined && entry.high !== undefined && (
+        <span className="prop-cost-note">Range {money(entry.low, cur)} – {money(entry.high, cur)}</span>
+      )}
+      {entry?.basis && <span className="prop-cost-basis" title={entry.basis}>{entry.basis}</span>}
+    </div>
   )
 }

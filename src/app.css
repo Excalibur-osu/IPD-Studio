@@ -249,3 +249,15 @@ button { font: inherit; }
 .bd-target input { width: 96px; }
 .bd-target select { padding: 5px 4px; }
 .bd-hint { font-size: 10.5px; color: #8a95a0; font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+/* --- per-component price block in the property panel --- */
+.prop-cost { gap: 4px; }
+.prop-cost-head { display: flex; align-items: center; gap: 5px; }
+.prop-cost-row { display: flex; gap: 4px; align-items: center; }
+.prop-cost-row input { flex: 1; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.prop-cost-reset { padding: 3px 7px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font: inherit; font-size: 12px; cursor: pointer; color: #556; }
+.prop-cost-reset:hover { background: #eef2f7; }
+.prop-cost-note { font-size: 10.5px; color: #8a95a0; text-transform: none; font-variant-numeric: tabular-nums; }
+.prop-cost-note.prop-cost-on { color: #0e6e7a; font-weight: 600; }
+.prop-cost-basis { font-size: 10px; line-height: 1.35; color: #a4adb6; text-transform: none; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.prop-est { padding: 0 4px; border-radius: 2px; background: #f4ebdb; color: #9a6a15; font-size: 9px; letter-spacing: .05em; text-transform: uppercase; cursor: help; }

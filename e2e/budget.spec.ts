@@ -37,4 +37,17 @@ test('budget: costs accrue while drawing, budget warns when exceeded', async ({ 
   await page.getByTestId('node-cost').fill('500')
   await expect(page.getByTestId('budget-chip')).toHaveText(/\$4\.3k \/ \$5\.0k/)
   await expect(page.getByTestId('budget-chip')).not.toHaveClass(/budget-over/)
+
+  // the panel says which price is in force, and ↺ hands it back to the default
+  await expect(page.locator('.prop-cost-note').first()).toContainText('overriding $9,500')
+  await page.getByTestId('node-cost-reset').click()
+  await expect(page.getByTestId('node-cost')).toHaveValue('')
+  await expect(page.locator('.prop-cost-note').first()).toHaveText('$9,500 budgetary')
+  await expect(page.getByTestId('budget-chip')).toHaveText(/\$13k \/ \$5\.0k/)
+
+  // a project-wide override from the dialog is labelled as such, not as budgetary
+  await page.getByTestId('budget-chip').click()
+  await page.locator('.bd-unit').first().fill('7000')
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.prop-cost-note').first()).toContainText('project price')
 })
