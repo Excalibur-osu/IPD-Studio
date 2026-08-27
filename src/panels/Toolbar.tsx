@@ -8,7 +8,7 @@ import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
 import type { LineClass } from '../model/types'
 import ExportMenu from './ExportMenu'
 import FluidsDialog from './FluidsDialog'
-import BudgetDialog from './BudgetDialog'
+import { BudgetChip } from './BudgetDialog'
 import templateBlank from '../../examples/template-blank-a3.pnid.json'
 import templateUtility from '../../examples/template-utility-a1.pnid.json'
 import { loadDoc } from '../model/migrate'
@@ -40,7 +40,6 @@ export default function Toolbar({ onOpenHmi }: { onOpenHmi?: () => void } = {}) 
   const name = useStore((s) => s.doc.meta.name)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [fluidsOpen, setFluidsOpen] = useState(false)
-  const [budgetOpen, setBudgetOpen] = useState(false)
 
   useEffect(() => {
     const onSave = () => void saveFile()
@@ -128,11 +127,7 @@ export default function Toolbar({ onOpenHmi }: { onOpenHmi?: () => void } = {}) 
         Fluids
       </button>
       {fluidsOpen && <FluidsDialog onClose={() => setFluidsOpen(false)} />}
-      <button data-testid="tb-budget" onClick={() => setBudgetOpen(true)}
-        title="Set a project budget and see the live cost estimate as you draw">
-        Budget
-      </button>
-      {budgetOpen && <BudgetDialog onClose={() => setBudgetOpen(false)} />}
+      <BudgetChip />
       <span className="tb-sep" />
       <button onClick={() => zoomCenter(1.2)}>＋</button>
       <button onClick={() => zoomCenter(1 / 1.2)}>－</button>

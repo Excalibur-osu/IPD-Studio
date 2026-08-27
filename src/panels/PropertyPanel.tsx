@@ -7,6 +7,7 @@ import TagEditor from './TagEditor'
 import { applyAlignment, duplicateSelection } from '../canvas/interactions'
 import { nextLineSeq } from '../isa/autonumber'
 import { unitCost } from '../model/costs'
+import { currencyOf, toDisplay, toUsd } from '../model/currency'
 import DatasheetEditor from './DatasheetEditor'
 import FluidsDialog from './FluidsDialog'
 
@@ -108,6 +109,9 @@ function NodeProps({ node }: { node: PlantNode }) {
   const [datasheetOpen, setDatasheetOpen] = useState(false)
   const sx = node.scaleX ?? node.scale ?? 1
   const sy = node.scaleY ?? node.scale ?? 1
+  // Costs are stored in USD; the Cost field shows and accepts the project's
+  // display currency, same as the Budget dialog.
+  const priceCur = currencyOf(doc.budget?.currency)
   return (
     <>
       <div className="prop-title">{def.name}</div>
@@ -125,13 +129,14 @@ function NodeProps({ node }: { node: PlantNode }) {
         ))}
       {def.tagRule !== 'none' && <TagEditor node={node} />}
       {node.kind !== 'annotation' && (
-        <label className="prop-field">Cost ({doc.budget?.currency ?? '$'})
+        <label className="prop-field">Cost ({priceCur.code})
           <input
             data-testid="node-cost" type="number" min={0}
-            value={node.cost ?? ''}
-            placeholder={`${unitCost(node, doc.budget)} (budgetary)`}
-            title="Exact price for this component — leave empty to use the budgetary default"
-            onChange={(e) => { setNodeCost(node.id, e.target.value === '' ? undefined : Number(e.target.value)); pauseHistory() }}
+            value={node.cost === undefined ? '' : Math.round(toDisplay(node.cost, priceCur))}
+            placeholder={`${Math.round(toDisplay(unitCost(node, doc.budget), priceCur))} (budgetary)`}
+            title={`Exact price for this component — leave empty to use the budgetary default.${
+              priceCur.code === 'USD' ? '' : ` Entered in ${priceCur.code}, stored in USD.`}`}
+            onChange={(e) => { setNodeCost(node.id, e.target.value === '' ? undefined : toUsd(Number(e.target.value), priceCur)); pauseHistory() }}
             onBlur={resumeHistory}
           />
         </label>
