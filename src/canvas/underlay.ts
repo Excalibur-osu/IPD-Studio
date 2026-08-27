@@ -24,7 +24,11 @@ export function renderUnderlay(paper: dia.Paper, sheet: Pick<Sheet, 'underlay'>)
     poly.setAttribute('stroke-width', '1')
     group.appendChild(poly)
   }
+  // Inside .joint-layers so the trace pans and zooms with the drawing; just
+  // after the sheet page, which is that group's first child.
   const layers = svg.querySelector('.joint-layers')
-  if (layers) svg.insertBefore(group, layers)
-  else svg.appendChild(group)
+  if (!layers) return
+  const sheetPage = layers.querySelector(':scope > .pid-sheet')
+  if (sheetPage) sheetPage.after(group)
+  else layers.insertBefore(group, layers.firstChild)
 }

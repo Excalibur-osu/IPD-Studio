@@ -1,3 +1,4 @@
+import { canvasRef, fitView, zoomActual } from './paperSetup'
 import { dia, g, highlighters, linkTools } from '@joint/core'
 import { ulid } from 'ulid'
 import type { PlantEdge, PlantNode } from '../model/types'
@@ -501,6 +502,17 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     if (mod && e.key.toLowerCase() === 'd') {
       e.preventDefault()
       duplicateSelection()
+      return
+    }
+    // Shift+F fits the sheet to the visible canvas; Shift+1 goes back to 1:1.
+    if (e.shiftKey && e.key.toLowerCase() === 'f' && canvasRef.paper && canvasRef.graph) {
+      e.preventDefault()
+      fitView(canvasRef.paper, canvasRef.graph, activeSheet(s).sheetSize)
+      return
+    }
+    if (e.shiftKey && e.key === '!' && canvasRef.paper) {
+      e.preventDefault()
+      zoomActual(canvasRef.paper)
       return
     }
     if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); s.deleteSelected(); return }

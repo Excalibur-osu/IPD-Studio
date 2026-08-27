@@ -100,6 +100,13 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
 
   return (
     <aside className="palette">
+      <div className="panel-head">
+        <h2>Symbols</h2>
+        <span className="sp" />
+        {onCollapse && (
+          <button className="panel-collapse" title="Hide the symbol palette" onClick={onCollapse}>◂</button>
+        )}
+      </div>
       <div className="palette-head">
         <input
           className="palette-search"
@@ -112,9 +119,6 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
             }
           }}
         />
-        {onCollapse && (
-          <button className="panel-collapse" title="Hide palette" onClick={onCollapse}>◂</button>
-        )}
       </div>
       <button className="palette-import" onClick={() => setImportOpen(true)}>＋ Import symbol…</button>
       {importOpen && <SymbolImportDialog onClose={() => setImportOpen(false)} />}

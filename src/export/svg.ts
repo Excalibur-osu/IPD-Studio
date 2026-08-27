@@ -58,6 +58,7 @@ export function exportSvg(doc: ProjectDoc, sheet: Sheet): string {
     '.joint-tools',
     '.joint-highlighter-layer',
     '.pid-underlay',
+    '.pid-sheet',
     '[joint-selector="portBody"]',
     '[joint-selector="portDot"]',
     '[joint-selector="hit"]',

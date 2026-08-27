@@ -304,12 +304,14 @@ export default function PropertyPanel({ onCollapse }: { onCollapse?: () => void 
   }
   return (
     <aside className="props">
-      {onCollapse && (
-        <div className="props-head">
-          <button className="panel-collapse" title="Hide properties" onClick={onCollapse}>▸</button>
-        </div>
-      )}
-      {body}
+      <div className="panel-head">
+        <h2>Properties</h2>
+        <span className="sp" />
+        {onCollapse && (
+          <button className="panel-collapse" title="Hide the properties panel" onClick={onCollapse}>▸</button>
+        )}
+      </div>
+      <div className="props-body">{body}</div>
     </aside>
   )
 }

@@ -333,6 +333,9 @@ test('port dots show only on hover or while linking; nodes resize from the panel
     tank,
   )
   expect(scale).toBe(1.25)
+  // the canvas now opens fitted to the window, so pin it to 1:1 before
+  // measuring an on-screen box in unscaled pixels
+  await page.getByTestId('tb-zoom-pct').click()
   // the async paper applies the resize a frame later — poll, don't snapshot
   await expect
     .poll(async () => {

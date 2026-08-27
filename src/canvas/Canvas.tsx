@@ -1,12 +1,11 @@
 import { useEffect, useRef } from 'react'
-import { canvasRef, createPaper, zoomAt } from './paperSetup'
+import { canvasRef, createPaper, fitView, renderSheet, viewState, zoomAt } from './paperSetup'
 import { reconcile } from './reconciler'
 import { decorateLinks } from './decorations'
 import { attachDropHandling } from './dropHandling'
 import { attachInteractions, attachMarquee } from './interactions'
 import { renderUnderlay } from './underlay'
 import '../symbols/lib/index'
-import { sheetPx } from '../model/doc'
 import { activeSheet, pauseHistory, resumeHistory, useStore } from '../store/store'
 
 interface LabelDrag {
@@ -32,7 +31,19 @@ export default function Canvas() {
     const { paper, graph } = createPaper(paperEl, activeSheet(useStore.getState()).sheetSize)
     canvasRef.paper = paper
     canvasRef.graph = graph
-    paper.translate(24, 24)
+    renderSheet(paper, activeSheet(useStore.getState()).sheetSize)
+
+    // The paper is a viewport now, so it has to track its container: panel
+    // toggles, window resizes and drawer opens all change the visible box.
+    // Re-fit only while the user hasn't taken over the view themselves.
+    viewState.userMoved = false
+    const ro = new ResizeObserver(() => {
+      if (!host.clientWidth || !host.clientHeight) return
+      const wasFitted = !viewState.userMoved
+      paper.setDimensions(host.clientWidth, host.clientHeight)
+      if (wasFitted) fitView(paper, graph, activeSheet(useStore.getState()).sheetSize)
+    })
+    ro.observe(host)
 
     paper.on('render:done', () => decorateLinks(paper))
     const detachDrop = attachDropHandling(host, paper)
@@ -57,7 +68,9 @@ export default function Canvas() {
         prevFluids = s.doc.fluids
         graph.clear()
         reconcile(graph, sheet, undefined, colorOf())
+        renderSheet(paper, sheet.sheetSize)
         renderUnderlay(paper, sheet)
+        fitView(paper, graph, sheet.sheetSize)
       } else if (sheet !== prevSheet || s.doc.fluids !== prevFluids) {
         const before = prevSheet
         prevSheet = sheet
@@ -144,6 +157,7 @@ export default function Canvas() {
       }
       if (!panning) return
       const t = paper.translate()
+      viewState.userMoved = true
       paper.translate(t.tx + e.clientX - last.x, t.ty + e.clientY - last.y)
       last = { x: e.clientX, y: e.clientY }
     }
@@ -182,6 +196,7 @@ export default function Canvas() {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('keyup', onKey)
       paper.remove()
+      ro.disconnect()
       canvasRef.paper = undefined
       canvasRef.graph = undefined
       host.innerHTML = ''
@@ -189,8 +204,11 @@ export default function Canvas() {
   }, [])
 
   useEffect(() => {
-    const { w, h } = sheetPx(sheetSize)
-    canvasRef.paper?.setDimensions(w, h)
+    const paper = canvasRef.paper
+    const graph = canvasRef.graph
+    if (!paper || !graph) return
+    renderSheet(paper, sheetSize)
+    fitView(paper, graph, sheetSize)
   }, [sheetSize])
 
   return <div ref={hostRef} className="canvas-host" data-testid="canvas" />
