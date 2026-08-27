@@ -173,9 +173,26 @@ export const useStore = create<StoreState>()(
 
         moveNodes(ids, dx, dy) {
           const idSet = new Set(ids)
+          const shift = <T extends { x: number; y: number }>(p: T): T => ({ ...p, x: p.x + dx, y: p.y + dy })
           patchSheet((sh) => ({
             ...sh,
             nodes: sh.nodes.map((n) => (idSet.has(n.id) ? { ...n, x: n.x + dx, y: n.y + dy } : n)),
+            // A line whose every connected symbol is moving travels rigidly with
+            // them, so its waypoints — and any free end, which no selection can
+            // contain — have to travel too. Without this, marquee-selecting a
+            // drawing and dragging it moved the symbols and left every routed
+            // line behind. A line with one end outside the selection is being
+            // stretched instead, and its waypoints must stay where they are.
+            edges: sh.edges.map((e) => {
+              const portEnds = [e.source, e.target].filter(isPortEnd)
+              if (!portEnds.length || !portEnds.every((p) => idSet.has(p.nodeId))) return e
+              return {
+                ...e,
+                ...(e.vertices ? { vertices: e.vertices.map(shift) } : {}),
+                ...(isPortEnd(e.source) ? {} : { source: shift(e.source) }),
+                ...(isPortEnd(e.target) ? {} : { target: shift(e.target) }),
+              }
+            }),
           }))
         },
 

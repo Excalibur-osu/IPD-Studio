@@ -313,6 +313,8 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
 
   // --- movement commit + live alignment guides ---------------------------
   const dragStart = new Map<string, { x: number; y: number }>()
+  /** Waypoints of the links moving rigidly with the drag, as they were at grab. */
+  const dragStartVerts = new Map<string, { x: number; y: number }[]>()
   const guideEls: SVGLineElement[] = []
   const guideLayer = () => paper.svg.querySelector('.joint-layers') as SVGGElement | null
   const clearGuides = () => {
@@ -356,6 +358,10 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
         const cell = graph.getCell(nid) as dia.Element | undefined
         if (cell?.isElement()) cell.position(s0.x + dx, s0.y + dy)
       }
+      for (const [lid, v0] of dragStartVerts) {
+        const link = graph.getCell(lid) as dia.Link | undefined
+        link?.vertices(v0.map((p) => ({ x: p.x + dx, y: p.y + dy })))
+      }
     }
     const hit = snapGuides({ ...node, x: p.x, y: p.y }, sheet.nodes, 4, sheet.edges)
     if (hit.guideX !== undefined) drawGuide(true, hit.guideX)
@@ -371,6 +377,17 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
       if (cell?.isElement()) dragStart.set(nid, cell.position())
     }
     dragStart.set(id, view.model.position())
+    // Links whose both ends are being dragged travel rigidly, so their
+    // waypoints move with them — live, not just on drop.
+    dragStartVerts.clear()
+    for (const link of graph.getLinks()) {
+      const a = link.getSourceCell()?.id
+      const b = link.getTargetCell()?.id
+      if (a && b && dragStart.has(String(a)) && dragStart.has(String(b))) {
+        const v = link.vertices()
+        if (v.length) dragStartVerts.set(String(link.id), v.map((p) => ({ x: p.x, y: p.y })))
+      }
+    }
   }
   const onElementPointerUp = (view: dia.ElementView) => {
     clearGuides()
@@ -395,6 +412,7 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
       store().setNodePos(id, nx, ny)
     }
     dragStart.clear()
+    dragStartVerts.clear()
   }
 
   // --- vertex editing on selected links ----------------------------------
