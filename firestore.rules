@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // A signed-in user owns everything under their own uid and nothing else.
+    match /users/{uid}/drawings/{drawingId} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.doc is string
+        && request.resource.data.doc.size() < 900000
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 200;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import { ulid } from 'ulid'
 import type { HmiScreen, HmiWidget } from './model'
 import { HMI_WORLD } from './model'

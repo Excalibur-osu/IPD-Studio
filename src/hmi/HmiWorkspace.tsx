@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import './hmi.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { THEMES } from './theme'
@@ -14,6 +18,7 @@ import { copySelection, pastePayload } from './clipboard'
 import { HMI_WORLD } from './model'
 import { worstAlarmByScreen } from './navAlarms'
 import Modal from '../panels/Modal'
+import { VersionChip } from '../panels/VersionNote'
 import Faceplate from './Faceplate'
 import AlarmBanner from './AlarmBanner'
 
@@ -133,7 +138,7 @@ export default function HmiWorkspace({ onExit }: { onExit(): void }) {
       const k = e.key.toLowerCase()
       if (k === 'z') { e.preventDefault(); undoRedo(e.shiftKey ? 'redo' : 'undo') }
       else if (k === 'y') { e.preventDefault(); undoRedo('redo') }
-      else if (k === 's') { e.preventDefault(); void import('../persist/file').then((m) => m.saveFile()) }
+      else if (k === 's') { e.preventDefault(); void import('../cloud/autosave').then((m) => m.saveNow()) }
       else if (k === 'c' || k === 'x' || k === 'v') {
         const c = clipCtx.current
         if (c.mode !== 'edit' || !c.screen) return
@@ -259,6 +264,7 @@ function StatusBar({ screenName, selection, notice }: { screenName?: string; sel
   return (
     <div className="hmi-status">
       <span>HMI workspace</span>
+      <VersionChip />
       {screenName && <span>· {screenName}</span>}
       {notice && <span className="hmi-notice" data-testid="hmi-notice">{notice}</span>}
       {mode === 'run' ? (

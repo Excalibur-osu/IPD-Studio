@@ -1,4 +1,9 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import { useEffect, useState } from 'react'
+import { forceRefresh } from './VersionNote'
 
 let doUpdate: (() => Promise<void>) | null = null
 
@@ -8,6 +13,7 @@ let doUpdate: (() => Promise<void>) | null = null
  *  existed in the HMI). */
 export default function UpdateToast() {
   const [ready, setReady] = useState(false)
+  const [busy, setBusy] = useState(false)
   useEffect(() => {
     if (!import.meta.env.PROD) return
     let iv: number | undefined
@@ -31,10 +37,37 @@ export default function UpdateToast() {
     }
   }, [])
   if (!ready) return null
+
+  /**
+   * "Reload now" has to actually reload.
+   *
+   * vite-plugin-pwa's updateSW ignores its reloadPage argument in prompt mode:
+   * all it does is post SKIP_WAITING, and the reload rides on a `controlling`
+   * event that only fires when there IS a waiting worker to skip. If the new
+   * worker already activated, or workbox-window failed to import (leaving the
+   * skip-waiting sender undefined), the click was a silent no-op. So ask
+   * nicely first, then guarantee it.
+   */
+  const reload = () => {
+    setBusy(true)
+    void (async () => {
+      try {
+        await doUpdate?.()
+      } catch {
+        // the fallback below is the thing that actually gets the user unstuck
+      }
+    })()
+    // If the service worker handshake works, the page is gone long before
+    // this fires. If it does not, this clears the caches and reloads anyway.
+    window.setTimeout(() => { void forceRefresh() }, 1500)
+  }
+
   return (
     <div className="update-toast" role="status">
       <span>⟳ A new version of IPD Studio is ready</span>
-      <button onClick={() => void doUpdate?.()}>Reload now</button>
+      <button onClick={reload} disabled={busy} data-testid="update-reload">
+        {busy ? 'Reloading…' : 'Reload now'}
+      </button>
     </div>
   )
 }

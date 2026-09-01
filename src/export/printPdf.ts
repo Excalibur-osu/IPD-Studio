@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import { SHEET_SIZES_MM } from '../model/doc'
 import { exportSvg } from './svg'
 import { activeSheet, useStore } from '../store/store'

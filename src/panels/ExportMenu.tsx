@@ -1,4 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
+import { useRef, useState } from 'react'
+import Popover from './Popover'
 import { exportSvgFile } from '../export/svg'
 import { printPdf } from '../export/printPdf'
 import { printAllSheets } from '../export/printAll'
@@ -43,31 +48,17 @@ const SECTIONS: { title: string; items: Item[] }[] = [
 /** All exports and reports behind one toolbar button, so the bar stays tidy. */
 export default function ExportMenu() {
   const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
 
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: PointerEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    window.addEventListener('pointerdown', onDown)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('pointerdown', onDown)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [open])
 
   return (
-    <div className="export-menu" ref={rootRef}>
-      <button className={open ? 'on' : ''} onClick={() => setOpen((v) => !v)}>
+    <div className="export-menu">
+      <button ref={btnRef} className={open ? 'on' : ''} aria-haspopup="menu" aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}>
         Export ▾
       </button>
       {open && (
-        <div className="export-pop" role="menu">
+        <Popover anchor={btnRef} onClose={() => setOpen(false)} className="export-pop" testId="export-pop">
           {SECTIONS.map((sec) => (
             <section key={sec.title}>
               <div className="export-title">{sec.title}</div>
@@ -86,7 +77,7 @@ export default function ExportMenu() {
               ))}
             </section>
           ))}
-        </div>
+        </Popover>
       )}
     </div>
   )

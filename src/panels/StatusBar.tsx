@@ -1,5 +1,11 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import { activeSheet, useStore } from '../store/store'
 import { useFindings } from './ValidationPanel'
+import { useCloudStatus } from '../cloud/autosave'
+import { VersionChip } from './VersionNote'
 
 // PWA update prompting lives in panels/UpdateToast.tsx (both workspaces).
 // The budget chip moved to the toolbar (panels/BudgetDialog.tsx) — the running
@@ -10,12 +16,27 @@ export default function StatusBar() {
   const selection = useStore((s) => s.selection)
   const nodes = useStore((s) => activeSheet(s).nodes.length)
   const findings = useFindings()
+  const cloud = useCloudStatus()
+
+  // One line about where the work stands. Two indicators ("Saved" next to
+  // "Saved to your account") read as two different facts and made people look
+  // twice to find out whether anything had actually reached the cloud.
+  const saveLabel =
+    cloud.state === 'error' ? 'Not saved to your account'
+    : cloud.state === 'saving' ? 'Saving…'
+    : dirty ? 'Unsaved changes'
+    : cloud.state === 'saved' ? 'Saved to your account'
+    : 'Saved'
+
   return (
     <footer className="status">
-      <span><span className={`status-dot${dirty ? ' on' : ''}`}>●</span> {dirty ? 'Unsaved changes' : 'Saved'}</span>
+      <span data-testid="save-state" className={cloud.state === 'error' ? 'status-warn' : undefined} title={cloud.message ?? undefined}>
+        <span className={`status-dot${dirty || cloud.state === 'saving' ? ' on' : ''}`}>●</span> {saveLabel}
+      </span>
       <span>{nodes} symbol{nodes === 1 ? '' : 's'}</span>
       {selection.length > 0 && <span>{selection.length} selected</span>}
       <span className="sp" />
+      <VersionChip />
       <span className={findings.length ? 'status-warn' : ''}>
         {findings.length ? `⚠ ${findings.length} finding${findings.length > 1 ? 's' : ''}` : '✓ No findings'}
       </span>

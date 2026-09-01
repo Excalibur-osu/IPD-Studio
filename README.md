@@ -3,15 +3,20 @@
 [![CI](https://github.com/Coldbari/IPD-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/Coldbari/IPD-Studio/actions/workflows/ci.yml)
 [![Buy me a coffee](https://img.shields.io/badge/%E2%98%95%20Buy%20me%20a%20coffee-keep%20the%20pumps%20running-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/Coldbari)
 [![Live demo](https://img.shields.io/badge/Live%20demo-%E2%96%B6-2b6cb0)](https://pid-studio-praharsh.web.app)
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)](LICENSE)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
+[![License: PolyForm Noncommercial](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-orange)](LICENSE)
+[![Commercial use: license required](https://img.shields.io/badge/Commercial%20use-license%20required-red)](COMMERCIAL-LICENSE.md)
 
-**Open-source, browser-based intelligent P&ID editor.** Drag ISA-5.1-style
+**Source-available, browser-based intelligent P&ID editor.** Drag ISA-5.1-style
 symbols onto a sheet, connect process and signal lines with proper orthogonal
 routing, tag instruments with validated ISA tags — and generate real
 engineering deliverables.
 
-Local-first: no backend, no account, no upload. Drawings live on your machine.
+Sign in once and your drawings follow you: every P&ID, HMI screen and cost
+estimate is saved to your account and opens on whatever machine you use next.
+
+> **Licensing in one line:** free for personal, academic, nonprofit, and
+> government use — **commercial use requires a paid license.**
+> See [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
 
 **▶ Try it now: [pid-studio-praharsh.web.app](https://pid-studio-praharsh.web.app)** — pick *Templates → Sample plant* for a demo.
 **🌐 Project site: [coldbari.github.io/IPD-Studio](https://coldbari.github.io/IPD-Studio/)**
@@ -37,7 +42,7 @@ Local-first: no backend, no account, no upload. Drawings live on your machine.
 
 Every browser diagramming tool treats a P&ID as clipart. Every intelligent
 P&ID tool is a $2,600+/year desktop install. IPD Studio is the missing thing:
-**data behind the drawing, in the browser, free (AGPL).**
+**data behind the drawing, in the browser, free for noncommercial use.**
 
 - Tags are parsed and validated against ISA-5.1 letter tables — type `FIC` and
   the editor knows it's a *Flow Indicating Controller*
@@ -46,7 +51,7 @@ P&ID tool is a $2,600+/year desktop install. IPD Studio is the missing thing:
 - The instrument index and line list are generated from the model, not typed
 - The document is versioned open JSON, designed to map onto DEXPI
 
-## Features (v0.9)
+## Features
 
 - **HMI Studio** — build operator screens from your P&ID (or import them in
   one click) and run them as a live training simulation: DCS-style faceplates,
@@ -122,6 +127,31 @@ npm test        # 600+ unit tests
 npx playwright test   # e2e suite (starts its own dev server)
 ```
 
+Building and running it yourself is free for noncommercial use. Running it for
+or inside a business needs a [commercial license](COMMERCIAL-LICENSE.md).
+
+## Running your own instance
+
+IPD Studio runs **fully local out of the box**. Clone, `npm install`, `npm run
+dev` — draw, validate, generate deliverables, and save `.pnid` files to your
+computer. No backend, no account, no configuration.
+
+Accounts and cloud drawings are the only things that need a server, and they are
+switched off unless you point the app at a Firebase project of your own:
+
+```bash
+cp .env.example .env.local   # then fill in your own Firebase web config
+```
+
+`.env.example` walks through creating the project. This repo ships the
+`firestore.rules` that protect the data, so `firebase deploy --only
+firestore:rules` reproduces the same security model.
+
+**A fork never talks to the upstream project.** There is no built-in Firebase
+config to inherit — without `.env.local` the sign-in screen and cloud drawings
+simply don't appear. That is deliberate: a hardcoded fallback would sign a
+fork's users into someone else's database.
+
 ## File format
 
 Drawings save as `.pnid.json` — versioned, human-readable JSON
@@ -146,16 +176,25 @@ architecture in one paragraph, and the how-to for adding a symbol. If you're
 a practicing I&C or process engineer, even a "this convention is wrong"
 issue is a valuable contribution.
 
+Because the project sells commercial licenses to fund itself, code
+contributions need a one-line
+[CLA](CONTRIBUTING.md#contributor-license-agreement-cla). Issues, bug reports,
+and symbol requests need nothing.
+
 ## ☕ Buy me a coffee
 
-IPD Studio is free, and stays free. But behind every calm-starting plant and
-every routed pipe there's a developer running on coffee.
+IPD Studio is free for students, hobbyists, researchers, and nonprofits — and
+stays that way. But behind every calm-starting plant and every routed pipe
+there's a developer running on coffee.
 
 **[☕ Buy me a coffee → keep the pumps running](https://github.com/sponsors/Coldbari)**
 
 One coffee a month keeps the symbols coming; a bigger one moves your feature
-requests to the front of the queue. If this tool just saved you a $2,600/year
-license — a coffee is a pretty good deal for both of us. 😄
+requests to the front of the queue.
+
+*Using it at a company? That's a [commercial
+license](COMMERCIAL-LICENSE.md), not a coffee — and it's what keeps the tool
+free for everyone above.*
 
 ## Symbols & standards
 
@@ -166,17 +205,33 @@ the drawing conventions the symbols follow.
 
 ## License & commercial use
 
-**AGPL-3.0-only** — free forever for everyone, including professional use:
-draw commercial P&IDs, run paid training, keep every drawing. The license
-covers the software, not your documents.
+**[PolyForm Noncommercial 1.0.0](LICENSE)** — source-available, not open
+source. The code is public so you can read it, learn from it, and verify what
+it does. Commercial use is not granted.
 
-The protection: anyone who **redistributes or hosts a modified IPD Studio**
-— including as a web service — must publish their complete source under the
-AGPL as well. Proprietary copies are not permitted.
+**Free, no permission needed:**
 
-Want to embed IPD Studio in a closed-source product or host a modified
-version without publishing your changes? A **paid commercial license** is
-available — see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) or write to
-praharshchamp610@gmail.com.
+- Personal use, study, research, hobby projects
+- Students and coursework
+- Educational institutions, universities, labs
+- Charities, public research bodies, public health and safety organizations,
+  environmental organizations, and government institutions
 
-Copyright © 2026 Praharsh Nagpure. See [LICENSE](LICENSE).
+**Requires a paid commercial license:**
+
+- Use by or on behalf of a for-profit company, *including internal use*
+- P&IDs drawn for paid client or consulting work
+- Paid operator training delivered with HMI Studio
+- Embedding, hosting, or reselling IPD Studio in any form
+
+Your drawings are always yours — the license covers the software, not the
+documents you produce with it.
+
+Commercial licensing is friendly and priced to scale:
+[COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) or praharshchamp610@gmail.com.
+
+**License history:** versions up to **v0.12.1** were released under
+AGPL-3.0-only, and that grant is perpetual for anyone who received them.
+**v0.13.0 and later** are PolyForm Noncommercial.
+
+Copyright © 2026 Praharsh Nagpure. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

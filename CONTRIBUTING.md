@@ -1,6 +1,6 @@
 # Contributing to IPD Studio
 
-Thanks for helping build the free, browser-native intelligent P&ID tool.
+Thanks for helping build the browser-native intelligent P&ID tool.
 All contributions are welcome: bug fixes, new symbols, HMI widgets, docs,
 translations of engineering conventions you know from your industry — even a
 well-written bug report with a `.pnid` file attached moves the project.
@@ -10,8 +10,8 @@ well-written bug report with a `.pnid` file attached moves the project.
 1. **Fork** the repo on GitHub (button top-right), then clone your fork:
 
    ```bash
-   git clone https://github.com/<your-username>/pid-studio.git
-   cd pid-studio
+   git clone https://github.com/<your-username>/IPD-Studio.git
+   cd IPD-Studio
    npm install
    npm run dev        # editor at http://localhost:5173
    ```
@@ -49,13 +49,38 @@ well-written bug report with a `.pnid` file attached moves the project.
    git push -u origin feat/foot-valve-symbol
    ```
 
-   The PR template asks how you verified it — fill it honestly. CI-less for
-   now, so your local test run *is* the gate.
+   The PR template asks how you verified it — fill it honestly. CI runs the
+   same gates on your PR, but a green local run first saves a round trip.
 
 7. **Review.** Expect concrete feedback; push follow-up commits to the same
    branch (no force-push needed). Once approved it's squash-merged, and your
    change ships to [the live app](https://pid-studio-praharsh.web.app) with
    the next release.
+
+## Contributor License Agreement (CLA)
+
+IPD Studio is **source-available under [PolyForm Noncommercial
+1.0.0](LICENSE)**, and commercial licenses are sold to fund the project. For
+that to work, one party has to be able to grant those commercial licenses.
+
+So before a code PR can be merged, please paste this line into the PR (once —
+it covers all your future contributions):
+
+> I grant Praharsh Nagpure a perpetual, worldwide, irrevocable, royalty-free
+> license to use, modify, sublicense, and relicense my contribution, including
+> under commercial terms. I confirm the work is mine to give and that my
+> employer, if any, has no claim to it.
+
+You keep the copyright to your contribution — this is a license grant, not an
+assignment. It exists purely so commercial licenses can be sold without having
+to track down every contributor.
+
+**Nothing is required for** issues, bug reports, symbol requests, convention
+corrections, or discussion. Those are the most valuable contributions anyway,
+and they carry no paperwork.
+
+If your employer's policy makes the CLA impossible, say so in the issue —
+a convention correction that I implement myself is still a real contribution.
 
 ## What we especially need
 
@@ -113,3 +138,20 @@ generate symbols. PRs that can't establish independent authorship are closed.
 
 Every logic change lands with tests (TDD preferred). UI-only changes need at
 minimum a passing build plus the e2e happy path.
+
+## Licensing of your contribution
+
+Merged contributions ship under [PolyForm Noncommercial 1.0.0](LICENSE) like
+the rest of the codebase, and may also be included in commercially licensed
+builds under the CLA above. Please add the standard SPDX header to any new
+source file:
+
+```ts
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+```
+
+Never paste in code from a source whose license you haven't checked, and never
+paste in code under a copyleft license (GPL/AGPL) — it cannot be commercially
+relicensed and would have to be reverted.

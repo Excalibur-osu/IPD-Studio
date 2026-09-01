@@ -11,3 +11,15 @@ playwright-report/
 # Claude Code worktrees/session state
 .claude/
 tsconfig.tsbuildinfo
+
+# Stray scratch files
+zz*.html
+
+# Local secrets & per-developer backend config (.env.example is committed)
+.env
+.env.*
+!.env.example
+
+# Points the firebase CLI at ONE project — a fork must supply its own
+# (see .firebaserc.example)
+.firebaserc

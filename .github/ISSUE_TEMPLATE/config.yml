@@ -3,3 +3,9 @@ contact_links:
   - name: Try it first
     url: https://pid-studio-praharsh.web.app
     about: The live app — reproduce your issue here to rule out stale local builds.
+  - name: Commercial licensing
+    url: https://github.com/Coldbari/IPD-Studio/blob/main/COMMERCIAL-LICENSE.md
+    about: Using IPD Studio at a company or for paid work? A commercial licence is required — start here.
+  - name: Report a security vulnerability
+    url: https://github.com/Coldbari/IPD-Studio/security/advisories/new
+    about: Please report security issues privately, not as a public issue.

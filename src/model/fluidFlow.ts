@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import type { PlantNode, SheetContent } from './types'
 import { isPortEnd } from './types'
 import { isProcessClass } from '../canvas/lineStyle'

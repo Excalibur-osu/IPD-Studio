@@ -6,8 +6,8 @@
 
 | Option | Verdict |
 |---|---|
-| **LibreDWG (wasm)** | Functional DWG→DXF conversion exists (`libredwg-web` builds). Cost: ~6–9 MB of wasm shipped to every visitor, GPLv3 (license-compatible with our AGPL, but heavy), and DWG version coverage is uneven for 2018+ files. |
-| **ODA / Teigha SDK** | The industry-grade answer, used by almost every commercial tool. Proprietary, per-product licensing with fees — incompatible with an AGPL no-cost project. |
+| **LibreDWG (wasm)** | Functional DWG→DXF conversion exists (`libredwg-web` builds). Cost: ~6–9 MB of wasm shipped to every visitor, GPLv3 — **no longer usable**: since v0.13.0 the project is PolyForm Noncommercial, and GPL code cannot be combined with a noncommercial licence or sublicensed commercially. This option is closed unless the project relicenses, and DWG version coverage is uneven for 2018+ files. |
+| **ODA / Teigha SDK** | The industry-grade answer, used by almost every commercial tool. Proprietary, per-product licensing with fees. Now the only viable path: commercial licence revenue could fund it, and its terms are compatible with a source-available commercial offering. |
 | **Cloud conversion API** | Works (e.g. CloudConvert), but breaks the local-first promise: drawings would leave the user's machine. Rejected on principle. |
 
 ## Decision

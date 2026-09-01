@@ -12,7 +12,14 @@ export default defineConfig({
       origins: [
         {
           origin: 'http://localhost:5173',
-          localStorage: [{ name: 'pid.ui.welcomed', value: '1' }],
+          localStorage: [
+            { name: 'pid.ui.welcomed', value: '1' },
+            // The editor requires an account. Firebase keeps its session in
+            // IndexedDB, which storageState cannot carry, so specs that are
+            // testing the editor use the dev-only bypass instead of driving
+            // the sign-in form 40 times. See devBypass() in EditorRoot.
+            { name: 'pid.dev.skipAuth', value: '1' },
+          ],
         },
       ],
     },

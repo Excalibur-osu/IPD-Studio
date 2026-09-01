@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import { useState } from 'react'
 import Modal from './Modal'
 import { useStore } from '../store/store'
@@ -25,8 +29,9 @@ export default function WelcomeOverlay() {
     <Modal title="Welcome to IPD Studio 👋" onClose={close} width={560}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <p style={{ fontSize: 13, color: '#556', margin: 0 }}>
-          Free, open-source P&ID drawing with real ISA symbols — and an HMI
-          simulator that brings your plant to life. Here's 2½ minutes of it:
+          P&ID drawing with real ISA symbols — and an HMI simulator that
+          brings your plant to life. Free for personal, academic, and nonprofit
+          use. Here's 2½ minutes of it:
         </p>
         <video
           data-testid="welcome-video"
