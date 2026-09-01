@@ -30,6 +30,10 @@ export interface StoreState {
   addNode(partial: Omit<PlantNode, 'id'>): string
   setNodePos(id: string, x: number, y: number): void
   moveNodes(ids: string[], dx: number, dy: number): void
+  /** Magnetic docking: drop a component onto another component's
+   *  connection point. The move and the line it creates are ONE undo step
+   *  because they are one gesture to the user. */
+  dockNode(id: string, x: number, y: number, edge: Omit<PlantEdge, 'id'>): void
   rotateNode(id: string): void
   setNodeScale(id: string, scale: number): void
   /** Per-axis stretch (longer horizontal vessel etc.). 1/1 clears all scaling. */
@@ -213,6 +217,14 @@ export const useStore = create<StoreState>()(
                 ...(isPortEnd(e.target) ? {} : { target: shift(e.target) }),
               }
             }),
+          }))
+        },
+
+        dockNode(id, x, y, edge) {
+          patchSheet((sh) => ({
+            ...sh,
+            nodes: sh.nodes.map((n) => (n.id === id ? { ...n, x, y } : n)),
+            edges: [...sh.edges, { ...edge, id: ulid() }],
           }))
         },
 

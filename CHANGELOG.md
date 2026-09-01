@@ -4,6 +4,26 @@ All notable changes to IPD Studio. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] — 2026-09-01 — magnetic docking
+
+### Added
+
+- **Magnetic docking** — connect by touching instead of by drawing. Drag a
+  symbol (in from the palette, or one already on the sheet) so one of its
+  connection points comes within ~18 screen px of another symbol's, and a
+  ring marks the point it has caught while every connection point on the
+  sheet lights up. Let go and the symbol clicks into place — the two points
+  land on exactly the same spot — with the line already drawn between them.
+  Because lines store ports and not coordinates, pulling the pair apart
+  afterwards stretches the pipe instead of breaking it.
+  - The line class is chosen from the two port kinds, so a controller docking
+    onto a valve's signal boss gets `signal.electric` even with a process
+    class selected in the toolbar; incompatible pairings never dock.
+  - The symbol and the line it docked onto are ONE undo step, whether they
+    arrived from the palette (`addBatch`) or from a drag (`dockNode`).
+  - A pair that is already joined won't dock again, so nudging a docked
+    symbol can't stack a second line on top of the first.
+
 ## [0.15.0] — 2026-09-01 — the engineering registry
 
 Second step of the engineering-platform plan

@@ -19,6 +19,13 @@ export interface DragPayload {
   presetLetters?: string
 }
 
+/**
+ * The palette drag in flight. `dragover` is not allowed to read dataTransfer
+ * — browsers only hand the payload over on drop — so the canvas reads WHAT is
+ * being dragged from here in order to preview where it would dock.
+ */
+export const paletteDrag: { payload: DragPayload | null } = { payload: null }
+
 const CATEGORY_ORDER: [SymbolCategory, string][] = [
   ['custom', 'Custom'],
   ['instruments', 'Instruments'],
@@ -61,8 +68,12 @@ function Entry({ def, label, title, presetLetters }: { def: SymbolDef; label: st
       onDragStart={(e) => {
         const payload: DragPayload = { symbolId: def.id }
         if (presetLetters) payload.presetLetters = presetLetters
+        paletteDrag.payload = payload
         e.dataTransfer.setData(DRAG_MIME, JSON.stringify(payload))
         e.dataTransfer.effectAllowed = 'copy'
+      }}
+      onDragEnd={() => {
+        paletteDrag.payload = null
       }}
     >
       <Preview def={def} />

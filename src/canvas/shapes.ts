@@ -275,13 +275,16 @@ function routerFor(edge: PlantEdge, nodes?: Map<string, PlantNode>): Record<stri
   // Manhattan's obstacle padding cannot pass through the small gap between
   // side-by-side symbols, so it would loop over the top instead.
   if (
-    srcNode && tgtNode && srcDir && tgtDir &&
+    srcNode && tgtNode &&
     isPortEnd(edge.source) && isPortEnd(edge.target) &&
     (!edge.vertices || edge.vertices.length === 0)
   ) {
     const pa = portWorld(srcNode, edge.source.portId)
     const pb = portWorld(tgtNode, edge.target.portId)
-    if (pa && pb && Math.hypot(pb.x - pa.x, pb.y - pa.y) <= 120) {
+    // Docked symbols share a connection point exactly: there is no run to
+    // route, and manhattan would loop out and back around the pair.
+    if (pa && pb && Math.hypot(pb.x - pa.x, pb.y - pa.y) <= 1) return { name: 'normal' }
+    if (pa && pb && srcDir && tgtDir && Math.hypot(pb.x - pa.x, pb.y - pa.y) <= 120) {
       const facingH =
         pa.y === pb.y &&
         ((pb.x > pa.x && srcDir === 'right' && tgtDir === 'left') ||

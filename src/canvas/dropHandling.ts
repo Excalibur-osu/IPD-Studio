@@ -3,14 +3,16 @@
 // commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
 
 import type { dia } from '@joint/core'
-import { DRAG_MIME, type DragPayload } from '../panels/Palette'
+import { ulid } from 'ulid'
+import { DRAG_MIME, paletteDrag, type DragPayload } from '../panels/Palette'
 import { getSymbol } from '../symbols/registry'
-import type { NodeKind } from '../model/types'
+import type { NodeKind, PlantNode } from '../model/types'
 import type { SymbolDef } from '../symbols/types'
 import { nextLoopNumber } from '../isa/autonumber'
 import { buildTypical } from '../assist/typicals'
-import { useStore } from '../store/store'
+import { activeSheet, useStore } from '../store/store'
 import { canvasRef } from './paperSetup'
+import { type Dock, dockEdge, dockRadius, findDock, showDockHint } from './autoConnect'
 
 export function kindForSymbol(def: Pick<SymbolDef, 'tagRule' | 'category'>): NodeKind {
   switch (def.tagRule) {
@@ -88,14 +90,83 @@ async function openDroppedFile(file: File): Promise<void> {
   }
 }
 
+/** Id for the not-yet-created symbol under the cursor during a palette drag. */
+const DRAG_ID = '__palette-drag__'
+
+/** The node a palette payload becomes, centred on a sheet point. */
+function placedNode(def: SymbolDef, local: { x: number; y: number }): PlantNode {
+  const w = def.gridSize.w * 8
+  const h = def.gridSize.h * 8
+  const node: PlantNode = {
+    id: DRAG_ID,
+    symbolId: def.id,
+    kind: kindForSymbol(def),
+    x: snap8(local.x - w / 2),
+    y: snap8(local.y - h / 2),
+    rotation: 0,
+  }
+  if (def.defaultConfig) node.config = { ...def.defaultConfig }
+  return node
+}
+
+/**
+ * Where the dragged symbol would land and what it would dock onto — computed
+ * identically for the hover preview and for the drop itself, so the ring the
+ * user aims at is exactly the connection they get.
+ */
+function previewDrop(
+  payload: DragPayload,
+  paper: dia.Paper,
+  clientX: number,
+  clientY: number,
+): { node: PlantNode; dock: Dock | null } | null {
+  let def: SymbolDef
+  try {
+    def = getSymbol(payload.symbolId)
+  } catch {
+    return null
+  }
+  const node = placedNode(def, paper.clientToLocalPoint({ x: clientX, y: clientY }))
+  const state = useStore.getState()
+  const sheet = activeSheet(state)
+  const dock = findDock(
+    node,
+    sheet.nodes,
+    sheet.edges,
+    state.activeLineClass,
+    dockRadius(paper.scale().sx),
+  )
+  return { node, dock }
+}
+
 export function attachDropHandling(host: HTMLElement, paper: dia.Paper): () => void {
+  /** Take down the docking preview (ring + every symbol's connection dots). */
+  const clearPreview = () => {
+    paper.el.classList.remove('pid-docking')
+    showDockHint(paper, null)
+  }
+
   const onDragOver = (e: DragEvent) => {
     if (e.dataTransfer?.types.includes(DRAG_MIME) || e.dataTransfer?.types.includes('Files')) {
       e.preventDefault()
       e.dataTransfer.dropEffect = 'copy'
     }
+    const payload = paletteDrag.payload
+    if (!payload) return
+    // Connection dots come up across the sheet so the user can see what there
+    // is to aim at, and the ring says which one is currently caught.
+    paper.el.classList.add('pid-docking')
+    showDockHint(paper, previewDrop(payload, paper, e.clientX, e.clientY)?.dock?.at ?? null)
   }
+  const onDragLeave = (e: DragEvent) => {
+    const to = e.relatedTarget
+    if (to instanceof Node && host.contains(to)) return
+    clearPreview()
+  }
+  const onDragEnd = () => clearPreview()
+
   const onDrop = (e: DragEvent) => {
+    clearPreview()
     const file = e.dataTransfer?.files?.[0]
     if (file && /\.(pnid|json|xml|dxf)$/i.test(file.name)) {
       e.preventDefault()
@@ -106,29 +177,29 @@ export function attachDropHandling(host: HTMLElement, paper: dia.Paper): () => v
     if (!raw) return
     e.preventDefault()
     const payload = JSON.parse(raw) as DragPayload
-    const def = getSymbol(payload.symbolId)
-    const local = paper.clientToLocalPoint({ x: e.clientX, y: e.clientY })
+    const preview = previewDrop(payload, paper, e.clientX, e.clientY)
+    if (!preview) return
+    const { dock } = preview
     const store = useStore.getState()
-    const w = def.gridSize.w * 8
-    const h = def.gridSize.h * 8
-    const node: Parameters<typeof store.addNode>[0] = {
-      symbolId: def.id,
-      kind: kindForSymbol(def),
-      x: snap8(local.x - w / 2),
-      y: snap8(local.y - h / 2),
-      rotation: 0,
-    }
-    if (def.defaultConfig) node.config = { ...def.defaultConfig }
+    const id = ulid()
+    const node: PlantNode = { ...preview.node, id, ...(dock ? { x: dock.x, y: dock.y } : {}) }
     if (payload.presetLetters) {
       node.tag = { letters: payload.presetLetters, loop: nextLoopNumber(store.doc, payload.presetLetters) }
     }
-    const id = store.addNode(node)
-    store.setSelection([id])
+    // One batch either way: the symbol and the line it docked onto arrive
+    // together, and one undo takes both back. addBatch selects the new node.
+    store.addBatch([node], dock ? [{ ...dockEdge(id, dock), id: ulid() }] : [])
   }
+
   host.addEventListener('dragover', onDragOver)
+  host.addEventListener('dragleave', onDragLeave)
   host.addEventListener('drop', onDrop)
+  window.addEventListener('dragend', onDragEnd)
   return () => {
+    clearPreview()
     host.removeEventListener('dragover', onDragOver)
+    host.removeEventListener('dragleave', onDragLeave)
     host.removeEventListener('drop', onDrop)
+    window.removeEventListener('dragend', onDragEnd)
   }
 }

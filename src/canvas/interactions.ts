@@ -10,6 +10,7 @@ import { isPortEnd } from '../model/types'
 import type { PortKind } from '../symbols/types'
 import { compatibleKinds, pickLineClass } from './connectionRules'
 import { alignNodes, distributeNodes, localPortPoint, portWorld, snapGuides } from './alignment'
+import { dockEdge, dockRadius, findDock, showDockHint } from './autoConnect'
 import { cleanVertices } from './vertexClean'
 import { makeLink } from './shapes'
 import { getSymbol } from '../symbols/registry'
@@ -260,6 +261,8 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
   const onMagnetDown = () => paper.el.classList.add('pid-linking')
   const onGlobalPointerUp = () => {
     paper.el.classList.remove('pid-linking')
+    paper.el.classList.remove('pid-docking')
+    showDockHint(paper, null)
     // safety net: any grouped edit (typing, label drag) ends by now
     resumeHistory()
   }
@@ -344,6 +347,23 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     layer.appendChild(line)
     guideEls.push(line)
   }
+  /** Grid/guide-resolved landing position for a node dragged to `p`. */
+  const landing = (hit: ReturnType<typeof snapGuides>, p: { x: number; y: number }) => ({
+    x: hit.x !== undefined ? Math.round(hit.x) : snap8(p.x),
+    y: hit.y !== undefined ? Math.round(hit.y) : snap8(p.y),
+  })
+  /** What the dragged node would dock onto at its landing position. */
+  const dockAt = (node: PlantNode, hit: ReturnType<typeof snapGuides>, p: { x: number; y: number }) => {
+    const sheet = activeSheet(store())
+    return findDock(
+      { ...node, ...landing(hit, p) },
+      sheet.nodes,
+      sheet.edges,
+      store().activeLineClass,
+      dockRadius(paper.scale().sx),
+    )
+  }
+
   const onElementPointerMove = (view: dia.ElementView) => {
     const id = String(view.model.id)
     const start = dragStart.get(id)
@@ -370,6 +390,12 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     const hit = snapGuides({ ...node, x: p.x, y: p.y }, sheet.nodes, 4, sheet.edges)
     if (hit.guideX !== undefined) drawGuide(true, hit.guideX)
     if (hit.guideY !== undefined) drawGuide(false, hit.guideY)
+    // Magnetic docking preview. Connection dots come up across the sheet so
+    // the user can see what there is to touch, and the ring marks the point
+    // this symbol will click onto if they let go now.
+    paper.el.classList.add('pid-docking')
+    const dock = dragStart.size > 1 ? null : dockAt(node, hit, p)
+    showDockHint(paper, dock?.at ?? null)
   }
   const onElementPointerDownPos = (view: dia.ElementView) => {
     dragStart.clear()
@@ -395,16 +421,28 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
   }
   const onElementPointerUp = (view: dia.ElementView) => {
     clearGuides()
+    showDockHint(paper, null)
+    paper.el.classList.remove('pid-docking')
     const id = String(view.model.id)
     const start = dragStart.get(id)
+    const multi = dragStart.size > 1
     dragStart.delete(id)
     if (!start) return
     const p = view.model.position()
     const sheet = activeSheet(store())
     const node = sheet.nodes.find((n) => n.id === id)
     const hit = node ? snapGuides({ ...node, x: p.x, y: p.y }, sheet.nodes, 4, sheet.edges) : {}
-    const nx = hit.x !== undefined ? Math.round(hit.x) : snap8(p.x)
-    const ny = hit.y !== undefined ? Math.round(hit.y) : snap8(p.y)
+    const { x: nx, y: ny } = landing(hit, p)
+    // Touched a connection point on the way down: click onto it and draw the
+    // line. Checked before the "didn't move" exit so a symbol nudged back to
+    // where it started can still dock.
+    const dock = node && !multi ? dockAt(node, hit, p) : null
+    if (dock) {
+      store().dockNode(id, dock.x, dock.y, dockEdge(id, dock))
+      dragStart.clear()
+      dragStartVerts.clear()
+      return
+    }
     if (nx === start.x && ny === start.y) return
     const dx = nx - start.x
     const dy = ny - start.y
@@ -577,6 +615,7 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
 
   return () => {
     clearGuides()
+    showDockHint(paper, null)
     unsubSelection()
     window.removeEventListener('keydown', onKeyDown)
     window.removeEventListener('pointerup', onGlobalPointerUp)
