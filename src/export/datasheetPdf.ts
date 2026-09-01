@@ -1,4 +1,9 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import { DATASHEET_SECTIONS, fieldsFor } from '../model/datasheet'
+import { fieldValue } from '../model/registry'
 import type { PlantNode, ProjectDoc } from '../model/types'
 import { expandLetters, formatTag } from '../isa/tag'
 
@@ -19,7 +24,7 @@ export function printDatasheet(doc: ProjectDoc, node: PlantNode): void {
         fields
           .map(
             (f) =>
-              `<tr><td class="lbl">${esc(f.label)}</td><td>${esc(node.datasheet?.[f.key] ?? '')}</td></tr>`,
+              `<tr><td class="lbl">${esc(f.label)}</td><td>${esc(fieldValue(doc.registry, node, f.key))}</td></tr>`,
           )
           .join('')
       )

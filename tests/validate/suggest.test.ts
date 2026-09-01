@@ -56,8 +56,11 @@ describe('advisor rules', () => {
     const suggestions = runSuggestions(docOf([fic, fv], [wire]))
     const hit = suggestions.find((s) => s.checkId === 'needs-ip-converter')
     expect(hit).toBeDefined()
-    expect(hit!.fix!.kind).toBe('insert-ip')
-    expect(hit!.fix!.edgeId).toBe('e1')
+    // FixSpec is a union now, so narrow before reading the insert-ip payload
+    const fix = hit!.fix!
+    expect(fix.kind).toBe('insert-ip')
+    if (fix.kind !== 'insert-ip') throw new Error('expected an insert-ip fix')
+    expect(fix.edgeId).toBe('e1')
   })
 
   it('does not ask for an I/P on solenoid valves or pneumatic lines', () => {

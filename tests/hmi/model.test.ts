@@ -4,7 +4,7 @@ import { createEmptyDoc } from '../../src/model/doc'
 import { loadDoc } from '../../src/model/migrate'
 import { serializeDoc, deserializeDoc } from '../../src/persist/file'
 
-describe('hmi model + schema v4', () => {
+describe('hmi model + current schema', () => {
   it('createScreen defaults to classic theme and empty content', () => {
     const s = createScreen(1)
     expect(s.name).toBe('Screen 1')
@@ -21,9 +21,9 @@ describe('hmi model + schema v4', () => {
     expect(HMI_WORLD).toEqual({ w: 1600, h: 1000 })
   })
 
-  it('new docs are schema v4 with hmiScreens', () => {
+  it('new docs carry the current schema with hmiScreens', () => {
     const doc = createEmptyDoc()
-    expect(doc.schemaVersion).toBe(4)
+    expect(doc.schemaVersion).toBe(5)
     expect(doc.hmiScreens).toEqual([])
   })
 
@@ -31,7 +31,7 @@ describe('hmi model + schema v4', () => {
     const v3 = { ...createEmptyDoc(), schemaVersion: 3 } as unknown as Record<string, unknown>
     delete v3.hmiScreens
     const doc = loadDoc(v3)
-    expect(doc.schemaVersion).toBe(4)
+    expect(doc.schemaVersion).toBe(5)
     expect(doc.hmiScreens).toEqual([])
   })
 

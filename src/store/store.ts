@@ -1,8 +1,14 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import { create } from 'zustand'
 import { temporal } from 'zundo'
 import { ulid } from 'ulid'
 import type { BudgetSettings, CustomSymbolDef, Fluid, PlantEdge, PlantNode, ProjectDoc, Sheet, Tag } from '../model/types'
 import { propagateFluid } from '../model/fluidFlow'
+import type { EngineeringRecord, EntityKind, RecordStatus } from '../model/registry'
+import { keyOfEdge, keyOfNode, liveKeys, retagRegistry } from '../model/registry'
 import { registerCustomSymbols } from '../symbols/custom'
 import { isPortEnd } from '../model/types'
 import { createEmptyDoc, createSheet } from '../model/doc'
@@ -14,6 +20,11 @@ export interface StoreState {
   activeSheetId: string
   selection: string[]
   dirty: boolean
+  /** Firestore id of the cloud drawing this document came from, if any.
+   *  Kept out of `doc` on purpose: it is per-account bookkeeping, not part of
+   *  the drawing, and must not travel inside an exported .pnid file. */
+  cloudId: string | null
+  setCloudId(id: string | null): void
   activeLineClass: PlantEdge['lineClass']
 
   addNode(partial: Omit<PlantNode, 'id'>): string
@@ -36,6 +47,14 @@ export interface StoreState {
   setLabelOffset(id: string, off: { x: number; y: number } | undefined): void
   setNodeLink(id: string, link: PlantNode['link']): void
   setDatasheet(id: string, patch: Record<string, string>): void
+  /** Engineering records (doc.registry), keyed by tag / line number. All
+   *  undoable, and all a single undo step. */
+  setRecordField(key: string, kind: EntityKind, fieldKey: string, value: string): void
+  setRecordStatus(key: string, status: RecordStatus | undefined): void
+  setRecordOwner(key: string, owner: string): void
+  /** Delete a record outright. Only ever called for an orphan the user has
+   *  chosen to discard — nothing deletes a record automatically. */
+  purgeRecord(key: string): void
   setUnderlay(underlay: Sheet['underlay']): void
   addCustomSymbol(def: CustomSymbolDef): void
   removeCustomSymbol(id: string): void
@@ -159,6 +178,7 @@ export const useStore = create<StoreState>()(
         selection: [],
         armPin: null,
         dirty: false,
+        cloudId: null,
         activeLineClass: 'process.major',
 
         addNode(partial) {
@@ -272,8 +292,28 @@ export const useStore = create<StoreState>()(
           }))
         },
 
+        /**
+         * Renaming an object carries its engineering record with it. Without
+         * this, editing FT-101 to FT-102 would strand an approved datasheet
+         * under the old tag and hand the user an empty form under the new one.
+         * See retagRegistry for the move / copy / collide rules.
+         */
         setTag(id, tag) {
-          patchSheet((sh) => ({ ...sh, nodes: sh.nodes.map((n) => (n.id === id ? { ...n, tag } : n)) }))
+          set((s) => {
+            const sheet = activeSheet(s)
+            const node = sheet.nodes.find((n) => n.id === id)
+            if (!node) return s
+            const oldKey = keyOfNode(node)
+            const newKey = keyOfNode({ ...node, tag })
+            const sheets = s.doc.sheets.map((sh) =>
+              sh.id === sheet.id ? { ...sh, nodes: sh.nodes.map((n) => (n.id === id ? { ...n, tag } : n)) } : sh,
+            )
+            // Another symbol may still wear the old tag (a valve shown twice,
+            // an off-page continuation) — then the record is copied, not moved.
+            const stillUsed = oldKey !== null && liveKeys(sheets).has(oldKey)
+            const { registry } = retagRegistry(s.doc.registry, oldKey, newKey, { oldKeyStillUsed: stillUsed })
+            return { doc: touched({ ...s.doc, sheets, registry }), dirty: true }
+          })
         },
 
         setLabel(id, label) {
@@ -322,6 +362,50 @@ export const useStore = create<StoreState>()(
             ...sh,
             nodes: sh.nodes.map((n) => (n.id === id ? { ...n, datasheet: { ...n.datasheet, ...patch } } : n)),
           }))
+        },
+
+        setRecordField(key, kind, fieldKey, value) {
+          set((s) => {
+            const prev: EngineeringRecord = s.doc.registry?.[key] ?? { key, kind, fields: {} }
+            const record: EngineeringRecord = {
+              ...prev,
+              kind: prev.kind ?? kind,
+              fields: { ...prev.fields, [fieldKey]: value },
+              updated: new Date().toISOString(),
+            }
+            return { doc: touched({ ...s.doc, registry: { ...s.doc.registry, [key]: record } }), dirty: true }
+          })
+        },
+
+        setRecordStatus(key, status) {
+          set((s) => {
+            const prev = s.doc.registry?.[key]
+            if (!prev) return s
+            return {
+              doc: touched({ ...s.doc, registry: { ...s.doc.registry, [key]: { ...prev, status } } }),
+              dirty: true,
+            }
+          })
+        },
+
+        setRecordOwner(key, owner) {
+          set((s) => {
+            const prev = s.doc.registry?.[key]
+            if (!prev) return s
+            return {
+              doc: touched({ ...s.doc, registry: { ...s.doc.registry, [key]: { ...prev, owner } } }),
+              dirty: true,
+            }
+          })
+        },
+
+        purgeRecord(key) {
+          set((s) => {
+            if (!s.doc.registry?.[key]) return s
+            const registry = { ...s.doc.registry }
+            delete registry[key]
+            return { doc: touched({ ...s.doc, registry }), dirty: true }
+          })
         },
 
         setMeta(patch) {
@@ -383,7 +467,21 @@ export const useStore = create<StoreState>()(
         },
 
         setEdge(id, patch) {
-          patchSheet((sh) => ({ ...sh, edges: sh.edges.map((e) => (e.id === id ? { ...e, ...patch } : e)) }))
+          set((s) => {
+            const sheet = activeSheet(s)
+            const edge = sheet.edges.find((e) => e.id === id)
+            if (!edge) return s
+            const next = { ...edge, ...patch }
+            const sheets = s.doc.sheets.map((sh) =>
+              sh.id === sheet.id ? { ...sh, edges: sh.edges.map((e) => (e.id === id ? next : e)) } : sh,
+            )
+            // A renumbered line carries its record exactly as a renamed tag does.
+            const oldKey = keyOfEdge(edge)
+            const newKey = keyOfEdge(next)
+            const stillUsed = oldKey !== null && liveKeys(sheets).has(oldKey)
+            const { registry } = retagRegistry(s.doc.registry, oldKey, newKey, { oldKeyStillUsed: stillUsed })
+            return { doc: touched({ ...s.doc, sheets, registry }), dirty: true }
+          })
         },
 
         setEdgeVertices(id, vertices) {
@@ -449,6 +547,12 @@ export const useStore = create<StoreState>()(
           }))
         },
 
+        /**
+         * Deleting a symbol NEVER deletes its engineering record. A record left
+         * without a symbol becomes an orphan the advisor surfaces with a purge
+         * action — because deleting a symbol and binning an approved datasheet
+         * are two different intentions, and only one of them was expressed.
+         */
         deleteIds(ids) {
           const idSet = new Set(ids)
           patchSheet((sh) => ({
@@ -528,8 +632,15 @@ export const useStore = create<StoreState>()(
 
         loadIntoStore(doc) {
           registerCustomSymbols(doc)
-          set({ doc, activeSheetId: doc.sheets[0]!.id, activeScreenId: doc.hmiScreens[0]?.id ?? null, selection: [], dirty: false })
+          // Whatever we just loaded is not the cloud drawing we had open, so
+          // drop the link — otherwise the next cloud save silently overwrites
+          // a different drawing. loadFromCloud re-establishes it afterwards.
+          set({ doc, activeSheetId: doc.sheets[0]!.id, activeScreenId: doc.hmiScreens[0]?.id ?? null, selection: [], dirty: false, cloudId: null })
           useStore.temporal.getState().clear()
+        },
+
+        setCloudId(id) {
+          set({ cloudId: id })
         },
 
         setActiveScreen(id) {

@@ -1,9 +1,16 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import type { Finding, PlantEdge, PlantNode, ProjectDoc, Sheet } from '../model/types'
 import { isPortEnd } from '../model/types'
 import { formatTag } from '../isa/tag'
+import { liveKeys } from '../model/registry'
 
 /** A Fix the Advisor can apply for the user. */
-export type FixSpec = { kind: 'insert-ip'; sheetId: string; edgeId: string }
+export type FixSpec =
+  | { kind: 'insert-ip'; sheetId: string; edgeId: string }
+  | { kind: 'purge-record'; key: string }
 
 export interface Suggestion extends Finding {
   fix?: FixSpec
@@ -30,6 +37,7 @@ function neighborIds(sheet: Sheet, nodeId: string): string[] {
       if (isPortEnd(end) && end.nodeId !== nodeId) out.push(end.nodeId)
     }
   }
+
   return out
 }
 
@@ -170,5 +178,23 @@ export function runSuggestions(doc: ProjectDoc): Suggestion[] {
       }
     }
   }
+
+  // 9. engineering records with nothing on any sheet wearing their key.
+  // Deleting a symbol deliberately leaves its record behind (see deleteIds), so
+  // this is how the user is told and given the choice to discard it.
+  const registry = doc.registry
+  if (registry) {
+    const live = liveKeys(doc.sheets)
+    const firstSheet = doc.sheets[0]
+    for (const key of Object.keys(registry)) {
+      if (live.has(key)) continue
+      const unassigned = key.startsWith('__unassigned:')
+      const message = unassigned
+        ? 'An engineering record was imported from an untagged symbol — tag the symbol to reunite them'
+        : `${key} has an engineering record but nothing on any sheet carries that tag`
+      if (firstSheet) add('orphan-record', firstSheet, message, undefined, { kind: 'purge-record', key })
+    }
+  }
+
   return out
 }

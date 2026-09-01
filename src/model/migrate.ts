@@ -1,5 +1,11 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import { ulid } from 'ulid'
 import type { PlantEdge, PlantNode, ProjectDoc, Sheet, SheetSize } from './types'
+import type { Registry } from './registry'
+import { keyOfNode, kindOfNode } from './registry'
 import { checkWidgetProps } from '../hmi/model'
 
 export class DocError extends Error {}
@@ -31,12 +37,53 @@ function migrateV1(v1: V1Doc): ProjectDoc {
     edges: v1.edges,
   }
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     meta: { name: v1.meta.name, author: v1.meta.author, created: v1.meta.created, modified: v1.meta.modified },
     settings: v1.settings,
     sheets: [sheet],
     hmiScreens: [],
   }
+}
+
+/**
+ * schemaVersion 4 → 5: engineering data moves out of `node.datasheet` (keyed by
+ * node id, destroyed by a redraw) and into `doc.registry` (keyed by tag).
+ *
+ * Nothing is deleted. `node.datasheet` is left in place and still read as a
+ * fallback for one release, so a v5 document opened by a v4 build keeps working
+ * and a half-migrated file can never lose values.
+ *
+ * A datasheet on an UNTAGGED node has no tag to key on. Rather than drop it, it
+ * is parked under `__unassigned:<nodeId>` where the QA engine can surface it
+ * and the user can assign a tag; silently binning someone's filled-in datasheet
+ * because the symbol was never tagged would be the worst possible outcome.
+ */
+function buildRegistry(doc: ProjectDoc): Registry | undefined {
+  const registry: Registry = { ...(doc.registry ?? {}) }
+  let touchedAny = false
+
+  for (const sheet of doc.sheets ?? []) {
+    for (const node of sheet.nodes ?? []) {
+      const datasheet = node.datasheet
+      if (!datasheet || Object.keys(datasheet).length === 0) continue
+      const kind = kindOfNode(node)
+      if (!kind) continue
+      const key = keyOfNode(node) ?? `__unassigned:${node.id}`
+      const existing = registry[key]
+      // A record already carrying values wins: re-running the migration over an
+      // already-migrated document must not clobber later edits.
+      registry[key] = {
+        key,
+        kind,
+        ...existing,
+        fields: { ...datasheet, ...(existing?.fields ?? {}) },
+      }
+      touchedAny = true
+    }
+  }
+
+  if (!touchedAny && !doc.registry) return undefined
+  return registry
 }
 
 /** Parse + validate + migrate a raw JSON payload into the current schema. */
@@ -54,7 +101,7 @@ export function loadDoc(raw: unknown): ProjectDoc {
     if (typeof v1.settings !== 'object' || v1.settings === null) throw new DocError('Document is missing settings')
     return migrateV1(v1 as V1Doc)
   }
-  if (version === 2 || version === 3 || version === 4) {
+  if (version === 2 || version === 3 || version === 4 || version === 5) {
     const doc = raw as Partial<ProjectDoc>
     if (!Array.isArray(doc.sheets) || doc.sheets.length === 0) throw new DocError('Document has no sheets')
     for (const sheet of doc.sheets) {
@@ -87,7 +134,12 @@ export function loadDoc(raw: unknown): ProjectDoc {
         }
       }
     }
-    return { ...doc, schemaVersion: 4, hmiScreens: doc.hmiScreens ?? [] } as ProjectDoc
+    if (doc.registry !== undefined && (typeof doc.registry !== 'object' || doc.registry === null || Array.isArray(doc.registry))) {
+      throw new DocError('registry is malformed')
+    }
+    const migrated = { ...doc, schemaVersion: 5, hmiScreens: doc.hmiScreens ?? [] } as ProjectDoc
+    const registry = buildRegistry(migrated)
+    return registry ? { ...migrated, registry } : migrated
   }
   throw new DocError(`Unsupported schema version: ${String(version)}`)
 }

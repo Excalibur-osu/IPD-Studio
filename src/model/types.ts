@@ -1,6 +1,11 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 /** Core document types — the single source of truth for a P&ID drawing. */
 
 import type { HmiScreen } from '../hmi/model'
+import type { Registry } from './registry'
 
 export type SheetSize = 'A4' | 'A3' | 'A2' | 'A1' | 'ANSI_B' | 'ANSI_D'
 
@@ -63,10 +68,12 @@ export interface PlantNode {
   /** User-dragged offsets (element-frame px) for the tag pair and the label. */
   tagOffset?: { x: number; y: number }
   labelOffset?: { x: number; y: number }
-  attrs?: Record<string, string>
   /** Off-page connector pairing to a connector on another sheet. */
   link?: { sheetId: string; nodeId: string }
-  /** ISA-20-style datasheet values, keyed by datasheet field key. */
+  /** ISA-20-style datasheet values, keyed by datasheet field key.
+   *  @deprecated since schemaVersion 5 — engineering data lives in
+   *  `ProjectDoc.registry`, keyed by tag so it survives a redraw. Still READ as
+   *  a fallback for one release so older documents lose nothing. */
   datasheet?: Record<string, string>
   /** Exact per-instance price (beats project overrides and table defaults). */
   cost?: number
@@ -137,7 +144,7 @@ export interface CustomSymbolDef {
 }
 
 export interface ProjectDoc {
-  schemaVersion: 4
+  schemaVersion: 5
   meta: ProjectMeta
   settings: {
     gridPx: number
@@ -154,6 +161,9 @@ export interface ProjectDoc {
   fluids?: Fluid[]
   /** Project budget & pricing (v0.10.0+, optional). */
   budget?: BudgetSettings
+  /** Engineering records keyed by tag / line number (v0.15.0+, schemaVersion 5).
+   *  See model/registry.ts for why the key is the tag and not the node id. */
+  registry?: Registry
 }
 
 /** Budget settings: display currency, optional target, Lang-style installed

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import { ulid } from 'ulid'
 import type { ProjectDoc, Sheet, SheetSize } from './types'
 
@@ -46,7 +50,7 @@ export const DEFAULT_FLUIDS = [
 export function createEmptyDoc(name = 'Untitled P&ID'): ProjectDoc {
   const now = new Date().toISOString()
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     meta: { name, author: '', created: now, modified: now },
     settings: { gridPx: 8, tagSeparator: '-', numberStart: 100 },
     sheets: [createSheet(1)],

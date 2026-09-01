@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import { ulid } from 'ulid'
 import type { FixSpec } from '../validate/suggest'
 import type { PlantEdge, PlantNode } from '../model/types'
@@ -14,6 +18,10 @@ const snap8 = (v: number) => Math.round(v / 8) * 8
  * converter automatically — one undo step.
  */
 export function applyFix(fix: FixSpec): void {
+  if (fix.kind === 'purge-record') {
+    useStore.getState().purgeRecord(fix.key)
+    return
+  }
   if (fix.kind !== 'insert-ip') return
   const s = useStore.getState()
   if (s.activeSheetId !== fix.sheetId) s.setActiveSheet(fix.sheetId)

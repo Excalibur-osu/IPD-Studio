@@ -1,8 +1,8 @@
 {
   "name": "ipd-studio",
   "private": true,
-  "version": "0.12.1",
-  "license": "AGPL-3.0-only",
+  "version": "0.15.0",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
     "@joint/core": "^4.3.1",
     "dxf-parser": "^1.1.2",
     "fast-xml-parser": "^5.11.0",
+    "firebase": "^12.18.0",
     "idb-keyval": "^6.3.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

@@ -1,4 +1,9 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import { fieldsFor } from '../model/datasheet'
+import { fieldValue, keyOfNode, kindOfNode } from '../model/registry'
 import type { PlantNode } from '../model/types'
 import { formatTag } from '../isa/tag'
 import { expandLetters } from '../isa/tag'
@@ -12,9 +17,20 @@ const SECTION_TITLES: Record<string, string> = {
   signal: 'Signal & Electrical',
 }
 
+/** The datasheet form is a print-shaped VIEW of the engineering record — the
+ *  same values the inspector's Engineering tab shows, not a second store. An
+ *  untagged instrument has no record to write to, so it still writes the legacy
+ *  per-node datasheet and the migration picks it up once a tag is given. */
 export default function DatasheetEditor({ node, onClose }: { node: PlantNode; onClose: () => void }) {
   const setDatasheet = useStore((s) => s.setDatasheet)
+  const setRecordField = useStore((s) => s.setRecordField)
   const doc = useStore((s) => s.doc)
+  const recordKey = keyOfNode(node)
+  const kind = kindOfNode(node)
+  const write = (fieldKey: string, value: string) => {
+    if (recordKey && kind) setRecordField(recordKey, kind, fieldKey, value)
+    else setDatasheet(node.id, { [fieldKey]: value })
+  }
   const letters = node.tag?.letters ?? 'XX'
   const sections = fieldsFor(letters)
   const title = node.tag ? formatTag(node.tag, '-') : 'Untagged instrument'
@@ -41,8 +57,8 @@ export default function DatasheetEditor({ node, onClose }: { node: PlantNode; on
                   <label className="datasheet-field" key={f.key}>
                     <span>{f.label}</span>
                     <input
-                      value={node.datasheet?.[f.key] ?? ''}
-                      onChange={(e) => { setDatasheet(node.id, { [f.key]: e.target.value }); pauseHistory() }}
+                      value={fieldValue(doc.registry, node, f.key)}
+                      onChange={(e) => { write(f.key, e.target.value); pauseHistory() }}
                       onBlur={resumeHistory}
                     />
                   </label>
