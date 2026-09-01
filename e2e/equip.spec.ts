@@ -4,8 +4,9 @@ import { expect, test } from '@playwright/test'
 // motor faceplate, and trip it from the events modal.
 test('compressor: place, tag, start from faceplate, trip from events', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
-  await page.goto('/')
-  await page.getByTestId('open-hmi').click()
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   const canvas = page.getByTestId('hmi-canvas')
   const world = async (wx: number, wy: number) => {

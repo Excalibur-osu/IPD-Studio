@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import { useState } from 'react'
 import { getSymbol } from '../symbols/registry'
 import { activeSheet, pauseHistory, resumeHistory, useStore } from '../store/store'
@@ -10,6 +14,8 @@ import { DEFAULT_PRICES, priceKeyFor, unitCost } from '../model/costs'
 import { currencyOf, money, toDisplay, toUsd } from '../model/currency'
 import DatasheetEditor from './DatasheetEditor'
 import FluidsDialog from './FluidsDialog'
+import InspectorWhereUsed from './InspectorWhereUsed'
+import InspectorEngineering from './InspectorEngineering'
 
 const SHEETS: SheetSize[] = ['A4', 'A3', 'A2', 'A1', 'ANSI_B', 'ANSI_D']
 
@@ -265,21 +271,42 @@ function EdgeProps({ edge }: { edge: PlantEdge }) {
   )
 }
 
+type InspectorTab = 'symbol' | 'eng' | 'used'
+
+/**
+ * The object inspector.
+ *
+ * With one object selected this is tabbed: the symbol's own properties, and
+ * everywhere that object is referenced. The record tab — the stored engineering
+ * data — slots in beside them once the registry lands (v0.15). Tabs rather than
+ * a dialog on purpose: the drawing has to stay visible while you read about it,
+ * which is the whole point of the P&ID being the way in.
+ */
 export default function PropertyPanel({ onCollapse }: { onCollapse?: () => void }) {
   const selection = useStore((s) => s.selection)
   const doc = useStore((s) => s.doc)
   const activeSheetId = useStore((s) => s.activeSheetId)
   const deleteSelected = useStore((s) => s.deleteSelected)
+  const [tab, setTab] = useState<InspectorTab>('symbol')
+
+  const sheet = activeSheet({ doc, activeSheetId })
+  const single = selection.length === 1 ? selection[0]! : null
+  const node = single ? sheet.nodes.find((n) => n.id === single) : undefined
+  const edge = single ? sheet.edges.find((e) => e.id === single) : undefined
 
   let body
   if (selection.length === 0) {
     body = <SheetProps />
-  } else if (selection.length === 1) {
-    const id = selection[0]!
-    const sheet = activeSheet({ doc, activeSheetId })
-    const node = sheet.nodes.find((n) => n.id === id)
-    const edge = sheet.edges.find((e) => e.id === id)
-    body = node ? <NodeProps key={id} node={node} /> : edge ? <EdgeProps key={id} edge={edge} /> : <SheetProps />
+  } else if (single) {
+    body = node
+      ? tab === 'used'
+        ? <InspectorWhereUsed key={single} node={node} />
+        : tab === 'eng'
+          ? <InspectorEngineering key={single} node={node} />
+          : <NodeProps key={single} node={node} />
+      : edge
+        ? <EdgeProps key={single} edge={edge} />
+        : <SheetProps />
   } else {
     body = (
       <>
@@ -302,6 +329,7 @@ export default function PropertyPanel({ onCollapse }: { onCollapse?: () => void 
       </>
     )
   }
+
   return (
     <aside className="props">
       <div className="panel-head">
@@ -311,21 +339,30 @@ export default function PropertyPanel({ onCollapse }: { onCollapse?: () => void 
           <button className="panel-collapse" title="Hide the properties panel" onClick={onCollapse}>▸</button>
         )}
       </div>
+      {node && (
+        <div className="insp-tabs" role="tablist">
+          <button role="tab" aria-selected={tab === 'symbol'} data-testid="insp-symbol"
+            className={tab === 'symbol' ? 'on' : ''} onClick={() => setTab('symbol')}>
+            Symbol
+          </button>
+          <button role="tab" aria-selected={tab === 'eng'} data-testid="insp-eng"
+            className={tab === 'eng' ? 'on' : ''} onClick={() => setTab('eng')}
+            title="The engineering record for this object">
+            Engineering
+          </button>
+          <button role="tab" aria-selected={tab === 'used'} data-testid="insp-used"
+            className={tab === 'used' ? 'on' : ''} onClick={() => setTab('used')}
+            title="Every place this object is referenced">
+            Where used
+          </button>
+        </div>
+      )}
       <div className="props-body">{body}</div>
     </aside>
   )
 }
 
 
-/**
- * Price for one placed component: what the budgetary table says it costs, the
- * size that price assumes, and a field to override it with a real quote.
- *
- * Three prices can apply, most specific winning — this component's own cost,
- * the project-wide override from the Budget dialog, then the researched table
- * default. The note under the field says which one is in force so a number on
- * the drawing is never unexplained.
- */
 function CostField({ node }: { node: PlantNode }) {
   const doc = useStore((s) => s.doc)
   const setNodeCost = useStore((s) => s.setNodeCost)

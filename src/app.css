@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+ * Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+ * commercial use requires a paid license (see COMMERCIAL-LICENSE.md). */
+
 * { box-sizing: border-box; margin: 0; }
 html, body, #root { height: 100%; }
 
@@ -71,8 +75,12 @@ body { font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: 
 .palette-head .palette-search { flex: 1; margin: 0; width: auto; }
 .center { grid-area: center; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .toolbar {
-  grid-area: toolbar; display: flex; align-items: center; gap: 4px; row-gap: 4px;
-  flex-wrap: wrap; padding: 4px 10px; min-height: var(--tb-h);
+  grid-area: toolbar; display: flex; align-items: center; gap: 4px;
+  /* One row, always. Wrapping pushed the account control onto a second line
+     and shoved the canvas down; a narrow window scrolls the row instead. */
+  flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin;
+  padding: 4px 10px; min-height: var(--tb-h);
   border-bottom: 1px solid var(--c-line); background: var(--c-chrome);
 }
 .app-name { font-size: 13px; font-weight: 700; letter-spacing: -.01em; color: var(--c-ink); }
@@ -99,8 +107,6 @@ body { font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: 
 .palette-entry:hover { border-color: #b5b5c5; background: #fff; }
 .palette-preview { width: 36px; height: 32px; }
 .palette-label { font-size: 9.5px; color: #555; text-align: center; line-height: 1.1; max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tb-coffee { align-self: center; margin-right: 6px; padding: 4px 10px; border-radius: 999px; background: linear-gradient(135deg, #f7b733, #ec4899); color: #fff; font-size: 11.5px; font-weight: 700; text-decoration: none; white-space: nowrap; box-shadow: 0 1px 4px rgba(236, 72, 153, 0.35); transition: transform 0.12s, box-shadow 0.12s; }
-.tb-coffee:hover { transform: translateY(-1px); box-shadow: 0 3px 9px rgba(236, 72, 153, 0.5); color: #fff; }
 .update-toast { position: fixed; right: 16px; bottom: 40px; z-index: 60; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; background: #1b2233; color: #eef2fa; font-size: 13px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35); }
 .update-toast button { padding: 6px 14px; border: none; border-radius: 6px; background: #4da3ff; color: #08101f; font-weight: 700; cursor: pointer; }
 .update-toast button:hover { background: #6db4ff; }
@@ -143,6 +149,7 @@ button { font: inherit; }
 .status-warn { color: #b7791f; font-weight: 600; }
 .loop-hint { color: #b7791f; }
 
+.toolbar > * { flex: none; }
 .toolbar button, .toolbar select {
   height: 26px; padding: 0 9px; border: 1px solid var(--c-line);
   border-radius: var(--r); background: var(--c-surface); color: var(--c-ink);
@@ -218,7 +225,7 @@ button { font: inherit; }
 
 .export-menu { position: relative; }
 .export-menu > button.on { background: #dbeafe; border-color: #2b6cb0; }
-.export-pop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 35; background: #fff; border: 1px solid #c5c5d5; border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); padding: 6px; min-width: 190px; }
+.export-pop { z-index: 60; background: #fff; border: 1px solid #c5c5d5; border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); padding: 6px; min-width: 190px; }
 .export-title { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #889; padding: 6px 8px 2px; }
 .export-item { display: block; width: 100%; text-align: left; border: none; background: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font: inherit; font-size: 12.5px; color: #223; }
 .export-item:hover { background: #eef2f7; color: #2b6cb0; }
@@ -354,10 +361,7 @@ button { font: inherit; }
 .toolbar .tb-template { max-width: 124px; }
 .toolbar .tb-line select { max-width: 148px; }
 .tb-line { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--c-ink-2); white-space: nowrap; }
-.tb-coffee { height: 26px; display: inline-flex; align-items: center; margin-right: 4px; padding: 0 11px; font-size: 11.5px; }
 @media (max-width: 1560px) {
-  .tb-coffee .tb-coffee-text { display: none; }
-  .tb-coffee { padding: 0 9px; }
 }
 @media (max-width: 1360px) {
   .toolbar .tb-line-label { display: none; }
@@ -374,5 +378,226 @@ button { font: inherit; }
 }
 /* collapsed coffee button keeps the toolbar's button geometry, not a blob */
 @media (max-width: 1560px) {
-  .tb-coffee { width: 26px; padding: 0; justify-content: center; border-radius: var(--r); font-size: 13px; }
 }
+
+/* Route-level suspense fallback — shown while the editor or homepage chunk loads. */
+.route-loading {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--c-ink-3);
+  font: 13px/1.45 system-ui, sans-serif;
+}
+
+/* Account control in the toolbar. */
+.tb-account-wrap { position: relative; display: flex; align-items: center; gap: 6px; }
+.tb-account {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 0 6px; white-space: nowrap;
+}
+/* On a narrow window the tool row matters more than the branding: the app
+   name is the one thing you already know once you are inside the editor. */
+@media (max-width: 1360px) {
+  .app-name { display: none; }
+  /* ~20 controls: a pixel off each gap is the difference between the row
+     fitting a 1280 laptop and scrolling. */
+  .toolbar { gap: 3px; padding-left: 8px; padding-right: 8px; }
+  .toolbar button, .toolbar select { padding: 0 8px; }
+}
+
+.tb-account-who {
+  padding: 7px 10px 5px; font-size: 11.5px; color: var(--c-ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px;
+}
+.tb-account-caret { color: var(--c-ink-3); font-size: 9px; }
+.tb-account-menu a.tb-account-link {
+  display: block; text-align: left; padding: 7px 10px; border-radius: 4px;
+  color: var(--c-ink); text-decoration: none; font: inherit;
+}
+.tb-account-menu a.tb-account-link:hover { background: var(--c-accent-soft); }
+.tb-account-dot {
+  display: grid; place-items: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--c-accent); color: #fff;
+  font-size: 10px; font-weight: 700; flex: none;
+}
+.tb-account-menu {
+  z-index: 60;
+  min-width: 176px; padding: 4px;
+  display: flex; flex-direction: column;
+  background: var(--c-surface); border: 1px solid var(--c-line);
+  border-radius: var(--r); box-shadow: 0 10px 28px rgba(0, 0, 0, .18);
+}
+.tb-account-menu button {
+  text-align: left; border: 0; background: none; padding: 7px 10px;
+  border-radius: 4px; font: inherit; color: var(--c-ink); cursor: pointer;
+}
+.tb-account-menu button:hover:not(:disabled) { background: var(--c-accent-soft); }
+.tb-account-menu button:disabled { color: var(--c-ink-3); cursor: default; }
+.tb-account-sep { height: 1px; margin: 4px 6px; background: var(--c-line-soft); }
+.tb-account-status { font-size: 11.5px; color: var(--c-ink-2); white-space: nowrap; }
+
+/* Version + "we ship often" note. Lives in both status bars (P&ID and HMI);
+   quiet by default, since it is ambient information, not an alert. */
+.version-chip {
+  border: 1px solid transparent; background: none;
+  padding: 1px 6px; border-radius: 999px;
+  font: inherit; font-size: 11px; color: var(--c-ink-3);
+  cursor: pointer; white-space: nowrap;
+}
+.version-chip:hover:not(:disabled) {
+  color: var(--c-ink); border-color: var(--c-line); background: var(--c-surface);
+}
+.version-chip:disabled { cursor: default; opacity: .7; }
+.hmi-status .version-chip { color: inherit; opacity: .75; }
+.hmi-status .version-chip:hover:not(:disabled) { opacity: 1; background: rgba(255, 255, 255, .12); border-color: transparent; }
+
+/* ── workspace shell ──────────────────────────────────────────────────────
+   The rail is the editor's top-level navigation. It sits outside .app so it
+   survives switching workspaces, and .app keeps its own grid untouched. */
+.shell {
+  height: 100%;
+  display: grid;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  --rail-w: 60px;
+}
+.shell-body { min-width: 0; min-height: 0; overflow: hidden; }
+.shell-body > .app { height: 100%; }
+
+.rail {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 6px 5px; background: var(--c-chrome-2);
+  border-right: 1px solid var(--c-line); overflow-y: auto;
+}
+.rail-btn {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 7px 2px 6px; border: 1px solid transparent; border-radius: var(--r);
+  background: none; color: var(--c-ink-2); cursor: pointer; font: inherit;
+}
+.rail-btn:hover { background: var(--c-surface); color: var(--c-ink); border-color: var(--c-line-soft); }
+.rail-btn.on { background: var(--c-accent-soft); color: var(--c-accent); border-color: #cfe2e5; font-weight: 600; }
+.rail-btn:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 1px; }
+.rail-icon { font-size: 16px; line-height: 1; }
+.rail-label { font-size: 9.5px; letter-spacing: .02em; }
+.rail-badge {
+  position: absolute; top: 3px; right: 5px; min-width: 15px; padding: 0 3px;
+  border-radius: 8px; background: var(--c-bad); color: #fff;
+  font-size: 9px; font-weight: 700; line-height: 15px; text-align: center;
+}
+
+/* Under a narrow window the rail keeps the icons and drops the words. */
+@media (max-width: 1100px) {
+  .shell { --rail-w: 40px; }
+  .rail-label { display: none; }
+}
+
+/* ── full-window workspaces (Data, Checks) ───────────────────────────────── */
+.ws { height: 100%; display: flex; flex-direction: column; background: var(--c-panel); min-height: 0; }
+.ws-head {
+  display: flex; align-items: center; gap: 12px; flex: none;
+  padding: 0 14px; min-height: var(--tb-h);
+  border-bottom: 1px solid var(--c-line); background: var(--c-chrome);
+}
+.ws-head h1 { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
+.ws-head button {
+  height: 26px; padding: 0 10px; border: 1px solid var(--c-line); border-radius: var(--r);
+  background: var(--c-surface); color: var(--c-ink); font: inherit; font-size: 12px; cursor: pointer;
+}
+.ws-head button:hover { background: var(--c-accent-soft); border-color: #bcc6cd; }
+.ws-sp { flex: 1; }
+.ws-tabs { display: flex; gap: 3px; }
+.ws-tabs button.on { background: var(--c-accent-soft); border-color: #bcc6cd; color: var(--c-accent); font-weight: 600; }
+.ws-count { color: var(--c-ink-3); font-variant-numeric: tabular-nums; margin-left: 4px; }
+.ws-tabs button.on .ws-count { color: var(--c-accent); }
+.ws-tally { font-size: 12px; color: var(--c-ink-2); }
+.ws-tally.bad { color: var(--c-bad); font-weight: 600; }
+.ws-tally.ok { color: #2c6e4a; }
+.ws-tally.soft { color: var(--c-warn); }
+.ws-body { flex: 1 1 0; min-height: 0; overflow: auto; padding: 14px; }
+.ws-empty { color: var(--c-ink-3); font-size: 13px; max-width: 62ch; }
+
+.ws-table-wrap { overflow-x: auto; border: 1px solid var(--c-line); border-radius: var(--r); background: var(--c-surface); }
+.ws-table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.ws-table th {
+  text-align: left; padding: 8px 10px; white-space: nowrap;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--c-ink-3); background: var(--c-chrome); border-bottom: 1px solid var(--c-line);
+  position: sticky; top: 0; z-index: 1;
+}
+.ws-table td { padding: 7px 10px; border-bottom: 1px solid var(--c-line-soft); vertical-align: top; }
+.ws-table tr:last-child td { border-bottom: none; }
+.ws-table tr:hover td { background: var(--c-accent-soft); }
+.ws-key { font-weight: 600; white-space: nowrap; }
+.ws-jump { text-align: right; }
+.ws-jump button {
+  padding: 2px 8px; border: 1px solid var(--c-line); border-radius: 4px;
+  background: var(--c-surface); font: inherit; font-size: 11px; cursor: pointer; color: var(--c-ink-2);
+}
+.ws-jump button:hover { background: var(--c-surface); border-color: var(--c-accent); color: var(--c-accent); }
+
+.ws-sect { margin-bottom: 26px; max-width: 900px; }
+.ws-sect-head { margin: 0 0 2px; font-size: 13px; font-weight: 700; }
+.ws-sect-head span { color: var(--c-ink-3); font-weight: 500; }
+.ws-sect-head.bad { color: var(--c-bad); }
+.ws-sect-head.soft { color: var(--c-warn); }
+.ws-sect-note { margin: 0 0 10px; font-size: 11.5px; color: var(--c-ink-3); }
+.ws-group { margin-bottom: 12px; border: 1px solid var(--c-line); border-radius: var(--r); background: var(--c-surface); overflow: hidden; }
+.ws-group-head {
+  padding: 6px 10px; font-size: 11px; font-weight: 700; color: var(--c-ink-2);
+  background: var(--c-chrome); border-bottom: 1px solid var(--c-line-soft);
+}
+.ws-group-head span { color: var(--c-ink-3); font-weight: 500; }
+.ws-issue { display: flex; align-items: center; gap: 6px; padding: 0 6px 0 0; border-bottom: 1px solid var(--c-line-soft); }
+.ws-issue:last-child { border-bottom: none; }
+.ws-issue-msg { flex: 1; text-align: left; padding: 7px 10px; border: none; background: none; font: inherit; font-size: 12.5px; color: var(--c-ink); cursor: pointer; }
+.ws-issue-msg:hover { background: var(--c-accent-soft); color: var(--c-accent); }
+.ws-issue-fix { padding: 2px 9px; border: 1px solid var(--c-line); border-radius: 4px; background: var(--c-surface); font: inherit; font-size: 11px; cursor: pointer; }
+.ws-issue-fix:hover { border-color: var(--c-accent); color: var(--c-accent); }
+
+/* ── inspector tabs ──────────────────────────────────────────────────────── */
+.insp-tabs { display: flex; gap: 2px; padding: 5px 8px 0; background: var(--c-chrome); border-bottom: 1px solid var(--c-line-soft); }
+.insp-tabs button {
+  flex: 1; height: 23px; padding: 0 6px; border: 1px solid var(--c-line); border-bottom: none;
+  border-radius: var(--r) var(--r) 0 0; background: #dfe2e7; color: var(--c-ink-2);
+  font: inherit; font-size: 11.5px; cursor: pointer;
+}
+.insp-tabs button:hover { background: #e9ebef; }
+.insp-tabs button.on { background: var(--c-panel); color: var(--c-ink); font-weight: 600; }
+
+.used-group { margin-bottom: 12px; }
+.used-head { font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--c-ink-3); margin-bottom: 4px; }
+.used-empty { font-size: 11.5px; color: var(--c-ink-3); font-style: italic; padding: 2px 0 4px; }
+.used-row {
+  display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left;
+  padding: 4px 6px; border: none; border-radius: 3px; background: none; font: inherit; font-size: 12px; color: var(--c-ink);
+}
+button.used-row { cursor: pointer; }
+button.used-row:hover { background: var(--c-accent-soft); color: var(--c-accent); }
+.used-row b { font-weight: 600; }
+.used-row span { color: var(--c-ink-3); font-size: 11px; margin-left: auto; }
+
+.drawer-more {
+  display: block; width: 100%; margin-top: 6px; padding: 5px;
+  border: 1px dashed var(--c-line); border-radius: var(--r); background: none;
+  font: inherit; font-size: 11.5px; color: var(--c-ink-2); cursor: pointer;
+}
+.drawer-more:hover { border-style: solid; border-color: var(--c-accent); color: var(--c-accent); background: var(--c-surface); }
+
+/* ── engineering record (inspector) ──────────────────────────────────────── */
+.eng-head { display: flex; align-items: center; gap: 8px; margin: 8px 0 6px; }
+.eng-head b { font-size: 13px; }
+.eng-status { font: inherit; font-size: 11px; padding: 2px 4px; border: 1px solid var(--c-line); border-radius: 4px; background: var(--c-surface); margin-left: auto; }
+.eng-progress { position: relative; height: 14px; border-radius: 7px; background: var(--c-chrome-2); overflow: hidden; margin-bottom: 12px; }
+.eng-progress span { display: block; height: 100%; background: var(--c-accent); opacity: .28; transition: width .18s ease; }
+.eng-progress em {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-style: normal; font-size: 9.5px; font-variant-numeric: tabular-nums; color: var(--c-ink-2);
+}
+@media (prefers-reduced-motion: reduce) { .eng-progress span { transition: none; } }
+.eng-section { margin-bottom: 10px; }
+.eng-field { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; font-size: 11.5px; color: var(--c-ink-2); }
+.eng-field input { font: inherit; font-size: 12px; padding: 3px 6px; border: 1px solid var(--c-line); border-radius: 4px; color: var(--c-ink); }
+.eng-field input:focus-visible { outline: 2px solid var(--c-accent); outline-offset: -1px; border-color: var(--c-accent); }
+.eng-untagged { padding: 10px 2px; font-size: 12px; color: var(--c-ink-2); }
+.eng-untagged p { margin-bottom: 8px; }

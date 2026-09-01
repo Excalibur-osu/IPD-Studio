@@ -1,27 +1,27 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import { useState } from 'react'
-import ValidationPanel, { useFindings } from './ValidationPanel'
-import AdvisorPanel, { useSuggestions } from './AdvisorPanel'
+import IssuesPanel from './IssuesPanel'
 import LoopPanel from './LoopPanel'
+import { useStore } from '../store/store'
+import { issuesFor } from '../validate/issues'
 
 export default function Drawer() {
-  const [tab, setTab] = useState<'validation' | 'advisor' | 'loops' | null>(null)
-  const findings = useFindings()
-  const suggestions = useSuggestions()
+  const [tab, setTab] = useState<'issues' | 'loops' | null>(null)
+  const { total } = issuesFor(useStore((s) => s.doc))
   return (
     <div className="drawer">
       <div className="drawer-tabs">
-        <button className={tab === 'validation' ? 'active' : ''} onClick={() => setTab(tab === 'validation' ? null : 'validation')}>
-          Validation{findings.length ? ` (${findings.length})` : ''}
-        </button>
-        <button className={tab === 'advisor' ? 'active' : ''} onClick={() => setTab(tab === 'advisor' ? null : 'advisor')}>
-          Advisor{suggestions.length ? ` (${suggestions.length})` : ''}
+        <button className={tab === 'issues' ? 'active' : ''} onClick={() => setTab(tab === 'issues' ? null : 'issues')}>
+          Issues{total ? ` (${total})` : ''}
         </button>
         <button className={tab === 'loops' ? 'active' : ''} onClick={() => setTab(tab === 'loops' ? null : 'loops')}>
           Loops
         </button>
       </div>
-      {tab === 'validation' && <ValidationPanel />}
-      {tab === 'advisor' && <AdvisorPanel />}
+      {tab === 'issues' && <IssuesPanel />}
       {tab === 'loops' && <LoopPanel />}
     </div>
   )

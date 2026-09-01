@@ -1,5 +1,8 @@
-import { useMemo } from 'react'
-import { runSuggestions } from '../validate/suggest'
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
+import { issuesFor } from '../validate/issues'
 import { applyFix } from '../assist/fixes'
 import { useStore } from '../store/store'
 import { locateCell } from './ValidationPanel'
@@ -16,8 +19,7 @@ const RULE_LABELS: Record<string, string> = {
 }
 
 export function useSuggestions() {
-  const doc = useStore((s) => s.doc)
-  return useMemo(() => runSuggestions(doc), [doc])
+  return issuesFor(useStore((s) => s.doc)).suggestions
 }
 
 export default function AdvisorPanel() {

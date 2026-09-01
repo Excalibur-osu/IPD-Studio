@@ -31,7 +31,8 @@ async function drag(page: Page, from: { x: number; y: number }, to: { x: number;
 }
 
 test('move, connect, ghost-stub guard, quick line editor, panel collapse', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.waitForFunction(() => Boolean(window.__pid))
 
   const ids = await page.evaluate(() => {
@@ -115,7 +116,8 @@ test('move, connect, ghost-stub guard, quick line editor, panel collapse', async
 })
 
 test('typical loop places wired+tagged; advisor flags and fixes the missing I/P', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.waitForFunction(() => Boolean(window.__pid))
 
   // one click drops a complete flow loop, numbered per component type
@@ -134,7 +136,7 @@ test('typical loop places wired+tagged; advisor flags and fixes the missing I/P'
     const lv = s.addNode({ symbolId: 'cv.globe', kind: 'valve', x: 476, y: 320, rotation: 0, config: { actuator: 'diaphragm', fail: 'fc' }, tag: { letters: 'LV', loop: '100' } })
     s.addEdge({ lineClass: 'signal.electric', source: { nodeId: lic, portId: 's' }, target: { nodeId: lv, portId: 'sig' } })
   })
-  await page.locator('.drawer-tabs button', { hasText: 'Advisor' }).click()
+  await page.locator('.drawer-tabs button', { hasText: 'Issues' }).click()
   await expect(page.locator('.advisor-fix')).toHaveCount(1)
   await page.locator('.advisor-fix').click()
   const converters = await page.evaluate(() =>
@@ -147,7 +149,8 @@ test('typical loop places wired+tagged; advisor flags and fixes the missing I/P'
 })
 
 test('polish: grouped undo, label drag, line re-attach, .pnid save name', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.waitForFunction(() => Boolean(window.__pid))
   const ids = await page.evaluate(() => {
     const s = window.__pid.useStore.getState()
@@ -223,7 +226,8 @@ test('polish: grouped undo, label drag, line re-attach, .pnid save name', async 
 })
 
 test('stretch, duplicate, live group drag, branch tap into a pipe', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.waitForFunction(() => Boolean(window.__pid))
   const ids = await page.evaluate(() => {
     const s = window.__pid.useStore.getState()
@@ -297,7 +301,8 @@ test('stretch, duplicate, live group drag, branch tap into a pipe', async ({ pag
 })
 
 test('port dots show only on hover or while linking; nodes resize from the panel', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.waitForFunction(() => Boolean(window.__pid))
   const tank = await page.evaluate(() => {
     const s = window.__pid.useStore.getState()

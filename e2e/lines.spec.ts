@@ -35,7 +35,8 @@ const undoDepth = (page: Page) =>
 
 /** Tank + FIC bubble + valve; draws FIC.s -> valve.sig (a straight vertical line at x=344). */
 async function setupWithLine(page: Page) {
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.waitForFunction(() => Boolean(window.__pid))
   await page.evaluate(() => {
     const s = window.__pid.useStore.getState()
@@ -97,7 +98,8 @@ test('vertex drag: one undo step, sticks where dropped, heals straight on the ax
 })
 
 test('user pins: arm from the panel, click the symbol, draw a line from the new pin', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.waitForFunction(() => Boolean(window.__pid))
   const ids = await page.evaluate(() => {
     const s = window.__pid.useStore.getState()

@@ -2,9 +2,10 @@ import { expect, test } from '@playwright/test'
 
 test('one click: sample P&ID becomes a running HMI', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.locator('select.tb-template').selectOption('sample')
-  await page.getByTestId('open-hmi').click()
+  await page.getByTestId('rail-hmi').click()
   // the doc has no screens yet -> empty-state import button
   await page.getByTestId('hmi-import-empty').click()
   const canvas = page.getByTestId('hmi-canvas')
@@ -21,8 +22,9 @@ test('one click: sample P&ID becomes a running HMI', async ({ page }) => {
 
 test('operate a hand-built screen: start pump, watch it fill, alarm, ack', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
-  await page.goto('/')
-  await page.getByTestId('open-hmi').click()
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   const canvas = page.getByTestId('hmi-canvas')
   const world = async (wx: number, wy: number) => {
@@ -80,8 +82,9 @@ test('operate a hand-built screen: start pump, watch it fill, alarm, ack', async
 
 test('marquee select, duplicate, and navigate a running plant', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
-  await page.goto('/')
-  await page.getByTestId('open-hmi').click()
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   await page.getByText('Tank', { exact: true }).dblclick()
   await page.getByText('Pump', { exact: true }).dblclick()
@@ -114,10 +117,11 @@ test('marquee select, duplicate, and navigate a running plant', async ({ page })
 
 test('bind with the tag picker and pick-on-canvas', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   // the sample plant fills the picker with real P&ID tags
   await page.locator('select.tb-template').selectOption('sample')
-  await page.getByTestId('open-hmi').click()
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   const canvas = page.getByTestId('hmi-canvas')
   const world = async (wx: number, wy: number) => {
@@ -177,8 +181,9 @@ interface PidHook {
 
 test('author tools: zoom, cross-screen clipboard, segment editing', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
-  await page.goto('/')
-  await page.getByTestId('open-hmi').click()
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   const canvas = page.getByTestId('hmi-canvas')
   const world = async (wx: number, wy: number) => {
@@ -252,7 +257,8 @@ test('author tools: zoom, cross-screen clipboard, segment editing', async ({ pag
 
 test('scenario injection: trip a pump from the Events menu', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.evaluate(() => {
     const doc = {
       schemaVersion: 4,
@@ -274,7 +280,7 @@ test('scenario injection: trip a pump from the Events menu', async ({ page }) =>
     const pid = (window as unknown as { __pid: { useStore: { getState(): { loadIntoStore(d: unknown): void } } } }).__pid
     pid.useStore.getState().loadIntoStore(doc)
   })
-  await page.getByTestId('open-hmi').click()
+  await page.getByTestId('rail-hmi').click()
   await page.getByTestId('hmi-run-toggle').click()
   // start the pump, let it ramp
   await page.evaluate(() => {
@@ -307,7 +313,8 @@ test('scenario injection: trip a pump from the Events menu', async ({ page }) =>
 
 test('multi-sheet import generates a plant overview', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.evaluate(() => {
     const node = (id: string, symbolId: string, kind: string, x: number, y: number, letters?: string, loop?: string) =>
       ({ id, symbolId, kind, x, y, rotation: 0, ...(letters ? { tag: { letters, loop } } : {}) })
@@ -326,7 +333,7 @@ test('multi-sheet import generates a plant overview', async ({ page }) => {
     const pid = (window as unknown as { __pid: { useStore: { getState(): { loadIntoStore(d: unknown): void } } } }).__pid
     pid.useStore.getState().loadIntoStore(doc)
   })
-  await page.getByTestId('open-hmi').click()
+  await page.getByTestId('rail-hmi').click()
   await page.getByTestId('hmi-import-empty').click()
   // the dialog offers both sheets (checked) and the overview option
   await expect(page.getByTestId('pick-sheet')).toHaveCount(2)
@@ -346,8 +353,9 @@ test('multi-sheet import generates a plant overview', async ({ page }) => {
 
 test('screens: duplicate, home start, delete modal', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
-  await page.goto('/')
-  await page.getByTestId('open-hmi').click()
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   await page.getByText('Tank', { exact: true }).dblclick()
   // duplicate the active screen: copy becomes active with a unique name
@@ -371,8 +379,9 @@ test('screens: duplicate, home start, delete modal', async ({ page }) => {
 
 test('alarm summary v2: shelve and out-of-service', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
-  await page.goto('/')
-  await page.getByTestId('open-hmi').click()
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   await page.getByText('Tank', { exact: true }).dblclick()
   const canvas = page.getByTestId('hmi-canvas')
@@ -399,8 +408,9 @@ test('alarm summary v2: shelve and out-of-service', async ({ page }) => {
 
 test('multi-pen trend with a time axis', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
-  await page.goto('/')
-  await page.getByTestId('open-hmi').click()
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   const canvas = page.getByTestId('hmi-canvas')
   const world = async (wx: number, wy: number) => {
@@ -433,8 +443,9 @@ test('multi-pen trend with a time axis', async ({ page }) => {
 
 test('build an HMI screen by hand and keep it across reload', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
-  await page.goto('/')
-  await page.getByTestId('open-hmi').click()
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   // place a tank and a pump via palette double-click
   await page.getByText('Tank', { exact: true }).dblclick()

@@ -5,7 +5,8 @@ declare global {
 }
 
 test('fluids are reachable from the toolbar with nothing selected', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.waitForFunction(() => Boolean(window.__pid))
   await page.getByTestId('tb-fluids').click()
   await expect(page.getByRole('dialog', { name: 'Fluids / services' })).toBeVisible()
@@ -23,7 +24,8 @@ test('fluids dialog survives a doc with no fluids field (pre-0.9.13 docs, templa
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(String(e)))
   page.on('dialog', (d) => void d.accept())
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.waitForFunction(() => Boolean(window.__pid))
   await page.locator('select.tb-template').selectOption('sample') // sample doc has no fluids[]
   await page.waitForSelector('[model-id]')
@@ -36,7 +38,8 @@ test('fluids dialog survives a doc with no fluids field (pre-0.9.13 docs, templa
 })
 
 test('fluid assignment colors the connected run on canvas', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.waitForFunction(() => Boolean(window.__pid))
 
   // build tank -> line -> valve -> line (free end) straight from the store

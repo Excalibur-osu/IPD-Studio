@@ -1,11 +1,22 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import type { ProjectDoc } from '../model/types'
 import { loadDoc } from '../model/migrate'
 import { createEmptyDoc } from '../model/doc'
 import { importDexpi } from '../import/dexpi'
 import { useStore } from '../store/store'
 
-export function serializeDoc(doc: ProjectDoc): string {
-  return JSON.stringify(doc, null, 2)
+/**
+ * `pretty` (the default) keeps the on-disk `.pnid` human-readable, which the
+ * README promises. The cloud copy passes `{ pretty: false }`: indentation was
+ * costing HALF the 900 kB Firestore budget — measured at 328 B/item pretty
+ * against 165 B/item compact on the 3-sheet refinery sample — and nobody ever
+ * reads that string by eye.
+ */
+export function serializeDoc(doc: ProjectDoc, opts: { pretty?: boolean } = {}): string {
+  return JSON.stringify(doc, null, opts.pretty === false ? undefined : 2)
 }
 
 export function deserializeDoc(json: string): ProjectDoc {

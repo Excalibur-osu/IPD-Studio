@@ -5,7 +5,8 @@ declare global {
 }
 
 test('instrument palette: quick row, show-all groups, shortcut + full-name search', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.waitForFunction(() => Boolean(window.__pid))
   const palette = page.locator('.palette')
 

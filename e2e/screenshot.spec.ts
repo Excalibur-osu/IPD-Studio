@@ -12,12 +12,13 @@ test('capture a real user document', async ({ page }) => {
   const text = fs.readFileSync(USER_DOC!, 'utf8')
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.evaluate((t) => {
     const pid = (window as unknown as { __pid: { useStore: { getState(): { loadIntoStore(d: unknown): void } } } }).__pid
     pid.useStore.getState().loadIntoStore(JSON.parse(t))
   }, text)
-  await page.getByTestId('open-hmi').click()
+  await page.getByTestId('rail-hmi').click()
   // build a fresh screen from the sheet with the current importer
   await page.waitForSelector('[data-testid="hmi-import"], [data-testid="hmi-import-empty"]')
   const importBtn = page.getByTestId('hmi-import')
@@ -36,9 +37,10 @@ test('capture a real user document', async ({ page }) => {
 test('capture imported sample-plant HMI', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.locator('select.tb-template').selectOption('sample')
-  await page.getByTestId('open-hmi').click()
+  await page.getByTestId('rail-hmi').click()
   await page.getByTestId('hmi-import-empty').click()
   await page.waitForTimeout(400)
   await page.screenshot({ path: '/tmp/hmi-import-edit.png' })
@@ -57,8 +59,9 @@ test('capture imported sample-plant HMI', async ({ page }) => {
 test('capture alarm summary and journal', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })
-  await page.goto('/')
-  await page.getByTestId('open-hmi').click()
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   await page.getByText('Tank', { exact: true }).dblclick()
   const canvas = page.getByTestId('hmi-canvas')
@@ -80,8 +83,9 @@ test('capture alarm summary and journal', async ({ page }) => {
 test('capture new widgets on a hand-built screen', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })
-  await page.goto('/')
-  await page.getByTestId('open-hmi').click()
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   const canvas = page.getByTestId('hmi-canvas')
   const at = async (wx: number, wy: number) => {
@@ -109,8 +113,9 @@ test('capture new widgets on a hand-built screen', async ({ page }) => {
 test('capture zoomed segment editing', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })
-  await page.goto('/')
-  await page.getByTestId('open-hmi').click()
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   const canvas = page.getByTestId('hmi-canvas')
   const world = async (wx: number, wy: number) => {
@@ -137,7 +142,8 @@ test('capture zoomed segment editing', async ({ page }) => {
 test('capture manifold flows and process events', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.evaluate(() => {
     const doc = {
       schemaVersion: 4,
@@ -168,7 +174,7 @@ test('capture manifold flows and process events', async ({ page }) => {
     const pid = (window as unknown as { __pid: { useStore: { getState(): { loadIntoStore(d: unknown): void } } } }).__pid
     pid.useStore.getState().loadIntoStore(doc)
   })
-  await page.getByTestId('open-hmi').click()
+  await page.getByTestId('rail-hmi').click()
   await page.getByTestId('hmi-run-toggle').click()
   await page.getByTestId('hmi-speed').click() // 5×
   await page.evaluate(() => {
@@ -195,7 +201,8 @@ test('capture manifold flows and process events', async ({ page }) => {
 test('capture generated plant overview', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.evaluate(() => {
     const node = (id: string, symbolId: string, kind: string, x: number, y: number, letters?: string, loop?: string) =>
       ({ id, symbolId, kind, x, y, rotation: 0, ...(letters ? { tag: { letters, loop } } : {}) })
@@ -225,7 +232,7 @@ test('capture generated plant overview', async ({ page }) => {
     const pid = (window as unknown as { __pid: { useStore: { getState(): { loadIntoStore(d: unknown): void } } } }).__pid
     pid.useStore.getState().loadIntoStore(doc)
   })
-  await page.getByTestId('open-hmi').click()
+  await page.getByTestId('rail-hmi').click()
   await page.getByTestId('hmi-import-empty').click()
   await page.getByTestId('import-go').click()
   await page.getByTestId('hmi-run-toggle').click()
@@ -242,8 +249,9 @@ test('capture generated plant overview', async ({ page }) => {
 test('capture run header, home screen, nav alarm dot', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })
-  await page.goto('/')
-  await page.getByTestId('open-hmi').click()
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
+  await page.getByTestId('rail-hmi').click()
   // Screen 1: an alarming tank
   await page.getByRole('button', { name: 'New screen' }).click()
   const canvas = page.getByTestId('hmi-canvas')
@@ -269,8 +277,9 @@ test('capture run header, home screen, nav alarm dot', async ({ page }) => {
 test('capture alarm summary v2 with suppression', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })
-  await page.goto('/')
-  await page.getByTestId('open-hmi').click()
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   const canvas = page.getByTestId('hmi-canvas')
   const world = async (wx: number, wy: number) => {
@@ -304,8 +313,9 @@ test('capture alarm summary v2 with suppression', async ({ page }) => {
 test('capture multi-pen trend and sparkline', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })
-  await page.goto('/')
-  await page.getByTestId('open-hmi').click()
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   const canvas = page.getByTestId('hmi-canvas')
   const world = async (wx: number, wy: number) => {
@@ -346,8 +356,9 @@ test('capture multi-pen trend and sparkline', async ({ page }) => {
 test('capture faceplate v2 and command journal', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })
-  await page.goto('/')
-  await page.getByTestId('open-hmi').click()
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   const canvas = page.getByTestId('hmi-canvas')
   const world = async (wx: number, wy: number) => {
@@ -390,9 +401,10 @@ test('capture faceplate v2 and command journal', async ({ page }) => {
 test('capture the tag picker and value-source rows', async ({ page }) => {
   page.on('dialog', (d) => void d.accept())
   await page.setViewportSize({ width: 1680, height: 1000 })
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.locator('select.tb-template').selectOption('sample')
-  await page.getByTestId('open-hmi').click()
+  await page.getByTestId('rail-hmi').click()
   await page.getByRole('button', { name: 'New screen' }).click()
   const canvas = page.getByTestId('hmi-canvas')
   await page.getByText('Value display', { exact: true }).dblclick()

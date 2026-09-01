@@ -5,7 +5,8 @@ declare global {
 }
 
 test('budget: costs accrue while drawing, budget warns when exceeded', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   await page.waitForFunction(() => Boolean(window.__pid))
 
   // empty project: the chip invites setting a budget

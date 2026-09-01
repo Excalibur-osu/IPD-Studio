@@ -1,5 +1,8 @@
-import { useMemo } from 'react'
-import { runChecks } from '../validate/checks'
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
+import { issuesFor } from '../validate/issues'
 import { useStore } from '../store/store'
 import { canvasRef } from '../canvas/paperSetup'
 
@@ -12,9 +15,10 @@ const CHECK_LABELS: Record<string, string> = {
   'duplicate-line-number': 'Duplicate line numbers',
 }
 
+/** Reads the shared per-document pass — see validate/issues.ts for why this
+ *  is not a `useMemo` of its own. */
 export function useFindings() {
-  const doc = useStore((s) => s.doc)
-  return useMemo(() => runChecks(doc), [doc])
+  return issuesFor(useStore((s) => s.doc)).findings
 }
 
 export function locateCell(targetId: string | undefined) {

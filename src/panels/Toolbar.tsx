@@ -1,12 +1,18 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
+// commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
+
 import { useEffect, useState } from 'react'
 import { useStore } from '../store/store'
 import { openFile, saveFile } from '../persist/file'
+import { saveNow } from '../cloud/autosave'
 import HistoryDialog from './HistoryDialog'
 import { createEmptyDoc } from '../model/doc'
 import { canvasRef, fitView, zoomActual, zoomCenter } from '../canvas/paperSetup'
 import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
 import type { LineClass } from '../model/types'
 import ExportMenu from './ExportMenu'
+import AccountMenu from './AccountMenu'
 import FluidsDialog from './FluidsDialog'
 import { BudgetChip } from './BudgetDialog'
 import templateBlank from '../../examples/template-blank-a3.pnid.json'
@@ -50,7 +56,7 @@ function ZoomCluster() {
   )
 }
 
-export default function Toolbar({ onOpenHmi }: { onOpenHmi?: () => void } = {}) {
+export default function Toolbar() {
   const dirty = useStore((s) => s.dirty)
   const undo = useStore((s) => s.undo)
   const redo = useStore((s) => s.redo)
@@ -61,7 +67,7 @@ export default function Toolbar({ onOpenHmi }: { onOpenHmi?: () => void } = {}) 
   const [fluidsOpen, setFluidsOpen] = useState(false)
 
   useEffect(() => {
-    const onSave = () => void saveFile()
+    const onSave = () => void saveNow()
     window.addEventListener('pid:save', onSave)
     return () => window.removeEventListener('pid:save', onSave)
   }, [])
@@ -78,7 +84,14 @@ export default function Toolbar({ onOpenHmi }: { onOpenHmi?: () => void } = {}) 
       <span className="tb-sep" />
       <button onClick={newDoc}>New</button>
       <button onClick={() => void openFile()}>Open</button>
-      <button onClick={() => void saveFile()}>Save</button>
+      <button data-testid="tb-save" onClick={() => void saveNow()}
+        title="Save (Ctrl+S) — stores this drawing in your account when you are signed in">
+        Save
+      </button>
+      <button data-testid="tb-download" onClick={() => void saveFile()}
+        title="Download a .pnid file to this computer">
+        Download
+      </button>
       <button className="tb-icon" onClick={() => setHistoryOpen(true)} title="Restore an earlier snapshot">⏱</button>
       {historyOpen && <HistoryDialog onClose={() => setHistoryOpen(false)} />}
       <select
@@ -149,19 +162,9 @@ export default function Toolbar({ onOpenHmi }: { onOpenHmi?: () => void } = {}) 
       <BudgetChip />
       <span className="tb-sep" />
       <ZoomCluster />
-      <span className="tb-sep" />
-      <button onClick={onOpenHmi} title="Switch to the HMI workspace" data-testid="open-hmi">HMI ⇄</button>
       <span className="tb-grow" />
-      <a
-        className="tb-coffee"
-        href="https://github.com/sponsors/Coldbari"
-        target="_blank"
-        rel="noreferrer"
-        title="IPD Studio is free & open source — a coffee keeps the pumps running ☕"
-      >
-        ☕<span className="tb-coffee-text">&nbsp;Buy me a coffee</span>
-      </a>
       <ExportMenu />
+      <AccountMenu />
     </header>
   )
 }

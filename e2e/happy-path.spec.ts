@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test'
 
 test('place, connect, tag, validate, export', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/app')
+  await page.waitForFunction(() => '__pid' in window)
   page.on('dialog', (d) => void d.accept())
 
   // Place a pump, a tank, and an FT instrument through the store dev hook
