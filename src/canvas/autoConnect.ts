@@ -23,6 +23,7 @@ import type { PortKind } from '../symbols/types'
 import { getSymbol } from '../symbols/registry'
 import { portWorld } from './alignment'
 import { compatibleKinds, pickLineClass } from './connectionRules'
+import { type Direction, portDirection, rotateDir } from './shapes'
 
 /**
  * How near a port has to come before it docks, in SCREEN px — the distance is
@@ -39,6 +40,50 @@ export function dockRadius(scale: number): number {
   return Math.min(MAX_SHEET_RADIUS, Math.max(MIN_SHEET_RADIUS, DOCK_SCREEN_PX / s))
 }
 
+/**
+ * Gap left between the two connection points when a symbol docks — three grid
+ * squares of real, visible pipe. Landing the points on top of each other read
+ * as "nothing happened": the symbols butted together and hid the line behind
+ * themselves, so there was no way to tell a connection from a near miss.
+ */
+export const DOCK_STANDOFF = 24
+
+const OPPOSITE: Record<Direction, Direction> = { left: 'right', right: 'left', top: 'bottom', bottom: 'top' }
+
+/**
+ * A magnet only joins ports that FACE each other, so the pipe leaves one
+ * head-on and arrives head-on at the other. Two ports pointing the same way
+ * would stand the symbol on the wrong side of the one it docked onto — its
+ * inlet pointing away from the nozzle it just connected to. Ports with no
+ * catalog direction (user-added pins) put no constraint on the pairing.
+ */
+function facing(moving: PlantNode, movingPortId: string, target: PlantNode, targetPortId: string): boolean {
+  const a = portDirection(moving.symbolId, movingPortId)
+  const b = portDirection(target.symbolId, targetPortId)
+  if (!a || !b) return true
+  return rotateDir(a, moving.rotation) === OPPOSITE[rotateDir(b, target.rotation)]
+}
+
+/** Which way the pipe leaves the port that was landed on. */
+function standoff(target: PlantNode, portId: string, approach: { x: number; y: number }, to: { x: number; y: number }): { x: number; y: number } {
+  const dir = portDirection(target.symbolId, portId)
+  if (dir) {
+    switch (rotateDir(dir, target.rotation)) {
+      case 'left': return { x: -DOCK_STANDOFF, y: 0 }
+      case 'right': return { x: DOCK_STANDOFF, y: 0 }
+      case 'top': return { x: 0, y: -DOCK_STANDOFF }
+      case 'bottom': return { x: 0, y: DOCK_STANDOFF }
+    }
+  }
+  // A user-added pin has no catalog direction: stand off on the side the
+  // symbol arrived from, so it never jumps across to the far side.
+  const dx = approach.x - to.x
+  const dy = approach.y - to.y
+  return Math.abs(dx) >= Math.abs(dy)
+    ? { x: dx >= 0 ? DOCK_STANDOFF : -DOCK_STANDOFF, y: 0 }
+    : { x: 0, y: dy >= 0 ? DOCK_STANDOFF : -DOCK_STANDOFF }
+}
+
 export interface Dock {
   /** Port on the symbol being moved. */
   movingPortId: string
@@ -47,9 +92,18 @@ export interface Dock {
   /** Where the moving symbol has to sit for the two ports to coincide. */
   x: number
   y: number
-  /** Sheet point the ports meet at — where the hint ring is drawn. */
+  /** The port that was landed on — where the hint ring is drawn and where
+   *  the line ends. */
   at: { x: number; y: number }
+  /** Where the moving symbol's own port sits once docked: one standoff away
+   *  from `at`, so a real length of pipe shows between them. */
+  portAt: { x: number; y: number }
   lineClass: LineClass
+}
+
+/** Identifies a port pairing, for refusing one the user has shaken off. */
+export function dockKey(dock: Pick<Dock, 'movingPortId' | 'targetNodeId' | 'targetPortId'>): string {
+  return `${dock.movingPortId}|${dock.targetNodeId}/${dock.targetPortId}`
 }
 
 interface PortRef {
@@ -89,6 +143,7 @@ export function findDock(
   edges: PlantEdge[],
   activeLineClass: LineClass,
   radius: number,
+  refuse?: ReadonlySet<string>,
 ): Dock | null {
   const mine = portsOf(moving)
   if (!mine.length) return null
@@ -105,8 +160,10 @@ export function findDock(
 
   // Resolve every candidate port once, not once per port of the moving symbol.
   const targets: PortRef[] = []
+  const byId = new Map<string, PlantNode>()
   for (const other of others) {
     if (other.id === moving.id) continue
+    byId.set(other.id, other)
     for (const p of portsOf(other)) {
       const at = portWorld(other, p.id)
       if (at) targets.push({ nodeId: other.id, portId: p.id, kind: p.kind, x: at.x, y: at.y })
@@ -123,14 +180,22 @@ export function findDock(
       if (d > bestDistance) continue
       if (!compatibleKinds(mp.kind, t.kind)) continue
       if (joined.has(`${moving.id}/${mp.id}|${t.nodeId}/${t.portId}`)) continue
+      const key = `${mp.id}|${t.nodeId}/${t.portId}`
+      if (refuse?.has(key)) continue
+      const other = byId.get(t.nodeId)
+      if (!other) continue
+      if (!facing(moving, mp.id, other, t.portId)) continue
+      const off = standoff(other, t.portId, from, t)
+      const portAt = { x: t.x + off.x, y: t.y + off.y }
       bestDistance = d
       best = {
         movingPortId: mp.id,
         targetNodeId: t.nodeId,
         targetPortId: t.portId,
-        x: Math.round(moving.x + t.x - from.x),
-        y: Math.round(moving.y + t.y - from.y),
+        x: Math.round(moving.x + portAt.x - from.x),
+        y: Math.round(moving.y + portAt.y - from.y),
         at: { x: t.x, y: t.y },
+        portAt,
         lineClass: pickLineClass(mp.kind, t.kind, activeLineClass),
       }
     }
@@ -171,4 +236,23 @@ export function showDockHint(paper: dia.Paper, at: { x: number; y: number } | nu
   ring.setAttribute('cy', String(at.y))
   ring.setAttribute('pointer-events', 'none')
   if (!existing) layer.appendChild(ring)
+}
+
+const CUT_CLASS = 'pid-dock-cut'
+const CUT_MS = 450
+
+/** Red flash where a shaken-off line used to land: the connection is gone,
+ *  and the symbol is still in hand to try somewhere else. */
+export function flashDockCut(paper: dia.Paper, at: { x: number; y: number }): void {
+  const layer = paper.svg.querySelector('.joint-layers')
+  if (!layer) return
+  layer.querySelector(`.${CUT_CLASS}`)?.remove()
+  const mark = document.createElementNS(NS, 'circle')
+  mark.setAttribute('class', CUT_CLASS)
+  mark.setAttribute('r', '10')
+  mark.setAttribute('cx', String(at.x))
+  mark.setAttribute('cy', String(at.y))
+  mark.setAttribute('pointer-events', 'none')
+  layer.appendChild(mark)
+  window.setTimeout(() => mark.remove(), CUT_MS)
 }

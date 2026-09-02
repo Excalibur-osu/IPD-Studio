@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import '../../src/symbols/lib/index'
-import { dockEdge, dockRadius, findDock } from '../../src/canvas/autoConnect'
+import { DOCK_STANDOFF, dockEdge, dockKey, dockRadius, findDock } from '../../src/canvas/autoConnect'
 import { portWorld } from '../../src/canvas/alignment'
 import type { PlantEdge, PlantNode } from '../../src/model/types'
 
@@ -19,8 +19,8 @@ const mk = (symbolId: string, x: number, y: number, kind: PlantNode['kind'] = 'v
 // instr.bubble is 40x40 with n/e/s/w ports of kind 'both'.
 
 describe('findDock', () => {
-  it('docks the near port pair and returns the position that makes them coincide', () => {
-    const fixed = mk('valve.gate', 200, 200) // e port at (232, 208)
+  it('docks the near port pair, standing off so a visible pipe is left between', () => {
+    const fixed = mk('valve.gate', 200, 200) // e port at (232, 208), facing right
     const moving = mk('valve.gate', 240, 200) // w port at (240, 208) — 8px away
     const dock = findDock(moving, [fixed], [], 'process.major', 18)
     expect(dock).not.toBeNull()
@@ -28,10 +28,26 @@ describe('findDock', () => {
     expect(dock!.targetNodeId).toBe(fixed.id)
     expect(dock!.targetPortId).toBe('e')
     expect(dock!.lineClass).toBe('process.major')
-    // the docked position puts the two connection points on the same spot
-    const docked = { ...moving, x: dock!.x, y: dock!.y }
-    expect(portWorld(docked, 'w')).toEqual(portWorld(fixed, 'e'))
     expect(dock!.at).toEqual({ x: 232, y: 208 })
+    // one standoff further along the way the port faces, dead in line with it
+    expect(dock!.portAt).toEqual({ x: 232 + DOCK_STANDOFF, y: 208 })
+    const docked = { ...moving, x: dock!.x, y: dock!.y }
+    expect(portWorld(docked, 'w')).toEqual(dock!.portAt)
+  })
+
+  it('stands off along the way the landed-on port faces', () => {
+    // cv.globe's signal boss points up, so the instrument lands above it.
+    const cv = mk('cv.globe', 100, 100) // sig at (132, 100), facing top
+    const bubble = mk('instr.bubble', 114, 64, 'instrument') // s at (134, 104)
+    const dock = findDock(bubble, [cv], [], 'process.major', 18)
+    expect(dock!.portAt).toEqual({ x: 132, y: 100 - DOCK_STANDOFF })
+  })
+
+  it('refuses a pairing the caller has shaken off', () => {
+    const fixed = mk('valve.gate', 200, 200)
+    const moving = mk('valve.gate', 240, 200)
+    const refused = new Set([`w|${fixed.id}/e`])
+    expect(findDock(moving, [fixed], [], 'process.major', 18, refused)).toBeNull()
   })
 
   it('finds nothing when no port is within reach', () => {
@@ -73,18 +89,27 @@ describe('findDock', () => {
     expect(dock!.movingPortId).toBe('s')
     expect(dock!.targetPortId).toBe('sig')
     expect(dock!.lineClass).toBe('signal.electric')
-    expect({ x: dock!.x, y: dock!.y }).toEqual({ x: 112, y: 60 })
+    expect({ x: dock!.x, y: dock!.y }).toEqual({ x: 112, y: 60 - DOCK_STANDOFF })
   })
 
-  it('honors rotation when locating the ports', () => {
-    const fixed = mk('valve.gate', 200, 200) // e at (232, 208)
-    // A quarter-turned gate valve: ports run vertically instead.
-    const moving: PlantNode = { ...mk('valve.gate', 0, 0), rotation: 90 }
-    const at = portWorld(moving, 'w')!
+  it('honors rotation when locating the ports and when judging which way they face', () => {
+    const fixed = mk('valve.gate', 200, 200) // e at (232, 208), facing right
+    // Turned end for end, so this valve's e port is the one facing left.
+    const moving: PlantNode = { ...mk('valve.gate', 0, 0), rotation: 180 }
+    const at = portWorld(moving, 'e')!
     const shifted = { ...moving, x: moving.x + (232 - at.x) + 5, y: moving.y + (208 - at.y) + 5 }
     const dock = findDock(shifted, [fixed], [], 'process.major', 18)
-    expect(dock!.movingPortId).toBe('w')
-    expect(portWorld({ ...shifted, x: dock!.x, y: dock!.y }, 'w')).toEqual({ x: 232, y: 208 })
+    expect(dock!.movingPortId).toBe('e')
+    expect(portWorld({ ...shifted, x: dock!.x, y: dock!.y }, 'e')).toEqual({ x: 232 + DOCK_STANDOFF, y: 208 })
+  })
+
+  it('only joins ports that face each other', () => {
+    const fixed = mk('valve.gate', 200, 200) // e at (232, 208), facing right
+    // This valve's e port also faces right, so butting it up against the
+    // other one would stand it on the wrong side of the nozzle.
+    const moving = mk('valve.gate', 208, 200) // e at (240, 208) — 8px away
+    const dock = findDock(moving, [fixed], [], 'process.major', 18)
+    expect(dock?.movingPortId).not.toBe('e')
   })
 
   it('has nothing to dock for a symbol without ports', () => {
@@ -104,6 +129,15 @@ describe('dockEdge', () => {
       source: { nodeId: moving.id, portId: 'w' },
       target: { nodeId: fixed.id, portId: 'e' },
     })
+  })
+})
+
+describe('dockKey', () => {
+  it('names a pairing so a shaken-off one can be refused for the rest of the drag', () => {
+    const fixed = mk('valve.gate', 200, 200)
+    const moving = mk('valve.gate', 240, 200)
+    const dock = findDock(moving, [fixed], [], 'process.major', 18)!
+    expect(dockKey(dock)).toBe(`w|${fixed.id}/e`)
   })
 })
 

@@ -10,13 +10,17 @@ import { isPortEnd } from '../model/types'
 import type { PortKind } from '../symbols/types'
 import { compatibleKinds, pickLineClass } from './connectionRules'
 import { alignNodes, distributeNodes, localPortPoint, portWorld, snapGuides } from './alignment'
-import { dockEdge, dockRadius, findDock, showDockHint } from './autoConnect'
+import { type Dock, dockEdge, dockKey, dockRadius, findDock, flashDockCut, showDockHint } from './autoConnect'
+import { createShakeDetector } from './shake'
 import { cleanVertices } from './vertexClean'
 import { makeLink } from './shapes'
 import { getSymbol } from '../symbols/registry'
-import { activeSheet, resumeHistory, useStore } from '../store/store'
+import { activeSheet, pauseHistory, resumeHistory, useStore } from '../store/store'
 
 const snap8 = (v: number) => Math.round(v / 8) * 8
+
+/** Quiet spell after a shake, so the tail of the waggle docks nothing. */
+const SHAKE_COOLOFF_MS = 600
 
 type PortKinds = Record<string, PortKind>
 
@@ -261,8 +265,13 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
   const onMagnetDown = () => paper.el.classList.add('pid-linking')
   const onGlobalPointerUp = () => {
     paper.el.classList.remove('pid-linking')
-    paper.el.classList.remove('pid-docking')
-    showDockHint(paper, null)
+    // A symbol drag is NOT over yet: this 'pointerup' lands before the
+    // compatibility 'mouseup' JointJS listens on, so element:pointerup — which
+    // commits the move and closes the docking gesture's undo group — still has
+    // to run. Tearing down here would cut that group short and let a shaken-off
+    // connection sneak back on at release.
+    if (dragStart.size) return
+    endDockGesture()
     // safety net: any grouped edit (typing, label drag) ends by now
     resumeHistory()
   }
@@ -352,19 +361,64 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     x: hit.x !== undefined ? Math.round(hit.x) : snap8(p.x),
     y: hit.y !== undefined ? Math.round(hit.y) : snap8(p.y),
   })
-  /** What the dragged node would dock onto at its landing position. */
-  const dockAt = (node: PlantNode, hit: ReturnType<typeof snapGuides>, p: { x: number; y: number }) => {
-    const sheet = activeSheet(store())
-    return findDock(
-      { ...node, ...landing(hit, p) },
-      sheet.nodes,
-      sheet.edges,
-      store().activeLineClass,
-      dockRadius(paper.scale().sx),
-    )
+
+  /**
+   * Magnetic docking, live inside the drag.
+   *
+   * The connection is made the moment the connection points meet — not when
+   * the mouse button comes up. The symbol clicks into place a standoff away
+   * so a real length of pipe is visible, the line is written to the document
+   * there and then, and the user goes on dragging: the pipe stretches behind
+   * them. Getting it wrong costs nothing — shake the symbol and the line this
+   * drag made is cut, without ever letting go.
+   *
+   * `live` is the connection this gesture made, `holding` whether the magnet
+   * still has the symbol, and `refused` the pairings shaken off already (so
+   * the symbol doesn't snap straight back onto the point just rejected).
+   */
+  let live: { edgeId: string; dock: Dock } | null = null
+  let holding = false
+  /** A shake happened this drag: the release must not sneak a line back on. */
+  let cut = false
+  /** ...and nothing docks for a moment either, or the tail of the waggle
+   *  catches whatever the symbol was flung past. */
+  let dockAgainAt = 0
+  const refused = new Set<string>()
+  const shake = createShakeDetector()
+
+  const endDockGesture = () => {
+    live = null
+    holding = false
+    cut = false
+    dockAgainAt = 0
+    refused.clear()
+    shake.reset()
+    showDockHint(paper, null)
+    paper.el.classList.remove('pid-docking')
   }
 
-  const onElementPointerMove = (view: dia.ElementView) => {
+  /** Is the magnet still close enough to keep the symbol clicked into place? */
+  const stillHeld = (node: PlantNode, at: { x: number; y: number }, dock: Dock): boolean => {
+    const port = portWorld({ ...node, ...at }, dock.movingPortId)
+    if (!port) return false
+    return Math.hypot(port.x - dock.portAt.x, port.y - dock.portAt.y) <= dockRadius(paper.scale().sx)
+  }
+
+  /** Cut the line this drag docked and let the user aim somewhere else. */
+  const cutLive = () => {
+    if (!live) return
+    refused.add(dockKey(live.dock))
+    flashDockCut(paper, live.dock.at)
+    store().deleteIds([live.edgeId])
+    live = null
+    holding = false
+    cut = true
+    dockAgainAt = Date.now() + SHAKE_COOLOFF_MS
+    shake.reset()
+    showDockHint(paper, null)
+  }
+
+  const onElementPointerMove = (view: dia.ElementView, evt: dia.Event) => {
     const id = String(view.model.id)
     const start = dragStart.get(id)
     if (!start) return
@@ -390,15 +444,55 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     const hit = snapGuides({ ...node, x: p.x, y: p.y }, sheet.nodes, 4, sheet.edges)
     if (hit.guideX !== undefined) drawGuide(true, hit.guideX)
     if (hit.guideY !== undefined) drawGuide(false, hit.guideY)
-    // Magnetic docking preview. Connection dots come up across the sheet so
-    // the user can see what there is to touch, and the ring marks the point
-    // this symbol will click onto if they let go now.
+
+    // Docking is a single-symbol gesture: a group drag is being arranged, not
+    // plumbed, and there is no one symbol whose ports would do the docking.
+    if (dragStart.size > 1) return
+    // Connection dots come up across the sheet so the user can see what there
+    // is to touch.
     paper.el.classList.add('pid-docking')
-    const dock = dragStart.size > 1 ? null : dockAt(node, hit, p)
+
+    const pointer = (evt.originalEvent ?? evt) as { clientX?: number; clientY?: number }
+    if (live && shake.push(pointer.clientX ?? p.x, pointer.clientY ?? p.y, Date.now())) {
+      cutLive()
+      return
+    }
+
+    const at = landing(hit, p)
+    if (live) {
+      // Already connected this drag. Hold the symbol on the standoff while
+      // the pointer stays in reach, then let it go and stretch the pipe.
+      holding = stillHeld(node, at, live.dock)
+      if (holding) view.model.position(live.dock.x, live.dock.y)
+      showDockHint(paper, holding ? live.dock.at : null)
+      return
+    }
+
+    if (Date.now() < dockAgainAt) return
+    const dock = findDock(
+      { ...node, ...at },
+      sheet.nodes,
+      sheet.edges,
+      store().activeLineClass,
+      dockRadius(paper.scale().sx),
+      refused,
+    )
     showDockHint(paper, dock?.at ?? null)
+    if (!dock) {
+      holding = false
+      return
+    }
+    // Caught. Draw the line now, mid-drag — the rest of this gesture is the
+    // same undo step, so one Ctrl+Z takes the move and the line back together.
+    live = { edgeId: store().dockNode(id, dock.x, dock.y, dockEdge(id, dock)), dock }
+    pauseHistory()
+    holding = true
+    view.model.position(dock.x, dock.y)
   }
+
   const onElementPointerDownPos = (view: dia.ElementView) => {
     dragStart.clear()
+    endDockGesture()
     const id = String(view.model.id)
     const sel = store().selection
     const ids = sel.includes(id) && sel.length > 1 ? sel : [id]
@@ -419,42 +513,61 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
       }
     }
   }
+
   const onElementPointerUp = (view: dia.ElementView) => {
     clearGuides()
-    showDockHint(paper, null)
-    paper.el.classList.remove('pid-docking')
     const id = String(view.model.id)
     const start = dragStart.get(id)
     const multi = dragStart.size > 1
-    dragStart.delete(id)
-    if (!start) return
+    // Emptied here, on every path out: onGlobalPointerUp reads it to tell a
+    // live drag from a finished one, so a leftover entry would latch the
+    // undo group open for good.
+    dragStart.clear()
+    dragStartVerts.clear()
+    const docked = live
+    const wasHolding = holding
+    const wasCut = cut
+    endDockGesture()
+    // The docking burst opened with dockNode and stays one undo step until
+    // here, whatever the drag did afterwards.
+    if (!start) return resumeHistory()
     const p = view.model.position()
     const sheet = activeSheet(store())
     const node = sheet.nodes.find((n) => n.id === id)
     const hit = node ? snapGuides({ ...node, x: p.x, y: p.y }, sheet.nodes, 4, sheet.edges) : {}
-    const { x: nx, y: ny } = landing(hit, p)
-    // Touched a connection point on the way down: click onto it and draw the
-    // line. Checked before the "didn't move" exit so a symbol nudged back to
-    // where it started can still dock.
-    const dock = node && !multi ? dockAt(node, hit, p) : null
-    if (dock) {
-      store().dockNode(id, dock.x, dock.y, dockEdge(id, dock))
-      dragStart.clear()
-      dragStartVerts.clear()
-      return
+    // A magnet still holding at release keeps the spot it clicked into.
+    const { x: nx, y: ny } =
+      docked && wasHolding ? { x: docked.dock.x, y: docked.dock.y } : landing(hit, p)
+
+    // Fallback for a drag that never reported a move inside the reach — a
+    // flick, or a nudge back onto a point the symbol started next to. Never
+    // after a shake: the user has just said no to a connection, and letting
+    // go is not them changing their mind.
+    if (!docked && !wasCut && node && !multi) {
+      const dock = findDock(
+        { ...node, x: nx, y: ny },
+        sheet.nodes,
+        sheet.edges,
+        store().activeLineClass,
+        dockRadius(paper.scale().sx),
+      )
+      if (dock) {
+        store().dockNode(id, dock.x, dock.y, dockEdge(id, dock))
+        return resumeHistory()
+      }
     }
-    if (nx === start.x && ny === start.y) return
-    const dx = nx - start.x
-    const dy = ny - start.y
-    const sel = store().selection
-    if (sel.includes(id) && sel.length > 1) {
-      const nodeIds = sel.filter((s) => activeSheet(store()).nodes.some((n) => n.id === s))
-      store().moveNodes(nodeIds, dx, dy)
-    } else {
-      store().setNodePos(id, nx, ny)
+    if (nx !== start.x || ny !== start.y) {
+      const dx = nx - start.x
+      const dy = ny - start.y
+      const sel = store().selection
+      if (sel.includes(id) && sel.length > 1) {
+        const nodeIds = sel.filter((s) => activeSheet(store()).nodes.some((n) => n.id === s))
+        store().moveNodes(nodeIds, dx, dy)
+      } else {
+        store().setNodePos(id, nx, ny)
+      }
     }
-    dragStart.clear()
-    dragStartVerts.clear()
+    resumeHistory()
   }
 
   // --- vertex editing on selected links ----------------------------------
@@ -615,7 +728,7 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
 
   return () => {
     clearGuides()
-    showDockHint(paper, null)
+    endDockGesture()
     unsubSelection()
     window.removeEventListener('keydown', onKeyDown)
     window.removeEventListener('pointerup', onGlobalPointerUp)
