@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import '../../src/symbols/lib/index'
 import { buildTypical, TYPICALS } from '../../src/assist/typicals'
 import { createEmptyDoc } from '../../src/model/doc'
-import { runChecks } from '../../src/validate/checks'
+import { buildIndex } from '../../src/model/projectIndex'
+import { runRules } from '../../src/validate/engine'
 import { getSymbol } from '../../src/symbols/registry'
 import type { ProjectDoc } from '../../src/model/types'
 
@@ -31,7 +32,8 @@ describe('typical loops', () => {
   it('placements are valid drawings out of the box', () => {
     for (const t of TYPICALS) {
       const doc = docWithTypical(t.id)
-      expect(runChecks(doc), t.id).toEqual([])
+      // what the app places must never be reported as a blocker
+      expect(runRules(buildIndex(doc)).counts.critical, t.id).toBe(0)
     }
   })
   it('every edge lands on a real port of a real symbol', () => {

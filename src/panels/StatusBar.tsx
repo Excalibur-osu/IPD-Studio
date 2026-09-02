@@ -3,7 +3,7 @@
 // commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
 
 import { activeSheet, useStore } from '../store/store'
-import { useFindings } from './ValidationPanel'
+import { qaFor } from '../validate/engine'
 import { useCloudStatus } from '../cloud/autosave'
 import { VersionChip } from './VersionNote'
 
@@ -15,7 +15,7 @@ export default function StatusBar() {
   const dirty = useStore((s) => s.dirty)
   const selection = useStore((s) => s.selection)
   const nodes = useStore((s) => activeSheet(s).nodes.length)
-  const findings = useFindings()
+  const qa = qaFor(useStore((s) => s.doc))
   const cloud = useCloudStatus()
 
   // One line about where the work stands. Two indicators ("Saved" next to
@@ -37,8 +37,12 @@ export default function StatusBar() {
       {selection.length > 0 && <span>{selection.length} selected</span>}
       <span className="sp" />
       <VersionChip />
-      <span className={findings.length ? 'status-warn' : ''}>
-        {findings.length ? `⚠ ${findings.length} finding${findings.length > 1 ? 's' : ''}` : '✓ No findings'}
+      <span className={qa.counts.critical ? 'status-warn' : ''}>
+        {qa.counts.critical
+          ? `⚠ ${qa.counts.critical} critical`
+          : qa.total
+            ? `${qa.total} finding${qa.total > 1 ? 's' : ''}`
+            : '✓ No findings'}
       </span>
     </footer>
   )

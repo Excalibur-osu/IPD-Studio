@@ -106,9 +106,10 @@ P&ID tool is a $2,600+/year desktop install. IPD Studio is the missing thing:
 - **Works offline** — installable PWA; the whole editor runs with no internet
 - **Editor power** — Ctrl+F find-any-tag across sheets, align/distribute,
   live snap guides, print-all-sheets PDF, line sequence auto-numbering
-- **Magnetic docking** — drag a symbol so its connection point touches
-  another symbol's and let go: it clicks into place already piped up. Pull
-  them apart and the line stretches to follow
+- **Magnetic docking** — drag a symbol so its connection point meets another
+  symbol's and the pipe is drawn there and then, mid-drag: keep dragging and
+  it stretches to follow. Wrong point? Shake the symbol and the line is cut,
+  without ever letting go
 - **Obstacle-avoiding orthogonal routing** with draggable waypoints, ports
   with connection rules (a pneumatic signal won't connect to a pipe nozzle)
 - **Live validation**: duplicate tags, missing tags, illegal ISA letters,

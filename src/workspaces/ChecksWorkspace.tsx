@@ -2,121 +2,159 @@
 // Copyright © 2026 Praharsh Nagpure — IPD Studio. Noncommercial use only;
 // commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
 
+import { useState } from 'react'
 import { useStore } from '../store/store'
 import { navigateWorkspace } from '../routes'
-import { issuesFor } from '../validate/issues'
-import { locateCell } from '../panels/ValidationPanel'
-import { applyFix } from '../assist/fixes'
-import type { Finding } from '../model/types'
-import type { Suggestion } from '../validate/suggest'
+import { qaFor } from '../validate/engine'
+import type { Severity } from '../validate/rules'
+import { locateCell } from '../canvas/locate'
+import { applyFix, describeFix, type FixSpec } from '../assist/fixes'
 
-const LABELS: Record<string, string> = {
-  'duplicate-tag': 'Duplicate tags',
-  'missing-tag': 'Missing tags',
-  'invalid-letters': 'Invalid ISA letters',
-  'dangling-end': 'Dangling line ends',
-  'incompatible-connection': 'Incompatible connections',
-  'duplicate-line-number': 'Duplicate line numbers',
-  'unlinked-offpage': 'Unlinked off-page connectors',
-  'broken-link': 'Broken off-page links',
-  'no-receiver': 'Measurements without a receiver',
-  'no-final-element': 'Controllers without a final element',
-  'dead-end-instrument': 'Unconnected instruments',
-  'needs-ip-converter': 'Signal chain: missing I/P converter',
-  'no-relief': 'Vessels without relief',
-  'no-fail-position': 'Valve failure positions',
-  'valve-tag-on-bubble': 'Tag / symbol mismatches',
-  'duplicate-line': 'Duplicate lines',
+const SEVERITY_LABEL: Record<Severity, string> = {
+  critical: 'Critical',
+  warning: 'Warning',
+  info: 'Information',
 }
 
+const SEVERITY_NOTE: Record<Severity, string> = {
+  critical: 'These would stop the drawing being issued.',
+  warning: 'Worth resolving before issue; not all of them are mistakes.',
+  info: 'Observations. An engineer may well have meant it this way.',
+}
+
+const DISCIPLINES = ['tagging', 'topology', 'process', 'instrumentation', 'data'] as const
+
 /**
- * The findings, full screen, grouped by what they mean rather than by which
- * function produced them. The drawer stays as the glance version while you
- * draw; this is the one you work through before issuing a drawing.
+ * The engineering QA report.
  *
- * Severity is still the binary the model can express today — a hard finding or
- * advice. The three-level engine with fixes, ignores and standards arrives in
- * v0.16; this screen is shaped to receive it.
+ * Grouped by severity first and discipline second, because an engineer triages
+ * by "what blocks issue", not by which function produced the finding. Ignored
+ * items stay visible in their own collapsed section — a hidden ignore rots, and
+ * the reason someone accepted a finding is exactly what the next reviewer needs.
  */
 export default function ChecksWorkspace() {
   const doc = useStore((s) => s.doc)
-  const setActiveSheet = useStore((s) => s.setActiveSheet)
-  const { findings, suggestions } = issuesFor(doc)
+  const ignoreFinding = useStore((s) => s.ignoreFinding)
+  const unignoreFinding = useStore((s) => s.unignoreFinding)
+  const [discipline, setDiscipline] = useState<string>('all')
+  const [showIgnored, setShowIgnored] = useState(false)
 
-  const go = (item: Finding | Suggestion) => {
-    if (item.sheetId) setActiveSheet(item.sheetId)
+  const report = qaFor(doc)
+  const groups = report.groups.filter((g) => discipline === 'all' || g.rule.discipline === discipline)
+
+  const go = (sheetId?: string, targetId?: string) => {
+    if (!targetId) return
     navigateWorkspace('draw')
-    setTimeout(() => locateCell(item.targetId), 60)
+    locateCell(targetId, sheetId)
   }
 
-  const group = <T extends Finding>(items: T[]) => {
-    const map = new Map<string, T[]>()
-    for (const i of items) {
-      const list = map.get(i.checkId) ?? []
-      list.push(i)
-      map.set(i.checkId, list)
-    }
-    return [...map.entries()]
+  // A fix can fail — the symbol may have moved on since the report was built.
+  // Saying so beats a button that appears to do nothing.
+  const runFix = (spec: FixSpec) => {
+    const result = applyFix(spec)
+    if (!result.ok) window.alert(result.message ?? 'That fix could not be applied.')
   }
 
-  const clean = findings.length === 0 && suggestions.length === 0
+  const accept = (key: string, message: string) => {
+    const reason = window.prompt(`Accept this finding?\n\n${message}\n\nWhy is it acceptable? (recorded on the drawing)`)
+    if (reason && reason.trim()) ignoreFinding(key, reason.trim())
+  }
+
+  // one heading per severity, emitted the first time that severity appears
+  let lastSeverity: Severity | null = null
 
   return (
     <div className="ws">
       <header className="ws-head">
         <h1>Checks</h1>
-        <span className={`ws-tally${findings.length ? ' bad' : ' ok'}`} data-testid="checks-tally">
-          {findings.length ? `${findings.length} finding${findings.length > 1 ? 's' : ''}` : 'No findings'}
+        <span className={`ws-tally${report.counts.critical ? ' bad' : ' ok'}`} data-testid="checks-tally">
+          {report.counts.critical
+            ? `${report.counts.critical} critical`
+            : report.total === 0 ? 'No findings' : 'Nothing critical'}
         </span>
-        {suggestions.length > 0 && (
-          <span className="ws-tally soft">{suggestions.length} suggestion{suggestions.length > 1 ? 's' : ''}</span>
-        )}
+        {report.counts.warning > 0 && <span className="ws-tally soft">{report.counts.warning} warning</span>}
+        {report.counts.info > 0 && <span className="ws-tally">{report.counts.info} info</span>}
+        <span className="ws-sp" />
+        <label className="ws-filter">
+          Discipline
+          <select value={discipline} onChange={(e) => setDiscipline(e.target.value)} data-testid="checks-discipline">
+            <option value="all">all</option>
+            {DISCIPLINES.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </label>
       </header>
 
       <div className="ws-body">
-        {clean && (
+        {report.total === 0 && (
           <p className="ws-empty">
             Nothing to fix — every tag parses, every line lands, and the instrumentation reads as complete.
           </p>
         )}
 
-        {findings.length > 0 && (
-          <section className="ws-sect">
-            <h2 className="ws-sect-head bad">Findings <span>{findings.length}</span></h2>
-            <p className="ws-sect-note">Errors in the drawing: these would stop it being issued.</p>
-            {group(findings).map(([checkId, list]) => (
-              <div key={checkId} className="ws-group">
-                <div className="ws-group-head">{LABELS[checkId] ?? checkId} <span>{list.length}</span></div>
-                {list.map((f) => (
-                  <div key={f.id} className="ws-issue">
-                    <button className="ws-issue-msg" onClick={() => go(f)}>{f.message}</button>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </section>
-        )}
-
-        {suggestions.length > 0 && (
-          <section className="ws-sect">
-            <h2 className="ws-sect-head soft">Suggestions <span>{suggestions.length}</span></h2>
-            <p className="ws-sect-note">Advice, never an error — an engineer may well have meant it this way.</p>
-            {group(suggestions).map(([checkId, list]) => (
-              <div key={checkId} className="ws-group">
-                <div className="ws-group-head">{LABELS[checkId] ?? checkId} <span>{list.length}</span></div>
-                {list.map((s) => (
-                  <div key={s.id} className="ws-issue">
-                    <button className="ws-issue-msg" onClick={() => go(s)}>{s.message}</button>
-                    {s.fix && (
-                      <button className="ws-issue-fix" title="Apply this fix" onClick={() => applyFix(s.fix!)}>
-                        Fix
+        {groups.map((g) => {
+          const heading = g.rule.severity !== lastSeverity ? g.rule.severity : null
+          lastSeverity = g.rule.severity
+          return (
+            <div key={g.rule.id}>
+              {heading && (
+                <div className={`ws-sev ${heading}`}>
+                  <h2>{SEVERITY_LABEL[heading]}</h2>
+                  <p>{SEVERITY_NOTE[heading]}</p>
+                </div>
+              )}
+              <div className="ws-group" data-testid={`rule-${g.rule.id}`}>
+                <div className="ws-group-head">
+                  {g.rule.title} <span>{g.findings.length}</span>
+                  <em className="ws-group-disc">{g.rule.discipline}</em>
+                </div>
+                {g.rule.why && <div className="ws-group-why">{g.rule.why}</div>}
+                {g.findings.map((f) => (
+                  <div key={f.key} className="ws-issue">
+                    <button
+                      className="ws-issue-msg"
+                      disabled={!f.targetId}
+                      onClick={() => go(f.sheetId, f.targetId)}
+                    >
+                      {f.message}
+                    </button>
+                    {f.fix && (
+                      <button className="ws-issue-fix" title={describeFix(f.fix.spec, doc).blastRadius} onClick={() => runFix(f.fix!.spec)}>
+                        {f.fix.label}
                       </button>
                     )}
+                    <button
+                      className="ws-issue-ignore"
+                      title="Accept this finding, with a reason"
+                      onClick={() => accept(f.key, f.message)}
+                    >
+                      Accept
+                    </button>
                   </div>
                 ))}
               </div>
-            ))}
-          </section>
+            </div>
+          )
+        })}
+
+        {report.ignored.length > 0 && (
+          <div className="ws-ignored">
+            <button className="ws-ignored-head" onClick={() => setShowIgnored((v) => !v)} data-testid="checks-ignored">
+              {showIgnored ? '▾' : '▸'} Accepted findings <span>{report.ignored.length}</span>
+            </button>
+            {showIgnored && (
+              <div className="ws-group">
+                {report.ignored.map(({ finding: f, entry }) => (
+                  <div key={f.key} className="ws-issue">
+                    <span className="ws-issue-msg muted">
+                      {f.message}
+                      <em> — {entry.reason}{entry.by ? ` (${entry.by})` : ''}</em>
+                    </span>
+                    <button className="ws-issue-fix" onClick={() => unignoreFinding(f.key)}>Reopen</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

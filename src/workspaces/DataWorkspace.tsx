@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import { useStore } from '../store/store'
 import { navigateWorkspace } from '../routes'
-import { locateCell } from '../panels/ValidationPanel'
+import { locateCell } from '../canvas/locate'
 import {
   INSTRUMENT_INDEX_COLUMNS,
   LINE_LIST_COLUMNS,
@@ -27,7 +27,6 @@ type Tab = 'instruments' | 'lines'
  */
 export default function DataWorkspace() {
   const doc = useStore((s) => s.doc)
-  const setActiveSheet = useStore((s) => s.setActiveSheet)
   const [tab, setTab] = useState<Tab>('instruments')
 
   const rows = tab === 'instruments' ? instrumentIndexRows(doc) : lineListRows(doc)
@@ -35,9 +34,8 @@ export default function DataWorkspace() {
 
   // Invariant: every row in every report is a jump, never just text.
   const jump = (r: ReportRow) => {
-    setActiveSheet(r.sheetId)
     navigateWorkspace('draw')
-    setTimeout(() => locateCell(r.id), 60)
+    locateCell(r.id, r.sheetId)
   }
 
   return (

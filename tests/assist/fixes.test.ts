@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import '../../src/symbols/lib/index'
 import { applyFix } from '../../src/assist/fixes'
-import { runSuggestions } from '../../src/validate/suggest'
+import { buildIndex } from '../../src/model/projectIndex'
+import { runRules } from '../../src/validate/engine'
 import { activeSheet, useStore } from '../../src/store/store'
 import { createEmptyDoc } from '../../src/model/doc'
 
@@ -19,9 +20,11 @@ describe('insert-ip fix', () => {
     })
     s.addEdge({ lineClass: 'signal.electric', source: { nodeId: fic, portId: 's' }, target: { nodeId: fv, portId: 'sig' } })
 
-    const hit = runSuggestions(useStore.getState().doc).find((x) => x.checkId === 'needs-ip-converter')
+    const hit = runRules(buildIndex(useStore.getState().doc)).groups
+      .flatMap((g) => g.findings).find((x) => x.ruleId === 'needs-ip-converter')
     expect(hit?.fix).toBeDefined()
-    applyFix(hit!.fix!)
+    const result = applyFix(hit!.fix!.spec)
+    expect(result.ok).toBe(true)
 
     const sheet = activeSheet(useStore.getState())
     const conv = sheet.nodes.find((n) => n.symbolId === 'instr.converter')
@@ -34,7 +37,7 @@ describe('insert-ip fix', () => {
     const out = sheet.edges.find((e) => e.lineClass === 'signal.pneumatic')!
     expect((out.source as { portId: string }).portId).toBe('s')
     // and the advice clears
-    expect(runSuggestions(useStore.getState().doc).map((x) => x.checkId)).not.toContain('needs-ip-converter')
+    expect(runRules(buildIndex(useStore.getState().doc)).groups.map((g) => g.rule.id)).not.toContain('needs-ip-converter')
     s.loadIntoStore(createEmptyDoc('reset'))
   })
 })

@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { findTag } from '../search/findTag'
 import { useStore } from '../store/store'
-import { locateCell } from './ValidationPanel'
+import { locateCell } from '../canvas/locate'
 import { navigateWorkspace } from '../routes'
 import { downloadInstrumentIndex, downloadLineList } from '../export/csv'
 import { canvasRef, fitView } from '../canvas/paperSetup'
@@ -98,9 +98,8 @@ export default function CommandPalette() {
             label: h.display,
             sub: h.sheetName,
             run: () => {
-              setActiveSheet(h.sheetId)
               navigateWorkspace('draw')
-              setTimeout(() => locateCell(h.nodeId), 60)
+              locateCell(h.nodeId, h.sheetId)
             },
           }))
       : []

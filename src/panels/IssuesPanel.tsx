@@ -3,58 +3,50 @@
 // commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
 
 import { useStore } from '../store/store'
-import { issuesFor } from '../validate/issues'
-import { locateCell } from './ValidationPanel'
-import { applyFix } from '../assist/fixes'
+import { qaFor } from '../validate/engine'
+import { locateCell } from '../canvas/locate'
 import { navigateWorkspace } from '../routes'
+import { applyFix } from '../assist/fixes'
 
 /**
- * The glance version of the findings, while you draw.
- *
- * Validation and Advisor used to be two drawer tabs, which meant two lists to
- * check and an implicit severity flag deciding which one you were reading.
- * They are one engine, so they are one list — errors first, advice under it —
- * with the full report a click away in the Checks workspace.
+ * The glance version while you draw: criticals and warnings only, newest rule
+ * groups flattened. The full report — information, filters, accept-with-reason
+ * — lives in the Checks workspace, one click away.
  */
 export default function IssuesPanel() {
   const doc = useStore((s) => s.doc)
-  const setActiveSheet = useStore((s) => s.setActiveSheet)
-  const { findings, suggestions } = issuesFor(doc)
+  const report = qaFor(doc)
 
-  const go = (sheetId: string | undefined, targetId: string | undefined) => {
-    if (sheetId) setActiveSheet(sheetId)
-    setTimeout(() => locateCell(targetId), 50)
-  }
+  const go = (sheetId?: string, targetId?: string) => locateCell(targetId, sheetId)
 
-  if (findings.length === 0 && suggestions.length === 0) {
+  const shown = report.groups.filter((g) => g.rule.severity !== 'info')
+
+  if (report.total === 0) {
     return <div className="drawer-empty">No findings — the drawing is clean.</div>
   }
 
   return (
     <div className="drawer-list">
-      {findings.length > 0 && (
-        <section>
-          <div className="drawer-group">Findings ({findings.length})</div>
-          {findings.map((f) => (
-            <button key={f.id} className="drawer-item" onClick={() => go(f.sheetId, f.targetId)}>
-              {f.message}
-            </button>
-          ))}
-        </section>
+      {shown.length === 0 && (
+        <div className="drawer-group">Nothing critical — {report.counts.info} observation{report.counts.info === 1 ? '' : 's'} in Checks</div>
       )}
-      {suggestions.length > 0 && (
-        <section>
-          <div className="drawer-group">Suggestions ({suggestions.length})</div>
-          {suggestions.map((s) => (
-            <div key={s.id} className="advisor-row">
-              <button className="drawer-item" onClick={() => go(s.sheetId, s.targetId)}>💡 {s.message}</button>
-              {s.fix && (
-                <button className="advisor-fix" title="Apply this fix" onClick={() => applyFix(s.fix!)}>Fix</button>
+      {shown.map((g) => (
+        <section key={g.rule.id}>
+          <div className={`drawer-group sev-${g.rule.severity}`}>
+            {g.rule.title} ({g.findings.length})
+          </div>
+          {g.findings.map((f) => (
+            <div key={f.key} className="advisor-row">
+              <button className="drawer-item" disabled={!f.targetId} onClick={() => go(f.sheetId, f.targetId)}>
+                {f.message}
+              </button>
+              {f.fix && (
+                <button className="advisor-fix" title={f.fix.label} onClick={() => applyFix(f.fix!.spec)}>Fix</button>
               )}
             </div>
           ))}
         </section>
-      )}
+      ))}
       <button className="drawer-more" onClick={() => navigateWorkspace('checks')}>
         Open the full report in Checks →
       </button>

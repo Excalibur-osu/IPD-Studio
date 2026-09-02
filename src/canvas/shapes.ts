@@ -215,7 +215,7 @@ function toEnd(end: PlantEdge['source']): dia.Link.EndJSON {
   return isPortEnd(end) ? { id: end.nodeId, port: end.portId } : { x: end.x, y: end.y }
 }
 
-type Direction = 'left' | 'right' | 'top' | 'bottom'
+export type Direction = 'left' | 'right' | 'top' | 'bottom'
 
 /** Which way a link should leave a port, from the port's place on its symbol. */
 export function portDirection(symbolId: string, portId: string): Direction | null {

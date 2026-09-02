@@ -7,6 +7,13 @@
 import type { HmiScreen } from '../hmi/model'
 import type { Registry } from './registry'
 
+/** A finding the user has explicitly accepted, with the reason why. */
+export interface IgnoredFinding {
+  reason: string
+  by?: string
+  at: string
+}
+
 export type SheetSize = 'A4' | 'A3' | 'A2' | 'A1' | 'ANSI_B' | 'ANSI_D'
 
 export type NodeKind = 'equipment' | 'instrument' | 'valve' | 'fitting' | 'annotation'
@@ -164,6 +171,9 @@ export interface ProjectDoc {
   /** Engineering records keyed by tag / line number (v0.15.0+, schemaVersion 5).
    *  See model/registry.ts for why the key is the tag and not the node id. */
   registry?: Registry
+  /** QA state. `ignored` is keyed by RuleFinding.key — rule + engineering key,
+   *  never a node id — so an accepted finding stays accepted across a redraw. */
+  qa?: { ignored: Record<string, IgnoredFinding> }
 }
 
 /** Budget settings: display currency, optional target, Lang-style installed
@@ -176,13 +186,3 @@ export interface BudgetSettings {
   overrides?: Record<string, number>
 }
 
-/** A validation finding surfaced in the validation panel. */
-export interface Finding {
-  id: string
-  checkId: string
-  message: string
-  targetId?: string
-  sheetId?: string
-  /** Absent = error; 'suggestion' items render in the Advisor tab instead. */
-  severity?: 'suggestion'
-}

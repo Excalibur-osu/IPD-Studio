@@ -6,11 +6,11 @@ import { useState } from 'react'
 import IssuesPanel from './IssuesPanel'
 import LoopPanel from './LoopPanel'
 import { useStore } from '../store/store'
-import { issuesFor } from '../validate/issues'
+import { qaFor } from '../validate/engine'
 
 export default function Drawer() {
   const [tab, setTab] = useState<'issues' | 'loops' | null>(null)
-  const { total } = issuesFor(useStore((s) => s.doc))
+  const { total } = qaFor(useStore((s) => s.doc))
   return (
     <div className="drawer">
       <div className="drawer-tabs">

@@ -3,8 +3,55 @@
 // commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
 
 import { ulid } from 'ulid'
-import type { FixSpec } from '../validate/suggest'
-import type { PlantEdge, PlantNode } from '../model/types'
+
+/** A repair the QA report can apply for the user. Lives here, with the code
+ *  that performs it, rather than with the rules that offer it. */
+export type FixSpec =
+  | { kind: 'insert-ip'; sheetId: string; edgeId: string }
+  | { kind: 'purge-record'; key: string }
+  | { kind: 'assign-tag'; nodeId: string; sheetId: string; letters: string }
+
+/** What a fix did. A fix that fails silently cannot be trusted by anything
+ *  that reports back to a user — the report, or anything built on it later. */
+export interface FixResult {
+  ok: boolean
+  /** Node/edge ids the fix created or changed, for a follow-up jump. */
+  changedIds: string[]
+  message?: string
+}
+
+/**
+ * What a fix WOULD do, without doing it. One description shared by everything
+ * that has to ask before acting, so a preview and the action can never drift.
+ */
+export function describeFix(spec: FixSpec, doc: ProjectDoc): { title: string; blastRadius: string; affectedIds: string[] } {
+  switch (spec.kind) {
+    case 'insert-ip': {
+      const sheet = doc.sheets.find((s) => s.id === spec.sheetId)
+      return {
+        title: 'Insert an I/P converter',
+        blastRadius: `Splits one line on ${sheet?.name ?? 'the sheet'} into two and adds a tagged converter between them.`,
+        affectedIds: [spec.edgeId],
+      }
+    }
+    case 'purge-record':
+      return {
+        title: `Discard the engineering record for ${spec.key}`,
+        blastRadius: `Deletes ${Object.keys(doc.registry?.[spec.key]?.fields ?? {}).length} stored field(s). Nothing on any sheet carries this key.`,
+        affectedIds: [],
+      }
+    case 'assign-tag': {
+      const sheet = doc.sheets.find((s) => s.id === spec.sheetId)
+      return {
+        title: `Renumber to the next free ${spec.letters} tag`,
+        blastRadius: `Retags one symbol on ${sheet?.name ?? 'the sheet'}. Its engineering record moves with it.`,
+        affectedIds: [spec.nodeId],
+      }
+    }
+  }
+}
+
+import type { PlantEdge, PlantNode, ProjectDoc } from '../model/types'
 import { isPortEnd } from '../model/types'
 import { portWorld } from '../canvas/alignment'
 import { isDuplicateTag, nextLoopNumber } from '../isa/autonumber'
@@ -13,27 +60,45 @@ import { useStore } from '../store/store'
 const snap8 = (v: number) => Math.round(v / 8) * 8
 
 /**
- * Apply an Advisor fix. insert-ip splits an electric line into
- * controller → I/P converter → (pneumatic) valve, placing and tagging the
- * converter automatically — one undo step.
+ * Apply a fix. The single dispatcher — rules describe fixes as data and this is
+ * the only place that performs one.
+ *
+ * insert-ip splits an electric line into controller → I/P converter →
+ * (pneumatic) valve, placing and tagging the converter automatically. Every
+ * branch is one undo step.
  */
-export function applyFix(fix: FixSpec): void {
+export function applyFix(fix: FixSpec): FixResult {
   if (fix.kind === 'purge-record') {
+    const had = Boolean(useStore.getState().doc.registry?.[fix.key])
     useStore.getState().purgeRecord(fix.key)
-    return
+    return had
+      ? { ok: true, changedIds: [] }
+      : { ok: false, changedIds: [], message: `No record found for ${fix.key}.` }
   }
-  if (fix.kind !== 'insert-ip') return
+  if (fix.kind === 'assign-tag') {
+    const st = useStore.getState()
+    if (st.activeSheetId !== fix.sheetId) st.setActiveSheet(fix.sheetId)
+    const now = useStore.getState()
+    const exists = now.doc.sheets.some((sh) => sh.nodes.some((n) => n.id === fix.nodeId))
+    if (!exists) return { ok: false, changedIds: [], message: 'That symbol is no longer on the drawing.' }
+    now.setTag(fix.nodeId, { letters: fix.letters, loop: nextLoopNumber(now.doc, fix.letters) })
+    return { ok: true, changedIds: [fix.nodeId] }
+  }
   const s = useStore.getState()
   if (s.activeSheetId !== fix.sheetId) s.setActiveSheet(fix.sheetId)
   const state = useStore.getState()
   const sheet = state.doc.sheets.find((sh) => sh.id === fix.sheetId)
   const edge = sheet?.edges.find((e) => e.id === fix.edgeId)
-  if (!sheet || !edge || !isPortEnd(edge.source) || !isPortEnd(edge.target)) return
+  if (!sheet || !edge || !isPortEnd(edge.source) || !isPortEnd(edge.target)) {
+    return { ok: false, changedIds: [], message: 'That line is no longer there to split.' }
+  }
 
   const nodeOf = (id: string) => sheet.nodes.find((n) => n.id === id)
   const srcNode = nodeOf(edge.source.nodeId)
   const tgtNode = nodeOf(edge.target.nodeId)
-  if (!srcNode || !tgtNode) return
+  if (!srcNode || !tgtNode) {
+    return { ok: false, changedIds: [], message: 'One end of that line is missing.' }
+  }
   const valveEndIsTarget = tgtNode.symbolId.startsWith('cv.')
   const valve = valveEndIsTarget ? tgtNode : srcNode
   const sender = valveEndIsTarget ? srcNode : tgtNode
@@ -78,4 +143,5 @@ export function applyFix(fix: FixSpec): void {
     target: { nodeId: valve.id, portId: valveEnd.portId },
   }
   useStore.getState().addBatch([converter], [inEdge, outEdge], [edge.id])
+  return { ok: true, changedIds: [converter.id, inEdge.id, outEdge.id] }
 }

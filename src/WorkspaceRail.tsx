@@ -5,7 +5,7 @@
 import { useEffect } from 'react'
 import { WORKSPACES, navigateWorkspace, type Workspace } from './routes'
 import { useStore } from './store/store'
-import { issuesFor } from './validate/issues'
+import { qaFor } from './validate/engine'
 
 interface Entry {
   icon: string
@@ -26,10 +26,10 @@ const ENTRIES: Record<Workspace, Entry> = {
 }
 
 export default function WorkspaceRail({ active }: { active: Workspace }) {
-  // Only actionable counts earn a badge. Suggestions are advice and would cry
-  // wolf on a drawing that is merely unfinished, so the badge counts hard
-  // findings alone — the things that would stop a drawing being issued.
-  const findings = issuesFor(useStore((s) => s.doc)).findings.length
+  // Only actionable counts earn a badge. Warnings and observations would cry
+  // wolf on a drawing that is merely unfinished, so the badge counts CRITICALS
+  // alone — the things that would stop the drawing being issued.
+  const findings = qaFor(useStore((s) => s.doc)).counts.critical
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

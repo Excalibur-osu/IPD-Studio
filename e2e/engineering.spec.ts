@@ -89,6 +89,7 @@ test('a deleted record surfaces as an orphan and can be purged', async ({ page }
   const orphan = page.locator('.ws-issue', { hasText: 'engineering record' })
   await expect(orphan).toBeVisible()
 
-  await orphan.getByRole('button', { name: 'Fix' }).click()
+  // the fix names what it does rather than saying "Fix"
+  await orphan.getByRole('button', { name: 'Discard the record' }).click()
   await expect(page.locator('.ws-issue', { hasText: 'engineering record' })).toHaveCount(0)
 })

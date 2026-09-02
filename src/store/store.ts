@@ -32,8 +32,9 @@ export interface StoreState {
   moveNodes(ids: string[], dx: number, dy: number): void
   /** Magnetic docking: drop a component onto another component's
    *  connection point. The move and the line it creates are ONE undo step
-   *  because they are one gesture to the user. */
-  dockNode(id: string, x: number, y: number, edge: Omit<PlantEdge, 'id'>): void
+   *  because they are one gesture to the user. Returns the new line's id, so
+   *  a shake mid-drag can cut exactly the line that drag just made. */
+  dockNode(id: string, x: number, y: number, edge: Omit<PlantEdge, 'id'>): string
   rotateNode(id: string): void
   setNodeScale(id: string, scale: number): void
   /** Per-axis stretch (longer horizontal vessel etc.). 1/1 clears all scaling. */
@@ -59,6 +60,10 @@ export interface StoreState {
   /** Delete a record outright. Only ever called for an orphan the user has
    *  chosen to discard — nothing deletes a record automatically. */
   purgeRecord(key: string): void
+  /** Accept a QA finding, with the reason on the record. Keyed by the finding's
+   *  stable rule+entity key, so it survives deleting and redrawing the symbol. */
+  ignoreFinding(key: string, reason: string): void
+  unignoreFinding(key: string): void
   setUnderlay(underlay: Sheet['underlay']): void
   addCustomSymbol(def: CustomSymbolDef): void
   removeCustomSymbol(id: string): void
@@ -221,11 +226,13 @@ export const useStore = create<StoreState>()(
         },
 
         dockNode(id, x, y, edge) {
+          const edgeId = ulid()
           patchSheet((sh) => ({
             ...sh,
             nodes: sh.nodes.map((n) => (n.id === id ? { ...n, x, y } : n)),
-            edges: [...sh.edges, { ...edge, id: ulid() }],
+            edges: [...sh.edges, { ...edge, id: edgeId }],
           }))
+          return edgeId
         },
 
         rotateNode(id) {
@@ -417,6 +424,31 @@ export const useStore = create<StoreState>()(
             const registry = { ...s.doc.registry }
             delete registry[key]
             return { doc: touched({ ...s.doc, registry }), dirty: true }
+          })
+        },
+
+        ignoreFinding(key, reason) {
+          set((s) => ({
+            doc: touched({
+              ...s.doc,
+              qa: {
+                ignored: {
+                  ...s.doc.qa?.ignored,
+                  [key]: { reason, by: s.doc.meta.author || undefined, at: new Date().toISOString() },
+                },
+              },
+            }),
+            dirty: true,
+          }))
+        },
+
+        unignoreFinding(key) {
+          set((s) => {
+            const current = s.doc.qa?.ignored
+            if (!current?.[key]) return s
+            const ignored = { ...current }
+            delete ignored[key]
+            return { doc: touched({ ...s.doc, qa: { ignored } }), dirty: true }
           })
         },
 

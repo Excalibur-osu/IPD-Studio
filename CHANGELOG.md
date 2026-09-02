@@ -4,6 +4,82 @@ All notable changes to IPD Studio. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Docking happens mid-drag, not on release.** The line is drawn the moment
+  the two connection points meet, with the mouse button still down — keep
+  dragging and the pipe stretches behind you. Before, you had to let go,
+  then pick the symbol back up to pull it into place.
+- **Symbols stand off 24px from the point they dock onto**, in line with the
+  way that port faces, so a real length of pipe is visible. Landing the
+  points on top of each other read as nothing having happened: the two
+  symbols butted together and hid the line behind themselves.
+- **A magnet only joins ports that face each other.** Two ports pointing the
+  same way would stand a symbol on the wrong side of the nozzle it just
+  connected to, with its inlet pointing away.
+
+### Added
+
+- **Shake to disconnect** — waggle the symbol while still dragging and the
+  line that drag just made is cut, with a red flash where it used to land.
+  The symbol stays in hand, and it won't snap back onto the point just
+  rejected, so you can take it somewhere else without letting go.
+
+## [0.17.0] — 2026-09-02 — the QA engine
+
+Third step of the engineering-platform plan
+([docs/ENGINEERING-PLATFORM-PLAN.md](docs/ENGINEERING-PLATFORM-PLAN.md), §4.2).
+Validation becomes a rule engine an engineer can actually work through.
+
+### Added
+
+- **21 rules with real severities** — critical, warning and information, grouped
+  by discipline (tagging, topology, process, instrumentation, data). Severity
+  used to be encoded as the *absence* of a field, which could not express the
+  middle.
+- **Accept a finding, with a reason.** Not every finding is a mistake. Accepting
+  one records why, keeps it visible in its own section rather than hiding it,
+  and — because findings are keyed by rule + engineering identity, never by node
+  id — the acceptance survives deleting and redrawing the symbol.
+- **Fixes are data, not callbacks.** A rule returns a `FixSpec`, so a repair can
+  be named, previewed with its blast radius, and replayed in a test before it is
+  applied. `applyFix` now reports whether it actually landed instead of failing
+  silently, and `describeFix` gives one shared description of what a fix would do.
+- **One index per document.** Every rule reads a single prepared walk of the
+  drawing rather than rebuilding its own maps — `runChecks` alone used to build
+  four, and the advisor rebuilt a neighbour list per node per rule.
+- **The Checks workspace** groups by severity, filters by discipline, states why
+  each rule matters, and keeps accepted findings visible with their reasons.
+
+### Fixed
+
+- **Equipment tags are no longer reported as ISA errors.** `invalid-letters` was
+  applying the ISA-5.1 *instrument* letter tables to equipment, so `P-101` on a
+  pump — a completely standard tag — was flagged as invalid. This was found by
+  running the new rule set over the project's own bundled templates, and the
+  false positive existed in the old engine too.
+- **One finding per rule and entity.** Rules that walk nodes emitted the same
+  finding twice when two symbols wore one tag, which also meant accepting one of
+  them silently accepted both.
+
+### Changed
+
+- `no-relief` and `no-fail-position` are **warnings, not blockers**, by default.
+  Both are real concerns and both are legitimately unstated on plenty of
+  drawings — three of the five bundled samples trip `no-relief`. A company
+  standard promotes them (v0.18); crying wolf until then teaches people to
+  ignore the report.
+- `required-field-empty` only fires on a record someone has **started**. Firing
+  on every tagged object of a pre-registry drawing buried the report under
+  11–13 identical warnings.
+- The drawer's Issues tab shows criticals and warnings; observations live in the
+  Checks workspace. The rail badge counts criticals only.
+- Retired `validate/checks.ts`, `validate/suggest.ts`, `validate/issues.ts` and
+  the two panels that read them; their coverage moved to the rule tests.
+- Removed the dead `Finding` type.
+
 ## [0.16.0] — 2026-09-01 — magnetic docking
 
 ### Added

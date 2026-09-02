@@ -8,7 +8,7 @@ import { formatTag } from '../isa/tag'
 import { getSymbol } from '../symbols/registry'
 import { deriveLoops } from '../store/selectors'
 import { useStore } from '../store/store'
-import { locateCell } from './ValidationPanel'
+import { locateCell } from '../canvas/locate'
 
 interface Ref {
   key: string

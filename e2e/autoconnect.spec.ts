@@ -3,8 +3,12 @@ import { expect, test, type Page } from '@playwright/test'
 /* Magnetic docking — connect by touching, not by drawing:
    - drop a palette symbol onto an existing symbol's connection point and it
      clicks into place already connected
-   - drag a symbol already on the sheet the same way, in one undo step
-   - pull the pair apart afterwards and the pipe stretches instead of breaking */
+   - drag a symbol already on the sheet the same way: the line is drawn the
+     moment the points meet, WITHOUT releasing the mouse, and keeping the drag
+     going stretches the pipe
+   - the symbol stands off from the point it landed on, so the pipe is visible
+     instead of hidden behind two touching symbols
+   - shaking the symbol mid-drag cuts the line that drag just made */
 
 interface PidHook {
   useStore: { getState(): any; temporal: { getState(): any } }
@@ -26,6 +30,17 @@ async function drag(page: Page, from: { x: number; y: number }, to: { x: number;
   await page.mouse.down()
   await page.mouse.move(to.x, to.y, { steps })
   await page.mouse.up()
+}
+
+/** Waggle the pointer where it is — the "no, not there" gesture. */
+async function shakePointer(page: Page, at: { x: number; y: number }) {
+  for (let i = 0; i < 6; i++) await page.mouse.move(at.x + (i % 2 ? -45 : 45), at.y)
+}
+
+/** Tuple form of clientPoint, to spread straight into page.mouse.move(). */
+async function point(page: Page, x: number, y: number): Promise<[number, number]> {
+  const p = await clientPoint(page, x, y)
+  return [p.x, p.y]
 }
 
 const sheet = (page: Page) => page.evaluate(() => window.__pid.useStore.getState().doc.sheets[0])
@@ -75,8 +90,8 @@ test('dropping a palette symbol on a connection point docks and connects it', as
   const after = await sheet(page)
   const dropped = after.nodes.find((n: any) => n.id !== gate)
 
-  // pulled into place so the two connection points are the same point
-  expect({ x: dropped.x, y: dropped.y }).toEqual({ x: 232, y: 200 })
+  // pulled into line with the nozzle and stood off by 24px, so the pipe shows
+  expect({ x: dropped.x, y: dropped.y }).toEqual({ x: 256, y: 200 })
   expect(after.edges).toHaveLength(1)
   expect(after.edges[0].source).toEqual({ nodeId: dropped.id, portId: 'w' })
   expect(after.edges[0].target).toEqual({ nodeId: gate, portId: 'e' })
@@ -96,7 +111,7 @@ test('a symbol dropped clear of every connection point just lands there', async 
   expect((await sheet(page)).edges).toHaveLength(0)
 })
 
-test('dragging a placed symbol onto a connection point docks it, and pulling away stretches the line', async ({ page }) => {
+test('a drag connects the moment the points meet, and goes on stretching the pipe', async ({ page }) => {
   const gate = await withGateValve(page)
   const moving = await page.evaluate(() => {
     const s = window.__pid.useStore.getState()
@@ -107,35 +122,76 @@ test('dragging a placed symbol onto a connection point docks it, and pulling awa
   await expect(page.locator('[model-id]')).toHaveCount(2)
   const before = await undoDepth(page)
 
-  // Grab the moving valve by its centre (416,308) and bring its w port to
-  // within a few px of the fixed valve's e port at (232,208).
-  await drag(page, await clientPoint(page, 416, 308), await clientPoint(page, 254, 208))
+  // Grab the moving valve by its centre and bring its w port up to the fixed
+  // valve's e port at (232,208) — WITHOUT releasing the button.
+  await page.mouse.move(...(await point(page, 416, 308)))
+  await page.mouse.down()
+  await page.mouse.move(...(await point(page, 254, 208)), { steps: 16 })
 
+  // connected already, mid-drag, with the button still down
   await expect.poll(async () => (await sheet(page)).edges.length).toBe(1)
-  const docked = await sheet(page)
-  const node = docked.nodes.find((n: any) => n.id === moving)
-  expect({ x: node.x, y: node.y }).toEqual({ x: 232, y: 200 })
-  expect(docked.edges[0].source).toEqual({ nodeId: moving, portId: 'w' })
-  expect(docked.edges[0].target).toEqual({ nodeId: gate, portId: 'e' })
-  // the move and the line are one gesture, so they are one undo step
-  expect(await undoDepth(page)).toBe(before + 1)
+  const caught = await sheet(page)
+  expect(caught.edges[0].source).toEqual({ nodeId: moving, portId: 'w' })
+  expect(caught.edges[0].target).toEqual({ nodeId: gate, portId: 'e' })
+  // stood off, so there is a visible pipe rather than two symbols touching
+  expect(caught.nodes.find((n: any) => n.id === moving)).toMatchObject({ x: 256, y: 200 })
 
-  // docked: the ports coincide, so there is no pipe drawn between them yet
-  const edgeId = docked.edges[0].id
+  const edgeId = caught.edges[0].id
   const length = () =>
     page.evaluate((id) => {
       const paper = window.__pid.canvasRef.paper!
       const view = paper.model.getCell(id).findView(paper)
       return view.getConnectionLength() as number
     }, edgeId)
-  await expect.poll(length).toBeLessThan(2)
+  // a real, visible run of pipe — not two symbols touching with nothing drawn
+  await expect.poll(length).toBeGreaterThan(10)
+  await expect.poll(length).toBeLessThan(32)
 
-  // pull it away and the pipe stretches to follow instead of breaking
-  await drag(page, await clientPoint(page, 248, 208), await clientPoint(page, 448, 208))
+  // keep dragging — still no mouse-up — and the pipe stretches to follow
+  await page.mouse.move(...(await point(page, 654, 208)), { steps: 16 })
+  await expect.poll(length).toBeGreaterThan(300)
+  await page.mouse.up()
+
   const moved = await sheet(page)
   expect(moved.edges).toHaveLength(1)
   expect(moved.edges[0].source).toEqual({ nodeId: moving, portId: 'w' })
-  expect(moved.edges[0].target).toEqual({ nodeId: gate, portId: 'e' })
-  expect(moved.nodes.find((n: any) => n.id === moving).x).toBeGreaterThan(400)
-  await expect.poll(length).toBeGreaterThan(150)
+  expect(moved.nodes.find((n: any) => n.id === moving).x).toBeGreaterThan(600)
+  // catch and carry are one gesture, so they are one undo step
+  expect(await undoDepth(page)).toBe(before + 1)
+  await page.evaluate(() => window.__pid.useStore.getState().undo())
+  const undone = await sheet(page)
+  expect(undone.edges).toHaveLength(0)
+  expect(undone.nodes.find((n: any) => n.id === moving)).toMatchObject({ x: 400, y: 300 })
+})
+
+test('shaking the symbol mid-drag cuts the line that drag just made', async ({ page }) => {
+  await withGateValve(page)
+  const moving = await page.evaluate(() => {
+    const s = window.__pid.useStore.getState()
+    const id = s.addNode({ symbolId: 'valve.gate', kind: 'valve', x: 400, y: 300, rotation: 0 })
+    s.setSelection([])
+    return id as string
+  })
+  await expect(page.locator('[model-id]')).toHaveCount(2)
+
+  await page.mouse.move(...(await point(page, 416, 308)))
+  await page.mouse.down()
+  await page.mouse.move(...(await point(page, 254, 208)), { steps: 16 })
+  await expect.poll(async () => (await sheet(page)).edges.length).toBe(1)
+
+  // wrong point — waggle it off without ever letting go
+  const here = await clientPoint(page, 254, 208)
+  await shakePointer(page, here)
+  await expect.poll(async () => (await sheet(page)).edges.length).toBe(0)
+
+  // and it does not snap straight back onto the point just rejected, nor
+  // does letting go sneak the connection back on
+  await page.mouse.move(...(await point(page, 254, 208)), { steps: 6 })
+  expect((await sheet(page)).edges).toHaveLength(0)
+  await page.mouse.up()
+  expect((await sheet(page)).edges).toHaveLength(0)
+
+  // one undo still takes the whole gesture back
+  await page.evaluate(() => window.__pid.useStore.getState().undo())
+  expect((await sheet(page)).nodes.find((n: any) => n.id === moving)).toMatchObject({ x: 400, y: 300 })
 })
