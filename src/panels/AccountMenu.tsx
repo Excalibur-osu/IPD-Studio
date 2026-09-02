@@ -9,11 +9,13 @@ import { useAuthStore, signOutUser } from '../auth/authStore'
 import { authErrorMessage } from '../auth/errors'
 import CloudDialog from '../cloud/CloudDialog'
 import { saveToCloud } from '../cloud/sync'
+import { useT } from '../i18n'
 
 /** Toolbar account control. Signed out it is a single Sign in button; signed
  *  in it opens a small menu over the cloud drawings. Sign-in is never required
  *  to draw — this is additive to the local-first editor, not a gate. */
 export default function AccountMenu() {
+  const t = useT()
   const user = useAuthStore((s) => s.user)
   const ready = useAuthStore((s) => s.ready)
   const [cloudOpen, setCloudOpen] = useState(false)
@@ -68,14 +70,14 @@ export default function AccountMenu() {
             My drawings…
           </button>
           <button role="menuitem" data-testid="account-save" onClick={() => void saveCurrent()} disabled={saving}>
-            {saving ? 'Saving…' : 'Save to cloud'}
+            {saving ? t('Saving…') : t('Save to cloud')}
           </button>
           <div className="tb-account-sep" />
           <a role="menuitem" className="tb-account-link" href="https://github.com/sponsors/Coldbari"
             target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)}>
-            Buy me a coffee ☕
+            {t('Buy me a coffee ☕')}
           </a>
-          <button role="menuitem" onClick={() => { setMenuOpen(false); void signOutUser() }}>Sign out</button>
+          <button role="menuitem" onClick={() => { setMenuOpen(false); void signOutUser() }}>{t('Sign out')}</button>
         </Popover>
       )}
       {status && <span className="tb-account-status" role="status">{status}</span>}

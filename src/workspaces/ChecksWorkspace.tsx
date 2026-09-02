@@ -9,6 +9,7 @@ import { qaFor } from '../validate/engine'
 import type { Severity } from '../validate/rules'
 import { locateCell } from '../canvas/locate'
 import { applyFix, describeFix, type FixSpec } from '../assist/fixes'
+import { useT } from '../i18n'
 
 const SEVERITY_LABEL: Record<Severity, string> = {
   critical: 'Critical',
@@ -33,6 +34,7 @@ const DISCIPLINES = ['tagging', 'topology', 'process', 'instrumentation', 'data'
  * the reason someone accepted a finding is exactly what the next reviewer needs.
  */
 export default function ChecksWorkspace() {
+  const t = useT()
   const doc = useStore((s) => s.doc)
   const ignoreFinding = useStore((s) => s.ignoreFinding)
   const unignoreFinding = useStore((s) => s.unignoreFinding)
@@ -66,19 +68,19 @@ export default function ChecksWorkspace() {
   return (
     <div className="ws">
       <header className="ws-head">
-        <h1>Checks</h1>
+        <h1>{t('Checks')}</h1>
         <span className={`ws-tally${report.counts.critical ? ' bad' : ' ok'}`} data-testid="checks-tally">
           {report.counts.critical
-            ? `${report.counts.critical} critical`
-            : report.total === 0 ? 'No findings' : 'Nothing critical'}
+            ? `${report.counts.critical} ${t('critical')}`
+            : report.total === 0 ? t('No findings') : t('Nothing critical')}
         </span>
         {report.counts.warning > 0 && <span className="ws-tally soft">{report.counts.warning} warning</span>}
         {report.counts.info > 0 && <span className="ws-tally">{report.counts.info} info</span>}
         <span className="ws-sp" />
         <label className="ws-filter">
-          Discipline
+          {t('Discipline')}
           <select value={discipline} onChange={(e) => setDiscipline(e.target.value)} data-testid="checks-discipline">
-            <option value="all">all</option>
+            <option value="all">{t('all')}</option>
             {DISCIPLINES.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </label>
@@ -87,7 +89,7 @@ export default function ChecksWorkspace() {
       <div className="ws-body">
         {report.total === 0 && (
           <p className="ws-empty">
-            Nothing to fix — every tag parses, every line lands, and the instrumentation reads as complete.
+            {t('Nothing to fix — every tag parses, every line lands, and the instrumentation reads as complete.')}
           </p>
         )}
 
@@ -98,8 +100,8 @@ export default function ChecksWorkspace() {
             <div key={g.rule.id}>
               {heading && (
                 <div className={`ws-sev ${heading}`}>
-                  <h2>{SEVERITY_LABEL[heading]}</h2>
-                  <p>{SEVERITY_NOTE[heading]}</p>
+                  <h2>{t(SEVERITY_LABEL[heading])}</h2>
+                  <p>{t(SEVERITY_NOTE[heading])}</p>
                 </div>
               )}
               <div className="ws-group" data-testid={`rule-${g.rule.id}`}>
@@ -127,7 +129,7 @@ export default function ChecksWorkspace() {
                       title="Accept this finding, with a reason"
                       onClick={() => accept(f.key, f.message)}
                     >
-                      Accept
+                      {t('Accept')}
                     </button>
                   </div>
                 ))}
@@ -139,7 +141,7 @@ export default function ChecksWorkspace() {
         {report.ignored.length > 0 && (
           <div className="ws-ignored">
             <button className="ws-ignored-head" onClick={() => setShowIgnored((v) => !v)} data-testid="checks-ignored">
-              {showIgnored ? '▾' : '▸'} Accepted findings <span>{report.ignored.length}</span>
+              {showIgnored ? '▾' : '▸'} {t('Accepted findings')} <span>{report.ignored.length}</span>
             </button>
             {showIgnored && (
               <div className="ws-group">
@@ -149,7 +151,7 @@ export default function ChecksWorkspace() {
                       {f.message}
                       <em> — {entry.reason}{entry.by ? ` (${entry.by})` : ''}</em>
                     </span>
-                    <button className="ws-issue-fix" onClick={() => unignoreFinding(f.key)}>Reopen</button>
+                    <button className="ws-issue-fix" onClick={() => unignoreFinding(f.key)}>{t('Reopen')}</button>
                   </div>
                 ))}
               </div>

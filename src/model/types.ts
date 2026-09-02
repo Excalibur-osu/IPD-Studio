@@ -86,7 +86,7 @@ export interface PlantNode {
   cost?: number
 }
 
-export type EdgeEnd = { nodeId: string; portId: string } | { x: number; y: number }
+export type EdgeEnd = { nodeId: string; portId: string } | { x: number; y: number; pendingTag?: string }
 
 export function isPortEnd(end: EdgeEnd): end is { nodeId: string; portId: string } {
   return 'nodeId' in end

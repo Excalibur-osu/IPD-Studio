@@ -5,7 +5,8 @@
 import { useState } from 'react'
 import { getSymbol } from '../symbols/registry'
 import { activeSheet, pauseHistory, resumeHistory, useStore } from '../store/store'
-import type { LineClass, PlantEdge, PlantNode, SheetSize } from '../model/types'
+import type { EdgeEnd, LineClass, PlantEdge, PlantNode, SheetSize } from '../model/types'
+import { isPortEnd } from '../model/types'
 import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
 import TagEditor from './TagEditor'
 import { applyAlignment, duplicateSelection } from '../canvas/interactions'
@@ -16,10 +17,12 @@ import DatasheetEditor from './DatasheetEditor'
 import FluidsDialog from './FluidsDialog'
 import InspectorWhereUsed from './InspectorWhereUsed'
 import InspectorEngineering from './InspectorEngineering'
+import { useT } from '../i18n'
 
 const SHEETS: SheetSize[] = ['A4', 'A3', 'A2', 'A1', 'ANSI_B', 'ANSI_D']
 
 function SheetProps() {
+  const t = useT()
   const meta = useStore((s) => s.doc.meta)
   const sheet = useStore((s) => activeSheet(s))
   const numberStart = useStore((s) => s.doc.settings.numberStart ?? 100)
@@ -28,10 +31,10 @@ function SheetProps() {
   const setSheetMeta = useStore((s) => s.setSheetMeta)
   return (
     <>
-      <div className="prop-title">Project</div>
-      <label className="prop-field">Name<input value={meta.name} onChange={(e) => { setMeta({ name: e.target.value }); pauseHistory() }} onBlur={resumeHistory} /></label>
-      <label className="prop-field">Author<input value={meta.author} onChange={(e) => { setMeta({ author: e.target.value }); pauseHistory() }} onBlur={resumeHistory} /></label>
-      <label className="prop-field">Tag numbering starts at
+      <div className="prop-title">{t('Project')}</div>
+      <label className="prop-field">{t('Name')}<input value={meta.name} onChange={(e) => { setMeta({ name: e.target.value }); pauseHistory() }} onBlur={resumeHistory} /></label>
+      <label className="prop-field">{t('Author')}<input value={meta.author} onChange={(e) => { setMeta({ author: e.target.value }); pauseHistory() }} onBlur={resumeHistory} /></label>
+      <label className="prop-field">{t('Tag numbering starts at')}
         <select
           value={String(numberStart)}
           onChange={(e) => setSettings({ numberStart: e.target.value === '1' ? 1 : 100 })}
@@ -206,6 +209,7 @@ function NodeProps({ node }: { node: PlantNode }) {
 }
 
 function EdgeProps({ edge }: { edge: PlantEdge }) {
+  const t = useT()
   const setEdge = useStore((s) => s.setEdge)
   const setEdgeFluid = useStore((s) => s.setEdgeFluid)
   const doc = useStore((s) => s.doc)
@@ -215,10 +219,29 @@ function EdgeProps({ edge }: { edge: PlantEdge }) {
   const fluid = (doc.fluids ?? []).find((f) => f.id === edge.fluidId)
   const ln = edge.lineNumber ?? { size: '', spec: '', service: '', seq: '' }
   const setLn = (patch: Partial<typeof ln>) => { setEdge(edge.id, { lineNumber: { ...ln, ...patch } }); pauseHistory() }
+  const setPendingTag = (end: 'source' | 'target', value: string) => {
+    const current = edge[end]
+    if (isPortEnd(current)) return
+    const next: EdgeEnd = value.trim() ? { ...current, pendingTag: value } : { x: current.x, y: current.y }
+    setEdge(edge.id, { [end]: next })
+  }
   return (
     <>
-      <div className="prop-title">Line</div>
-      <label className="prop-field">Class
+      <div className="prop-title">{t('Line')}</div>
+      {(['source', 'target'] as const).map((end) => {
+        const point = edge[end]
+        if (isPortEnd(point)) return null
+        return (
+          <label className="prop-field" key={end}>待接设备编号 ({end === 'source' ? '起点' : '终点'})
+            <input
+              value={point.pendingTag ?? ''}
+              placeholder="例如 V-101"
+              onChange={(e) => setPendingTag(end, e.target.value)}
+            />
+          </label>
+        )
+      })}
+      <label className="prop-field">{t('Class')}
         <select value={edge.lineClass} onChange={(e) => setEdge(edge.id, { lineClass: e.target.value as LineClass })}>
           {Object.entries(LINE_CLASS_LABELS).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
         </select>
@@ -229,10 +252,10 @@ function EdgeProps({ edge }: { edge: PlantEdge }) {
           checked={edge.arrow === 'flow'}
           onChange={(e) => setEdge(edge.id, { arrow: e.target.checked ? 'flow' : 'none' })}
         />
-        Flow arrow
+        {t('Flow arrow')}
       </label>
       {isPipe && (
-        <label className="prop-field">Fluid
+        <label className="prop-field">{t('Fluid')}
           <div className="tag-row">
             <span
               aria-hidden
@@ -255,7 +278,7 @@ function EdgeProps({ edge }: { edge: PlantEdge }) {
       {fluidsOpen && <FluidsDialog onClose={() => setFluidsOpen(false)} />}
       {isProcess && (
         <div className="prop-group">
-          <div className="prop-title">Line Number</div>
+          <div className="prop-title">{t('Line Number')}</div>
           <div className="tag-row">
             <input placeholder='size (2")' value={ln.size} onChange={(e) => setLn({ size: e.target.value })} onBlur={resumeHistory} />
             <input placeholder="spec" value={ln.spec} onChange={(e) => setLn({ spec: e.target.value })} onBlur={resumeHistory} />
@@ -283,6 +306,7 @@ type InspectorTab = 'symbol' | 'eng' | 'used'
  * which is the whole point of the P&ID being the way in.
  */
 export default function PropertyPanel({ onCollapse }: { onCollapse?: () => void }) {
+  const t = useT()
   const selection = useStore((s) => s.selection)
   const doc = useStore((s) => s.doc)
   const activeSheetId = useStore((s) => s.activeSheetId)
@@ -333,7 +357,7 @@ export default function PropertyPanel({ onCollapse }: { onCollapse?: () => void 
   return (
     <aside className="props">
       <div className="panel-head">
-        <h2>Properties</h2>
+        <h2>{t('Properties')}</h2>
         <span className="sp" />
         {onCollapse && (
           <button className="panel-collapse" title="Hide the properties panel" onClick={onCollapse}>▸</button>
@@ -343,17 +367,17 @@ export default function PropertyPanel({ onCollapse }: { onCollapse?: () => void 
         <div className="insp-tabs" role="tablist">
           <button role="tab" aria-selected={tab === 'symbol'} data-testid="insp-symbol"
             className={tab === 'symbol' ? 'on' : ''} onClick={() => setTab('symbol')}>
-            Symbol
+            {t('Symbol')}
           </button>
           <button role="tab" aria-selected={tab === 'eng'} data-testid="insp-eng"
             className={tab === 'eng' ? 'on' : ''} onClick={() => setTab('eng')}
             title="The engineering record for this object">
-            Engineering
+            {t('Engineering')}
           </button>
           <button role="tab" aria-selected={tab === 'used'} data-testid="insp-used"
             className={tab === 'used' ? 'on' : ''} onClick={() => setTab('used')}
             title="Every place this object is referenced">
-            Where used
+            {t('Where used')}
           </button>
         </div>
       )}

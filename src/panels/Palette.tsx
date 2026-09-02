@@ -11,6 +11,7 @@ import SymbolImportDialog from './SymbolImportDialog'
 import type { SymbolCategory, SymbolDef } from '../symbols/types'
 import type { InstrumentPreset } from './instrumentPresets'
 import { INSTRUMENT_PRESETS, TOP_PRESET_LETTERS, searchPalette } from './instrumentPresets'
+import { useT } from '../i18n'
 
 export const DRAG_MIME = 'application/x-pid-symbol'
 
@@ -83,6 +84,7 @@ function Entry({ def, label, title, presetLetters }: { def: SymbolDef; label: st
 }
 
 export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
+  const t = useT()
   const [query, setQuery] = useState('')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -109,14 +111,14 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
   }
   const moreButton = (cat: string, hidden: number) => (
     <button className="palette-more" onClick={() => toggleMore(cat)}>
-      {expanded.has(cat) ? '▴ Show less' : `▾ Show all (${hidden} more)`}
+      {expanded.has(cat) ? t('▴ Show less') : `▾ ${t('Show all')}（${hidden}）`}
     </button>
   )
 
   return (
     <aside className="palette">
       <div className="panel-head">
-        <h2>Symbols</h2>
+        <h2>{t('Symbols')}</h2>
         <span className="sp" />
         {onCollapse && (
           <button className="panel-collapse" title="Hide the symbol palette" onClick={onCollapse}>◂</button>
@@ -125,7 +127,7 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
       <div className="palette-head">
         <input
           className="palette-search"
-          placeholder="Search symbols…  (Enter places)"
+          placeholder={t('Search symbols…  (Enter places)')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -135,12 +137,12 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
           }}
         />
       </div>
-      <button className="palette-import" onClick={() => setImportOpen(true)}>＋ Import symbol…</button>
+      <button className="palette-import" onClick={() => setImportOpen(true)}>{t('＋ Import symbol…')}</button>
       {importOpen && <SymbolImportDialog onClose={() => setImportOpen(false)} />}
       {!query && (
         <section>
           <button className="palette-cat" onClick={() => toggle('typicals')}>
-            {!collapsed.has('typicals') ? '▾' : '▸'} Typical Loops
+            {!collapsed.has('typicals') ? '▾' : '▸'} {t('Typical Loops')}
           </button>
           {!collapsed.has('typicals') && (
             <div className="typical-list">
@@ -183,7 +185,7 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
           return (
             <section key={cat}>
               <button className="palette-cat" onClick={() => toggle(cat)}>
-                {isOpen ? '▾' : '▸'} {title}
+                {isOpen ? '▾' : '▸'} {t(title)}
               </button>
               {isOpen && cat === 'instruments' && bubble && (
                 <>

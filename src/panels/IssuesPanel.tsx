@@ -7,6 +7,7 @@ import { qaFor } from '../validate/engine'
 import { locateCell } from '../canvas/locate'
 import { navigateWorkspace } from '../routes'
 import { applyFix } from '../assist/fixes'
+import { useT } from '../i18n'
 
 /**
  * The glance version while you draw: criticals and warnings only, newest rule
@@ -14,6 +15,7 @@ import { applyFix } from '../assist/fixes'
  * — lives in the Checks workspace, one click away.
  */
 export default function IssuesPanel() {
+  const t = useT()
   const doc = useStore((s) => s.doc)
   const report = qaFor(doc)
 
@@ -22,13 +24,13 @@ export default function IssuesPanel() {
   const shown = report.groups.filter((g) => g.rule.severity !== 'info')
 
   if (report.total === 0) {
-    return <div className="drawer-empty">No findings — the drawing is clean.</div>
+    return <div className="drawer-empty">{t('No findings — the drawing is clean.')}</div>
   }
 
   return (
     <div className="drawer-list">
       {shown.length === 0 && (
-        <div className="drawer-group">Nothing critical — {report.counts.info} observation{report.counts.info === 1 ? '' : 's'} in Checks</div>
+        <div className="drawer-group">{t('Nothing critical —')} {report.counts.info} {t(report.counts.info === 1 ? 'observation' : 'observations')} {t('in Checks')}</div>
       )}
       {shown.map((g) => (
         <section key={g.rule.id}>
@@ -41,14 +43,14 @@ export default function IssuesPanel() {
                 {f.message}
               </button>
               {f.fix && (
-                <button className="advisor-fix" title={f.fix.label} onClick={() => applyFix(f.fix!.spec)}>Fix</button>
+                <button className="advisor-fix" title={f.fix.label} onClick={() => applyFix(f.fix!.spec)}>{t('Fix')}</button>
               )}
             </div>
           ))}
         </section>
       ))}
       <button className="drawer-more" onClick={() => navigateWorkspace('checks')}>
-        Open the full report in Checks →
+        {t('Open the full report in Checks →')}
       </button>
     </div>
   )

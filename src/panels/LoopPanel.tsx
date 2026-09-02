@@ -7,12 +7,14 @@ import { deriveLoops } from '../store/selectors'
 import { formatTag } from '../isa/tag'
 import { printLoopDiagram } from '../export/loopDiagram'
 import { useStore } from '../store/store'
+import { useT } from '../i18n'
 
 export default function LoopPanel() {
+  const t = useT()
   const doc = useStore((s) => s.doc)
   const setSelection = useStore((s) => s.setSelection)
   const loops = useMemo(() => deriveLoops(doc), [doc])
-  if (loops.length === 0) return <div className="drawer-empty">No tagged instruments yet.</div>
+  if (loops.length === 0) return <div className="drawer-empty">{t('No tagged instruments yet.')}</div>
   return (
     <div className="drawer-list">
       {loops.map((loop) => (
@@ -30,7 +32,7 @@ export default function LoopPanel() {
             title="Generate ISA-5.4-style loop diagram"
             onClick={() => printLoopDiagram(doc, loop.family, loop.loop)}
           >
-            Diagram
+            {t('Diagram')}
           </button>
         </div>
       ))}

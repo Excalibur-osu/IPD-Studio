@@ -16,6 +16,7 @@ import {
   saveToCloud,
   type CloudDrawingMeta,
 } from './sync'
+import { useT } from '../i18n'
 
 const btn: CSSProperties = { padding: '3px 9px', border: '1px solid #ccc', borderRadius: 4, background: '#fff', fontSize: 12, cursor: 'pointer' }
 const btnPrimary: CSSProperties = { ...btn, borderColor: '#2b6cb0', color: '#2b6cb0' }
@@ -37,6 +38,7 @@ function message(err: unknown): string {
 /** The signed-in user's drawings in Firestore: open, rename, delete, and save
  *  the drawing on screen — either over the one it came from or as a new one. */
 export default function CloudDialog({ open, onClose }: { open: boolean; onClose(): void }) {
+  const t = useT()
   const dirty = useStore((s) => s.dirty)
   const cloudId = useStore((s) => s.cloudId)
   const setCloudId = useStore((s) => s.setCloudId)
@@ -156,8 +158,8 @@ export default function CloudDialog({ open, onClose }: { open: boolean; onClose(
   const idle = (style: CSSProperties): CSSProperties => (busy ? { ...style, opacity: 0.5, cursor: 'default' } : style)
 
   return (
-    <Modal title="Cloud drawings" onClose={onClose} width={520}>
-      {uid === undefined && <div className="drawer-empty">Checking your account…</div>}
+    <Modal title={t('Cloud drawings')} onClose={onClose} width={520}>
+      {uid === undefined && <div className="drawer-empty">{t('Checking your account…')}</div>}
 
       {uid === null && (
         <p className="prop-hint">
@@ -170,9 +172,9 @@ export default function CloudDialog({ open, onClose }: { open: boolean; onClose(
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px' }}>
             <button style={idle(btnPrimary)} disabled={!!busy} onClick={() => void save(false)}>
-              {current ? `Save over “${current.name}”` : 'Save current drawing'}
+              {current ? `${t('Save over')} “${current.name}”` : t('Save current drawing')}
             </button>
-            <button style={idle(btn)} disabled={!!busy} onClick={() => void save(true)}>Save as new</button>
+            <button style={idle(btn)} disabled={!!busy} onClick={() => void save(true)}>{t('Save as new')}</button>
             <span className="prop-hint" style={{ marginLeft: 'auto' }}>
               {busy ?? (dirty ? 'Unsaved changes' : '')}
             </span>
@@ -182,13 +184,13 @@ export default function CloudDialog({ open, onClose }: { open: boolean; onClose(
             <div className="import-note" style={{ color: '#9b1c1c', background: '#fde8e8', borderColor: '#f0bcbc' }}>
               {error}
               <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                <button style={btn} onClick={() => { setError(null); setReload((n) => n + 1) }}>Reload list</button>
-                <button style={btn} onClick={() => setError(null)}>Dismiss</button>
+                <button style={btn} onClick={() => { setError(null); setReload((n) => n + 1) }}>{t('Reload list')}</button>
+                <button style={btn} onClick={() => setError(null)}>{t('Dismiss')}</button>
               </div>
             </div>
           )}
 
-          {rows === null && !error && <div className="drawer-empty">Loading your drawings…</div>}
+          {rows === null && !error && <div className="drawer-empty">{t('Loading your drawings…')}</div>}
 
           {rows !== null && rows.length === 0 && (
             <div className="drawer-empty">
@@ -232,8 +234,8 @@ export default function CloudDialog({ open, onClose }: { open: boolean; onClose(
                   <div style={{ display: 'flex', gap: 6, flex: 'none' }}>
                     {ren ? (
                       <>
-                        <button style={idle(btnPrimary)} disabled={!!busy} onClick={() => void commitRename()}>Save name</button>
-                        <button style={btn} onClick={() => setRenaming(null)}>Cancel</button>
+                        <button style={idle(btnPrimary)} disabled={!!busy} onClick={() => void commitRename()}>{t('Save name')}</button>
+                        <button style={btn} onClick={() => setRenaming(null)}>{t('Cancel')}</button>
                       </>
                     ) : (
                       <>
@@ -242,10 +244,10 @@ export default function CloudDialog({ open, onClose }: { open: boolean; onClose(
                           disabled={!!busy}
                           onClick={() => (dirty ? setConfirming({ kind: 'open', id: row.id }) : void openDrawing(row))}
                         >
-                          Open
+                          {t('Open')}
                         </button>
-                        <button style={idle(btn)} disabled={!!busy} onClick={() => setRenaming({ id: row.id, value: row.name })}>Rename</button>
-                        <button style={idle(btn)} disabled={!!busy} onClick={() => setConfirming({ kind: 'delete', id: row.id })}>Delete</button>
+                        <button style={idle(btn)} disabled={!!busy} onClick={() => setRenaming({ id: row.id, value: row.name })}>{t('Rename')}</button>
+                        <button style={idle(btn)} disabled={!!busy} onClick={() => setConfirming({ kind: 'delete', id: row.id })}>{t('Delete')}</button>
                       </>
                     )}
                   </div>
@@ -263,9 +265,9 @@ export default function CloudDialog({ open, onClose }: { open: boolean; onClose(
                       disabled={!!busy}
                       onClick={() => void (conf.kind === 'open' ? openDrawing(row) : remove(row))}
                     >
-                      {conf.kind === 'open' ? 'Discard & open' : 'Delete'}
+                      {conf.kind === 'open' ? t('Discard & open') : t('Delete')}
                     </button>
-                    <button style={btn} onClick={() => setConfirming(null)}>Cancel</button>
+                    <button style={btn} onClick={() => setConfirming(null)}>{t('Cancel')}</button>
                   </div>
                 )}
               </div>

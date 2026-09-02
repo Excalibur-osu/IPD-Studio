@@ -14,6 +14,11 @@ import { isPortEnd } from '../model/types'
 import { createEmptyDoc, createSheet } from '../model/doc'
 import type { HmiPipe, HmiScreen, HmiTheme, HmiWidget } from '../hmi/model'
 import { createScreen } from '../hmi/model'
+import { getSymbol } from '../symbols/registry'
+import { portWorld } from '../canvas/alignment'
+import { isProcessClass } from '../canvas/lineStyle'
+import { compatibleKinds } from '../canvas/connectionRules'
+import { formatTag, parseTag } from '../isa/tag'
 
 export interface StoreState {
   doc: ProjectDoc
@@ -35,6 +40,8 @@ export interface StoreState {
    *  because they are one gesture to the user. Returns the new line's id, so
    *  a shake mid-drag can cut exactly the line that drag just made. */
   dockNode(id: string, x: number, y: number, edge: Omit<PlantEdge, 'id'>): string
+  /** Add a symbol and replace one free point end on an existing line in one undo step. */
+  attachNodeToFreeEnd(node: PlantNode, edgeId: string, end: 'source' | 'target', portId: string): void
   rotateNode(id: string): void
   setNodeScale(id: string, scale: number): void
   /** Per-axis stretch (longer horizontal vessel etc.). 1/1 clears all scaling. */
@@ -73,6 +80,8 @@ export interface StoreState {
   addBatch(nodes: PlantNode[], edges: PlantEdge[], deleteEdgeIds?: string[]): void
   setSheetMeta(patch: Partial<Pick<Sheet, 'name' | 'drawingNumber' | 'revision' | 'sheetSize'>>): void
   addSheet(): string
+  /** Duplicate a drawing sheet with fresh object IDs and remapped connections. */
+  duplicateSheet(id: string, name?: string): { sheetId: string; nodeIdMap: Record<string, string>; edgeIdMap: Record<string, string> } | null
   renameSheet(id: string, name: string): void
   deleteSheet(id: string): void
   setActiveSheet(id: string): void
@@ -145,6 +154,54 @@ function touched(doc: ProjectDoc): ProjectDoc {
   return { ...doc, meta: { ...doc.meta, modified: new Date().toISOString() } }
 }
 
+const canonicalTag = (value: string | undefined): string | null => {
+  if (!value?.trim()) return null
+  const parsed = parseTag(value)
+  return parsed ? formatTag(parsed) : value.trim().toUpperCase()
+}
+
+/** Resolve explicit free-end targets after either side of the workflow changes. */
+function resolvePendingConnections(sheet: Sheet): Sheet {
+  const nodes = sheet.nodes
+  let edges = sheet.edges
+  const occupied = new Set<string>()
+  for (const edge of edges) {
+    for (const end of [edge.source, edge.target]) {
+      if (isPortEnd(end)) occupied.add(`${end.nodeId}/${end.portId}`)
+    }
+  }
+  for (const node of nodes) {
+    const tag = canonicalTag(node.tag ? formatTag(node.tag) : node.label)
+    if (!tag) continue
+    let ports: { id: string; kind: 'process' | 'signal' | 'both' }[]
+    try {
+      const def = getSymbol(node.symbolId)
+      ports = [...def.ports, ...(node.extraPorts ?? [])].map((p) => ({ id: p.id, kind: p.kind }))
+    } catch {
+      continue
+    }
+    for (const edge of edges) {
+      for (const end of ['source', 'target'] as const) {
+        const point = edge[end]
+        if (isPortEnd(point) || canonicalTag(point.pendingTag) !== tag) continue
+        const candidates = ports
+          .filter((p) => !occupied.has(`${node.id}/${p.id}`))
+          .filter((p) => compatibleKinds(p.kind, isProcessClass(edge.lineClass) ? 'process' : 'signal'))
+          .map((p) => ({ p, at: portWorld(node, p.id) }))
+          .filter((v): v is { p: (typeof ports)[number]; at: { x: number; y: number } } => v.at !== null)
+          .sort((a, b) => Math.hypot(a.at.x - point.x, a.at.y - point.y) - Math.hypot(b.at.x - point.x, b.at.y - point.y))
+        const chosen = candidates[0]
+        if (!chosen) continue
+        edges = edges.map((current) => current.id === edge.id
+          ? { ...current, [end]: { nodeId: node.id, portId: chosen.p.id } }
+          : current)
+        occupied.add(`${node.id}/${chosen.p.id}`)
+      }
+    }
+  }
+  return edges === sheet.edges ? sheet : { ...sheet, edges }
+}
+
 const initialDoc = createEmptyDoc()
 
 export const useStore = create<StoreState>()(
@@ -192,7 +249,7 @@ export const useStore = create<StoreState>()(
 
         addNode(partial) {
           const id = ulid()
-          patchSheet((sh) => ({ ...sh, nodes: [...sh.nodes, { ...partial, id }] }))
+          patchSheet((sh) => resolvePendingConnections({ ...sh, nodes: [...sh.nodes, { ...partial, id }] }))
           return id
         },
 
@@ -233,6 +290,21 @@ export const useStore = create<StoreState>()(
             edges: [...sh.edges, { ...edge, id: edgeId }],
           }))
           return edgeId
+        },
+
+        attachNodeToFreeEnd(node, edgeId, end, portId) {
+          patchSheet((sh) => {
+            const edge = sh.edges.find((e) => e.id === edgeId)
+            if (!edge || isPortEnd(edge[end])) return sh
+            return {
+              ...sh,
+              nodes: [...sh.nodes, node],
+              edges: sh.edges.map((e) =>
+                e.id === edgeId ? { ...e, [end]: { nodeId: node.id, portId } } : e,
+              ),
+            }
+          })
+          set({ selection: [node.id] })
         },
 
         rotateNode(id) {
@@ -324,9 +396,11 @@ export const useStore = create<StoreState>()(
             if (!node) return s
             const oldKey = keyOfNode(node)
             const newKey = keyOfNode({ ...node, tag })
-            const sheets = s.doc.sheets.map((sh) =>
-              sh.id === sheet.id ? { ...sh, nodes: sh.nodes.map((n) => (n.id === id ? { ...n, tag } : n)) } : sh,
-            )
+            const sheets = s.doc.sheets.map((sh) => {
+              if (sh.id !== sheet.id) return sh
+              const updated = { ...sh, nodes: sh.nodes.map((n) => (n.id === id ? { ...n, tag } : n)) }
+              return resolvePendingConnections(updated)
+            })
             // Another symbol may still wear the old tag (a valve shown twice,
             // an off-page continuation) — then the record is copied, not moved.
             const stillUsed = oldKey !== null && liveKeys(sheets).has(oldKey)
@@ -465,7 +539,11 @@ export const useStore = create<StoreState>()(
           patchSheet((sh) => ({
             ...sh,
             nodes: [...sh.nodes, ...nodes],
-            edges: [...sh.edges.filter((e) => !drop.has(e.id)), ...edges],
+            edges: resolvePendingConnections({
+              ...sh,
+              nodes: [...sh.nodes, ...nodes],
+              edges: [...sh.edges.filter((e) => !drop.has(e.id)), ...edges],
+            }).edges,
           }))
           set({ selection: nodes.map((n) => n.id) })
         },
@@ -479,6 +557,32 @@ export const useStore = create<StoreState>()(
           set((s) => ({ doc: touched({ ...s.doc, sheets: [...s.doc.sheets, sheet] }), dirty: true }))
           set({ activeSheetId: sheet.id, selection: [] })
           return sheet.id
+        },
+
+        duplicateSheet(id, name) {
+          const source = get().doc.sheets.find((sh) => sh.id === id)
+          if (!source) return null
+          const nodeIdMap: Record<string, string> = {}
+          for (const node of source.nodes) nodeIdMap[node.id] = ulid()
+          const edgeIdMap: Record<string, string> = {}
+          for (const edge of source.edges) edgeIdMap[edge.id] = ulid()
+          const clone: Sheet = structuredClone(source)
+          clone.id = ulid()
+          clone.name = name?.trim() || `${source.name} - 方案副本`
+          clone.nodes = clone.nodes.map((node) => ({ ...node, id: nodeIdMap[node.id]! }))
+          clone.edges = clone.edges.map((edge) => ({
+            ...edge,
+            id: edgeIdMap[edge.id]!,
+            source: isPortEnd(edge.source) ? { ...edge.source, nodeId: nodeIdMap[edge.source.nodeId] ?? edge.source.nodeId } : edge.source,
+            target: isPortEnd(edge.target) ? { ...edge.target, nodeId: nodeIdMap[edge.target.nodeId] ?? edge.target.nodeId } : edge.target,
+          }))
+          set((s) => ({
+            doc: touched({ ...s.doc, sheets: [...s.doc.sheets, clone] }),
+            activeSheetId: clone.id,
+            selection: [],
+            dirty: true,
+          }))
+          return { sheetId: clone.id, nodeIdMap, edgeIdMap }
         },
 
         renameSheet(id, name) {
@@ -516,9 +620,11 @@ export const useStore = create<StoreState>()(
             const edge = sheet.edges.find((e) => e.id === id)
             if (!edge) return s
             const next = { ...edge, ...patch }
-            const sheets = s.doc.sheets.map((sh) =>
-              sh.id === sheet.id ? { ...sh, edges: sh.edges.map((e) => (e.id === id ? next : e)) } : sh,
-            )
+            const sheets = s.doc.sheets.map((sh) => {
+              if (sh.id !== sheet.id) return sh
+              const updated = { ...sh, edges: sh.edges.map((e) => (e.id === id ? next : e)) }
+              return resolvePendingConnections(updated)
+            })
             // A renumbered line carries its record exactly as a renamed tag does.
             const oldKey = keyOfEdge(edge)
             const newKey = keyOfEdge(next)

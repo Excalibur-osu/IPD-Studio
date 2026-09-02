@@ -7,6 +7,7 @@ import type { HmiWidget } from './model'
 import type { AlignMode } from './align'
 import { alignPatches, distributePatches, duplicateWidgets } from './align'
 import { SignalPicker, TagPicker } from './TagPicker'
+import { useT } from '../i18n'
 
 /** One armed pick-on-canvas request: the next canvas click binds, not selects. */
 export interface ArmedPick { kind: 'tank' | 'pipe'; widgetId: string }
@@ -145,6 +146,7 @@ export default function HmiPropertyPanel({ selection, onSelect, armedPick, onArm
   armedPick?: ArmedPick | null
   onArmPick?(pick: ArmedPick | null): void
 }) {
+  const t = useT()
   const screen = useStore(activeHmiScreen)
   const screens = useStore((s) => s.doc.hmiScreens)
   const updateWidget = useStore((s) => s.updateWidget)
@@ -158,7 +160,7 @@ export default function HmiPropertyPanel({ selection, onSelect, armedPick, onArm
   if (selection.length > 1) {
     return (
       <div>
-        <h4>{selection.length} selected</h4>
+        <h4>{selection.length} {t('selected')}</h4>
         <p style={{ fontSize: 11, color: '#667', margin: '4px 0' }}>
           {selectedWidgets.length} widget{selectedWidgets.length === 1 ? '' : 's'}, {selection.length - selectedWidgets.length} pipe{selection.length - selectedWidgets.length === 1 ? '' : 's'}
         </p>
@@ -171,8 +173,8 @@ export default function HmiPropertyPanel({ selection, onSelect, armedPick, onArm
   if (pipe) {
     return (
       <div>
-        <h4>Pipe</h4>
-        <Row label="Width">
+        <h4>{t('Pipe')}</h4>
+        <Row label={t('Width')}>
           <input type="number" style={{ width: 70 }} value={pipe.width ?? 4}
             onChange={(e) => updateHmiPipe(pipe.id, { width: Number(e.target.value) || 4 })} />
         </Row>
@@ -184,10 +186,10 @@ export default function HmiPropertyPanel({ selection, onSelect, armedPick, onArm
   if (!w) {
     return (
       <div>
-        <h4>Screen</h4>
-        <Row label="Theme">
+        <h4>{t('Screen')}</h4>
+        <Row label={t('Theme')}>
           <select value={screen.theme} onChange={(e) => setScreenTheme(screen.id, e.target.value as 'classic' | 'hp')}>
-            <option value="classic">classic</option>
+          <option value="classic">{t('classic')}</option>
             <option value="hp">hp (ISA-101 gray)</option>
           </select>
         </Row>
@@ -206,14 +208,14 @@ export default function HmiPropertyPanel({ selection, onSelect, armedPick, onArm
 
   return (
     <div>
-      <h4>{w.type}</h4>
+      <h4>{t(w.type)}</h4>
       {w.type !== 'nav' && w.type !== 'panel' && w.type !== 'label' && (
-        <Row label="Tag">
+        <Row label={t('Tag')}>
           <TagPicker value={w.tag ?? ''} testid="prop-tag"
             onCommit={(tag) => updateWidget(w.id, { tag })} />
         </Row>
       )}
-      <Row label={w.type === 'panel' ? 'Title' : 'Label'}>
+      <Row label={t(w.type === 'panel' ? 'Title' : 'Label')}>
         <input style={{ width: 110 }} value={w.label ?? ''}
           onBlur={resumeHistory}
           onChange={(e) => burst(() => updateWidget(w.id, { label: e.target.value || undefined }))} />
@@ -222,7 +224,7 @@ export default function HmiPropertyPanel({ selection, onSelect, armedPick, onArm
       <Row label="W / H">{geom('w')}{geom('h')}</Row>
       <ArrangeTools ids={[w.id]} onSelect={onSelect} />
       {w.type === 'nav' && (
-        <Row label="Go to">
+        <Row label={t('Go to')}>
           <select
             value={typeof w.props?.screen === 'string' ? w.props.screen : ''}
             onChange={(e) => {
@@ -241,15 +243,15 @@ export default function HmiPropertyPanel({ selection, onSelect, armedPick, onArm
           </select>
         </Row>
       )}
-      {w.type === 'tank' && (<><NumProp w={w} k="capacity" label="Capacity" /><NumProp w={w} k="level0" label="Start level %" /></>)}
+      {w.type === 'tank' && (<><NumProp w={w} k="capacity" label={t('Capacity')} /><NumProp w={w} k="level0" label={t('Start level %')} /></>)}
       {(w.type === 'tank' || w.type === 'display' || w.type === 'gauge' || w.type === 'bar' || w.type === 'trend') && (
         <>
-          <h5 style={{ margin: '10px 0 2px' }}>Alarm limits</h5>
+          <h5 style={{ margin: '10px 0 2px' }}>{t('Alarm limits')}</h5>
           <NumProp w={w} k="LL" label="LL" /><NumProp w={w} k="L" label="L" />
           <NumProp w={w} k="H" label="H" /><NumProp w={w} k="HH" label="HH" />
-          <NumProp w={w} k="deadband" label="Deadband" />
-          <NumProp w={w} k="alarmDelay" label="On-delay s" />
-          <Row label="Priority">
+          <NumProp w={w} k="deadband" label={t('Deadband')} />
+          <NumProp w={w} k="alarmDelay" label={t('On-delay s')} />
+          <Row label={t('Priority')}>
             <select data-testid="prop-priority"
               value={typeof w.props?.priority === 'string' ? String(w.props.priority) : ''}
               onChange={(e) => {

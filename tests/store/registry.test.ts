@@ -86,6 +86,48 @@ describe('a record follows its object', () => {
   })
 })
 
+describe('pending line endpoints', () => {
+  it('closes a free endpoint when a matching tagged device is added', () => {
+    const s = fresh()
+    const source = s.addNode({ symbolId: 'valve.gate', kind: 'valve', x: 0, y: 0, rotation: 0 })
+    const edgeId = useStore.getState().addEdge({
+      lineClass: 'process.major',
+      source: { nodeId: source, portId: 'e' },
+      target: { x: 80, y: 8, pendingTag: 'TK-101' },
+      lineNumber: { size: '2"', spec: 'CS', service: 'FW', seq: '001' },
+    })
+    const device = useStore.getState().addNode({ symbolId: 'valve.gate', kind: 'valve', x: 80, y: 0, rotation: 0 })
+    useStore.getState().setTag(device, { letters: 'TK', loop: '101' })
+    const edge = useStore.getState().doc.sheets[0]!.edges.find((e) => e.id === edgeId)!
+    expect(edge.target).toEqual({ nodeId: device, portId: 'w' })
+    expect(edge.lineNumber?.service).toBe('FW')
+  })
+})
+
+describe('sheet copies', () => {
+  it('clones nodes and remaps connected edge endpoints', () => {
+    const s = fresh()
+    const source = s.addNode({ symbolId: 'valve.gate', kind: 'valve', x: 0, y: 0, rotation: 0 })
+    const target = s.addNode({ symbolId: 'valve.gate', kind: 'valve', x: 80, y: 0, rotation: 0 })
+    const edge = s.addEdge({
+      lineClass: 'process.major',
+      source: { nodeId: source, portId: 'e' },
+      target: { nodeId: target, portId: 'w' },
+    })
+    const original = doc().sheets[0]!
+    const copy = s.duplicateSheet(original.id, '吹扫方案')!
+    const copied = doc().sheets.find((sh) => sh.id === copy.sheetId)!
+
+    expect(copied.name).toBe('吹扫方案')
+    expect(copied.nodes.map((n) => n.id)).not.toContain(source)
+    expect(copied.nodes).toHaveLength(2)
+    expect(copied.edges).toHaveLength(1)
+    expect(copied.edges[0]!.id).not.toBe(edge)
+    expect(copied.edges[0]!.source).toEqual({ nodeId: copy.nodeIdMap[source], portId: 'e' })
+    expect(copied.edges[0]!.target).toEqual({ nodeId: copy.nodeIdMap[target], portId: 'w' })
+  })
+})
+
 describe('record edits are undoable', () => {
   it('undo restores the previous field value', () => {
     const s = fresh()
