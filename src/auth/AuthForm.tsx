@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { register, resetPassword, signIn, signInWithGoogle } from './authStore'
 import { authErrorMessage } from './errors'
 import './auth.css'
-import { useT } from '../i18n'
+import { useLanguage, useT } from '../i18n'
 
 type Mode = 'signin' | 'register'
 
@@ -24,6 +24,7 @@ export default function AuthForm({ onDone, initialMode = 'signin' }: {
   initialMode?: Mode
 }) {
   const t = useT()
+  const lang = useLanguage()
   const [mode, setMode] = useState<Mode>(initialMode)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -46,7 +47,7 @@ export default function AuthForm({ onDone, initialMode = 'signin' }: {
     try {
       await action()
     } catch (err) {
-      setError(authErrorMessage(err))
+      setError(authErrorMessage(err, lang))
     } finally {
       setPending(false)
     }
@@ -55,7 +56,7 @@ export default function AuthForm({ onDone, initialMode = 'signin' }: {
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
     if (password.length < MIN_PASSWORD) {
-      setError(`Passwords need at least ${MIN_PASSWORD} characters.`)
+      setError(t('Passwords need at least {count} characters.').replace('{count}', String(MIN_PASSWORD)))
       return
     }
     void attempt(async () => {
@@ -74,13 +75,13 @@ export default function AuthForm({ onDone, initialMode = 'signin' }: {
 
   const onForgot = () => {
     if (!email.trim()) {
-      setError('Enter your email address first, then choose Forgot password.')
+      setError(t('Enter your email address first, then choose Forgot password.'))
       emailRef.current?.focus()
       return
     }
     void attempt(async () => {
       await resetPassword(email)
-      setNotice(`Reset link sent to ${email.trim()}. Check your inbox, and the spam folder.`)
+      setNotice(t('Reset link sent. Check your inbox, and the spam folder.'))
     })
   }
 
@@ -96,7 +97,7 @@ export default function AuthForm({ onDone, initialMode = 'signin' }: {
 
   return (
     <div className="auth" data-testid="auth-dialog">
-      <div className="auth-tabs" role="tablist" aria-label="Account">
+      <div className="auth-tabs" role="tablist" aria-label={t('Account')}>
           <button
             type="button" role="tab" className="auth-tab" id="auth-tab-signin"
             aria-selected={!signup} aria-controls="auth-form" data-testid="auth-tab-signin"
@@ -179,8 +180,8 @@ export default function AuthForm({ onDone, initialMode = 'signin' }: {
         </button>
 
         <p className="auth-fine">
-          IPD Studio is free for personal, academic, nonprofit and government use.
-          Commercial use requires a paid licence.
+          {t('IPD Studio is free for personal, academic, nonprofit and government use.')}
+          {t('Commercial use requires a paid licence.')}
         </p>
     </div>
   )

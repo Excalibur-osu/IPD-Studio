@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import { useStore } from '../store/store'
 import { navigateWorkspace } from '../routes'
-import { qaFor } from '../validate/engine'
+import { findingText, qaFor } from '../validate/engine'
 import type { Severity } from '../validate/rules'
 import { locateCell } from '../canvas/locate'
 import { applyFix, describeFix, type FixSpec } from '../assist/fixes'
@@ -54,11 +54,11 @@ export default function ChecksWorkspace() {
   // Saying so beats a button that appears to do nothing.
   const runFix = (spec: FixSpec) => {
     const result = applyFix(spec)
-    if (!result.ok) window.alert(result.message ?? 'That fix could not be applied.')
+    if (!result.ok) window.alert(result.message ? t(result.message) : t('That fix could not be applied.'))
   }
 
   const accept = (key: string, message: string) => {
-    const reason = window.prompt(`Accept this finding?\n\n${message}\n\nWhy is it acceptable? (recorded on the drawing)`)
+    const reason = window.prompt(t('Accept this finding?') + '\n\n' + message + '\n\n' + t('Why is it acceptable? (recorded on the drawing)'))
     if (reason && reason.trim()) ignoreFinding(key, reason.trim())
   }
 
@@ -74,14 +74,14 @@ export default function ChecksWorkspace() {
             ? `${report.counts.critical} ${t('critical')}`
             : report.total === 0 ? t('No findings') : t('Nothing critical')}
         </span>
-        {report.counts.warning > 0 && <span className="ws-tally soft">{report.counts.warning} warning</span>}
-        {report.counts.info > 0 && <span className="ws-tally">{report.counts.info} info</span>}
+        {report.counts.warning > 0 && <span className="ws-tally soft">{report.counts.warning} {t('warning')}</span>}
+        {report.counts.info > 0 && <span className="ws-tally">{report.counts.info} {t('info')}</span>}
         <span className="ws-sp" />
         <label className="ws-filter">
           {t('Discipline')}
           <select value={discipline} onChange={(e) => setDiscipline(e.target.value)} data-testid="checks-discipline">
             <option value="all">{t('all')}</option>
-            {DISCIPLINES.map((d) => <option key={d} value={d}>{d}</option>)}
+            {DISCIPLINES.map((d) => <option key={d} value={d}>{t(d)}</option>)}
           </select>
         </label>
       </header>
@@ -106,10 +106,10 @@ export default function ChecksWorkspace() {
               )}
               <div className="ws-group" data-testid={`rule-${g.rule.id}`}>
                 <div className="ws-group-head">
-                  {g.rule.title} <span>{g.findings.length}</span>
-                  <em className="ws-group-disc">{g.rule.discipline}</em>
+                  {t(g.rule.title)} <span>{g.findings.length}</span>
+                  <em className="ws-group-disc">{t(g.rule.discipline)}</em>
                 </div>
-                {g.rule.why && <div className="ws-group-why">{g.rule.why}</div>}
+                {g.rule.why && <div className="ws-group-why">{t(g.rule.why)}</div>}
                 {g.findings.map((f) => (
                   <div key={f.key} className="ws-issue">
                     <button
@@ -117,17 +117,17 @@ export default function ChecksWorkspace() {
                       disabled={!f.targetId}
                       onClick={() => go(f.sheetId, f.targetId)}
                     >
-                      {f.message}
+                      {findingText(f.message, t)}
                     </button>
                     {f.fix && (
-                      <button className="ws-issue-fix" title={describeFix(f.fix.spec, doc).blastRadius} onClick={() => runFix(f.fix!.spec)}>
-                        {f.fix.label}
+                      <button className="ws-issue-fix" title={t(describeFix(f.fix.spec, doc).blastRadius)} onClick={() => runFix(f.fix!.spec)}>
+                        {t(f.fix.label)}
                       </button>
                     )}
                     <button
                       className="ws-issue-ignore"
-                      title="Accept this finding, with a reason"
-                      onClick={() => accept(f.key, f.message)}
+                      title={t('Accept this finding, with a reason')}
+                      onClick={() => accept(f.key, findingText(f.message, t))}
                     >
                       {t('Accept')}
                     </button>
@@ -148,7 +148,7 @@ export default function ChecksWorkspace() {
                 {report.ignored.map(({ finding: f, entry }) => (
                   <div key={f.key} className="ws-issue">
                     <span className="ws-issue-msg muted">
-                      {f.message}
+                      {findingText(f.message, t)}
                       <em> — {entry.reason}{entry.by ? ` (${entry.by})` : ''}</em>
                     </span>
                     <button className="ws-issue-fix" onClick={() => unignoreFinding(f.key)}>{t('Reopen')}</button>

@@ -335,6 +335,17 @@ function lineAttrs(edge: PlantEdge, fluidColor?: string): Record<string, Record<
   }
 }
 
+/** The pending-tag half of a link's data: which end waits for a device that
+ *  is not on the sheet yet. Mirrors the pendingTag on the doc edge so the
+ *  decorations pass can label the free end without a model lookup. */
+function pendingData(edge: PlantEdge): { source?: string; target?: string } {
+  const pend = (end: PlantEdge['source'] | PlantEdge['target']): string | undefined =>
+    !isPortEnd(end) && end.pendingTag ? end.pendingTag : undefined
+  const source = pend(edge.source)
+  const target = pend(edge.target)
+  return source || target ? { source, target } : {}
+}
+
 export function makeLink(edge: PlantEdge, nodes?: Map<string, PlantNode>, fluidColor?: string): dia.Link {
   const link = new shapes.standard.Link({
     id: edge.id,
@@ -345,7 +356,7 @@ export function makeLink(edge: PlantEdge, nodes?: Map<string, PlantNode>, fluidC
     // jumpover draws the little hop where unrelated lines cross
     connector: { name: 'jumpover', args: { size: 5 } },
     markup: LINK_MARKUP,
-    data: { lineClass: edge.lineClass, fluidColor },
+    data: { lineClass: edge.lineClass, fluidColor, pending: pendingData(edge) },
   })
   link.attr(lineAttrs(edge, fluidColor))
   return link
@@ -360,9 +371,12 @@ export function updateLink(cell: dia.Link, edge: PlantEdge, prev: PlantEdge, nod
   // Route choice depends on endpoints, vertices, and node geometry alike.
   refreshLinkRouter(cell, edge, nodes)
   const prevColor = (cell.get('data') as { fluidColor?: string } | undefined)?.fluidColor
-  if (edge.lineClass !== prev.lineClass || edge.arrow !== prev.arrow || fluidColor !== prevColor) {
+  const prevPending = (cell.get('data') as { pending?: { source?: string; target?: string } } | undefined)?.pending
+  const pending = pendingData(edge)
+  if (edge.lineClass !== prev.lineClass || edge.arrow !== prev.arrow || fluidColor !== prevColor
+    || JSON.stringify(prevPending ?? {}) !== JSON.stringify(pending)) {
     cell.removeAttr('line/strokeDasharray')
     cell.attr(lineAttrs(edge, fluidColor))
-    cell.set('data', { lineClass: edge.lineClass, fluidColor })
+    cell.set('data', { lineClass: edge.lineClass, fluidColor, pending })
   }
 }

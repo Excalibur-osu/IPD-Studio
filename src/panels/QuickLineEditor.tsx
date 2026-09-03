@@ -8,6 +8,7 @@ import { canvasRef } from '../canvas/paperSetup'
 import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
 import type { LineClass } from '../model/types'
 import { activeSheet, useStore } from '../store/store'
+import { useT } from '../i18n'
 
 /**
  * Small floating editor that appears at the midpoint of a selected line so the
@@ -15,6 +16,7 @@ import { activeSheet, useStore } from '../store/store'
  * hunting for the property panel.
  */
 export default function QuickLineEditor() {
+  const t = useT()
   const selection = useStore((s) => s.selection)
   const doc = useStore((s) => s.doc)
   const activeSheetId = useStore((s) => s.activeSheetId)
@@ -66,21 +68,21 @@ export default function QuickLineEditor() {
       <select
         value={edge.lineClass}
         onChange={(e) => setEdge(edge.id, { lineClass: e.target.value as LineClass })}
-        title="Line type"
+        title={t('Line type')}
       >
         {Object.entries(LINE_CLASS_LABELS).map(([v, label]) => (
-          <option key={v} value={v}>{label}</option>
+          <option key={v} value={v}>{t(label)}</option>
         ))}
       </select>
       <button
         className={edge.arrow === 'flow' ? 'on' : ''}
-        title="Flow arrow"
+        title={t('Flow arrow')}
         onClick={() => setEdge(edge.id, { arrow: edge.arrow === 'flow' ? 'none' : 'flow' })}
       >
         ➤
       </button>
-      <button title="Reverse direction" onClick={reverse}>⇆</button>
-      <button title="Delete line" onClick={() => deleteIds([edge.id])}>✕</button>
+      <button title={t('Reverse direction')} onClick={reverse}>⇆</button>
+      <button title={t('Delete line')} onClick={() => deleteIds([edge.id])}>✕</button>
     </div>
   )
 }

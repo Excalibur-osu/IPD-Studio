@@ -23,13 +23,13 @@ export default function LoopPanel() {
             className="drawer-item"
             onClick={() => setSelection(loop.members.map((m) => m.nodeId))}
           >
-            <b>Loop {loop.family}-{loop.loop}</b>{' '}
+            <b>{t('Loop')} {loop.family}-{loop.loop}</b>{' '}
             {loop.members.map((m) => formatTag(m.tag, '-')).join(', ')}
-            {loop.hint && <span className="loop-hint"> — {loop.hint}</span>}
+            {loop.hint && <span className="loop-hint"> — {t(loop.hint)}</span>}
           </button>
           <button
             className="loop-diagram-btn"
-            title="Generate ISA-5.4-style loop diagram"
+            title={t('Generate ISA-5.4-style loop diagram')}
             onClick={() => printLoopDiagram(doc, loop.family, loop.loop)}
           >
             {t('Diagram')}

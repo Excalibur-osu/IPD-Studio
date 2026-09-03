@@ -64,7 +64,7 @@ export default function WorkspaceRail({ active }: { active: Workspace }) {
             <span className="rail-icon" aria-hidden="true">{e.icon}</span>
             <span className="rail-label">{t(e.label)}</span>
             {badge !== null && (
-              <span className="rail-badge" aria-label={`${badge} findings`}>
+              <span className="rail-badge" aria-label={badge + ' ' + t('findings')}>
                 {badge > 99 ? '99+' : badge}
               </span>
             )}

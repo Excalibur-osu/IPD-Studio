@@ -3,7 +3,7 @@
 // commercial use requires a paid license (see COMMERCIAL-LICENSE.md).
 
 import { useStore } from '../store/store'
-import { qaFor } from '../validate/engine'
+import { findingText, qaFor } from '../validate/engine'
 import { locateCell } from '../canvas/locate'
 import { navigateWorkspace } from '../routes'
 import { applyFix } from '../assist/fixes'
@@ -35,15 +35,15 @@ export default function IssuesPanel() {
       {shown.map((g) => (
         <section key={g.rule.id}>
           <div className={`drawer-group sev-${g.rule.severity}`}>
-            {g.rule.title} ({g.findings.length})
+            {t(g.rule.title)} ({g.findings.length})
           </div>
           {g.findings.map((f) => (
             <div key={f.key} className="advisor-row">
               <button className="drawer-item" disabled={!f.targetId} onClick={() => go(f.sheetId, f.targetId)}>
-                {f.message}
+                {findingText(f.message, t)}
               </button>
               {f.fix && (
-                <button className="advisor-fix" title={f.fix.label} onClick={() => applyFix(f.fix!.spec)}>{t('Fix')}</button>
+                <button className="advisor-fix" title={t(f.fix.label)} onClick={() => applyFix(f.fix!.spec)}>{t('Fix')}</button>
               )}
             </div>
           ))}

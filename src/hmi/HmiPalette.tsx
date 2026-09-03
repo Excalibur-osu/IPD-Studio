@@ -7,7 +7,7 @@ import { WIDGET_DEFAULT_SIZE } from './model'
 import { THEMES } from './theme'
 import { renderWidget } from './widgets/index'
 import { useStore } from '../store/store'
-import { useT } from '../i18n'
+import { tr, useT } from '../i18n'
 
 export const HMI_DRAG_MIME = 'application/x-hmi-widget'
 
@@ -60,7 +60,7 @@ function ItemPreview({ item }: { item: PaletteItem }) {
   const size = WIDGET_DEFAULT_SIZE[type]
   const widget: HmiWidget = {
     id: `pal-${type}`, type, x: 0, y: 0, ...size,
-    label: type === 'label' ? 'Text' : type === 'button' ? 'START' : type === 'nav' ? 'Screen' : type === 'panel' ? 'Group' : undefined,
+    label: type === 'label' ? tr('Text') : type === 'button' ? tr('START') : type === 'nav' ? tr('Screen') : type === 'panel' ? tr('Group') : undefined,
     props: item.props
       ?? (type === 'valve' ? { throttle: true }
       : type === 'symbol' ? { symbolId: 'vessel.column-tray' }

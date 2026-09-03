@@ -3,8 +3,11 @@ import { activeSheet, useStore } from '../store/store'
 import { getSymbol } from '../symbols/registry'
 import { askAi, readAiSettings, saveAiSettings, testAiConnection, type AiMessage, type AiSettings } from '../ai/client'
 import type { AiOperation } from '../ai/types'
+import { useLanguage, useT } from '../i18n'
 
 export default function AiPanel({ onClose }: { onClose: () => void }) {
+  const t = useT()
+  const lang = useLanguage()
   const doc = useStore((s) => s.doc)
   const state = useStore.getState
   const [settings, setSettings] = useState<AiSettings>(readAiSettings)
@@ -22,17 +25,17 @@ export default function AiPanel({ onClose }: { onClose: () => void }) {
   const ask = async () => {
     setBusy(true); setError(''); setOps([]); saveAiSettings(settings)
     try {
-      const result = await askAi(settings, doc, prompt, messages)
+      const result = await askAi(settings, doc, prompt, messages, lang)
       setAnswer(result.answer); setOps(result.operations ?? [])
       setMessages((prev) => [...prev, { role: 'user', content: prompt }, { role: 'assistant', content: result.answer }])
     }
-    catch (err) { setError(err instanceof Error ? err.message : '请求失败') }
+    catch (err) { setError(err instanceof Error ? err.message : t('Request failed.')) }
     finally { setBusy(false) }
   }
   const testConnection = async () => {
     setTesting(true); setTestResult(''); saveAiSettings(settings)
-    try { await testAiConnection(settings); setTestResult('连接成功') }
-    catch (err) { setTestResult(err instanceof Error ? err.message : '连接失败') }
+    try { await testAiConnection(settings, lang); setTestResult(t('Connection successful.')) }
+    catch (err) { setTestResult(err instanceof Error ? err.message : t('Connection failed.')) }
     finally { setTesting(false) }
   }
   const apply = (asCopy = false) => {
@@ -41,8 +44,8 @@ export default function AiPanel({ onClose }: { onClose: () => void }) {
     const idMap = new Map<string, string>()
     const edgeMap = new Map<string, string>()
     if (asCopy) {
-      const copy = s.duplicateSheet(sheet.id, `${sheet.name} - AI方案`)
-      if (!copy) { setError('无法创建方案副本'); return }
+      const copy = s.duplicateSheet(sheet.id, `${sheet.name} - ${t('AI option')}`)
+      if (!copy) { setError(t('Could not create an option copy.')); return }
       for (const [from, to] of Object.entries(copy.nodeIdMap)) idMap.set(from, to)
       for (const [from, to] of Object.entries(copy.edgeIdMap)) edgeMap.set(from, to)
     }
@@ -82,41 +85,45 @@ export default function AiPanel({ onClose }: { onClose: () => void }) {
         }
       } catch { /* invalid model operation is skipped */ }
     }
-    setOps([]); setAnswer(`${answer}\n\n已应用 ${applied} 项修改${asCopy ? '到方案副本' : ''}。`)
+    setOps([])
+    const summary = asCopy
+      ? t('Applied {count} changes to the option copy.').replace('{count}', String(applied))
+      : t('Applied {count} changes.').replace('{count}', String(applied))
+    setAnswer(`${answer}\n\n${summary}`)
   }
 
   return <div className="ai-overlay" onClick={onClose}>
     <section className="ai-panel" onClick={(e) => e.stopPropagation()}>
-      <header><strong>AI 工艺助手</strong><button onClick={onClose}>关闭</button></header>
+      <header><strong>{t('AI process assistant')}</strong><button onClick={onClose}>{t('Close')}</button></header>
       <div className="ai-settings">
-        <label>Base URL<input value={settings.baseUrl} onChange={(e) => update({ baseUrl: e.target.value })} /></label>
-        <label>API Key<input type="password" value={settings.apiKey} onChange={(e) => update({ apiKey: e.target.value })} /></label>
-        <label>模型<input value={settings.model} onChange={(e) => update({ model: e.target.value })} /></label>
+        <label>{t('Base URL')}<input value={settings.baseUrl} onChange={(e) => update({ baseUrl: e.target.value })} /></label>
+        <label>{t('API Key')}<input type="password" value={settings.apiKey} onChange={(e) => update({ apiKey: e.target.value })} /></label>
+        <label>{t('Model')}<input value={settings.model} onChange={(e) => update({ model: e.target.value })} /></label>
       </div>
-      <div className="ai-connection"><button onClick={() => void testConnection()} disabled={testing}>{testing ? '测试中…' : '测试连接'}</button>{testResult && <span>{testResult}</span>}</div>
-      <div className="ai-context">当前图纸：{doc.meta.name} · {sheet.nodes.length} 个设备 · {sheet.edges.length} 条管线</div>
-      {messages.length > 0 && <div className="ai-history">{messages.map((message, i) => <div key={i} className={`ai-message ${message.role}`}><b>{message.role === 'user' ? '你' : 'AI'}</b><span>{message.content}</span></div>)}</div>}
-      <textarea className="ai-prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="输入你要分析或修改的内容…" />
-      {ops.length > 0 && <div className="ai-ops"><b>待应用修改（{ops.length}）</b>{ops.map((op, i) => <div key={i}>{operationLabel(op)}</div>)}</div>}
-      <div className="ai-actions"><button onClick={() => void ask()} disabled={busy || !prompt.trim()}>{busy ? '请求中…' : '发送'}</button>{ops.length > 0 && <><button onClick={() => apply(false)}>应用到当前图纸</button><button onClick={() => apply(true)}>应用到方案副本</button></>}<button onClick={() => { setMessages([]); setAnswer(''); setOps([]); setError('') }}>清空会话</button></div>
+      <div className="ai-connection"><button onClick={() => void testConnection()} disabled={testing}>{testing ? t('Testing…') : t('Test connection')}</button>{testResult && <span>{testResult}</span>}</div>
+      <div className="ai-context">{t('Current drawing')}: {doc.meta.name} · {sheet.nodes.length} {t(sheet.nodes.length === 1 ? 'device' : 'devices')} · {sheet.edges.length} {t(sheet.edges.length === 1 ? 'line' : 'lines')}</div>
+      {messages.length > 0 && <div className="ai-history">{messages.map((message, i) => <div key={i} className={`ai-message ${message.role}`}><b>{message.role === 'user' ? t('You') : 'AI'}</b><span>{message.content}</span></div>)}</div>}
+      <textarea className="ai-prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={t('Describe what you want to analyze or change…')} />
+      {ops.length > 0 && <div className="ai-ops"><b>{t('Pending changes')} ({ops.length})</b>{ops.map((op, i) => <div key={i}>{operationLabel(op, t)}</div>)}</div>}
+      <div className="ai-actions"><button onClick={() => void ask()} disabled={busy || !prompt.trim()}>{busy ? t('Requesting…') : t('Send')}</button>{ops.length > 0 && <><button onClick={() => apply(false)}>{t('Apply to current drawing')}</button><button onClick={() => apply(true)}>{t('Apply to option copy')}</button></>}<button onClick={() => { setMessages([]); setAnswer(''); setOps([]); setError(''); setTestResult('') }}>{t('Clear conversation')}</button></div>
       {error && <p className="ai-error">{error}</p>}
       {answer && <div className="ai-answer"><pre>{answer}</pre></div>}
-      <small>模型仅能通过受控操作修改当前图纸。请复核所有工艺假设和现场确认项。</small>
+      <small>{t('The model can modify the drawing only through controlled operations. Review every process assumption and site confirmation item.')}</small>
     </section>
   </div>
 }
 
-function operationLabel(op: AiOperation): string {
+function operationLabel(op: AiOperation, t: (text: string) => string): string {
   switch (op.type) {
-    case 'setNodeTag': return `设置设备 ${op.nodeId} 位号`
-    case 'setNodeLabel': return `设置设备 ${op.nodeId} 标签`
-    case 'setNodePosition': return `调整设备 ${op.nodeId} 位置`
-    case 'setNodeRotation': return `旋转设备 ${op.nodeId}`
-    case 'setNodeConfig': return `修改设备 ${op.nodeId} 配置`
-    case 'setEdgeArrow': return `修改管线 ${op.edgeId} 流向箭头`
-    case 'setEdgeClass': return `修改管线 ${op.edgeId} 类别`
-    case 'setPendingEndpointTag': return `设置管线 ${op.edgeId} 待接位号`
-    case 'addNode': return `新增设备 ${op.symbolId}`
-    case 'addEdge': return `新增 ${op.lineClass} 管线`
+    case 'setNodeTag': return `${t('Set device tag')}: ${op.nodeId}`
+    case 'setNodeLabel': return `${t('Set device label')}: ${op.nodeId}`
+    case 'setNodePosition': return `${t('Move device')}: ${op.nodeId}`
+    case 'setNodeRotation': return `${t('Rotate device')}: ${op.nodeId}`
+    case 'setNodeConfig': return `${t('Change device configuration')}: ${op.nodeId}`
+    case 'setEdgeArrow': return `${t('Change line flow arrow')}: ${op.edgeId}`
+    case 'setEdgeClass': return `${t('Change line class')}: ${op.edgeId}`
+    case 'setPendingEndpointTag': return `${t('Set pending endpoint tag')}: ${op.edgeId}`
+    case 'addNode': return `${t('Add device')}: ${op.symbolId}`
+    case 'addEdge': return `${t('Add line')}: ${op.lineClass}`
   }
 }

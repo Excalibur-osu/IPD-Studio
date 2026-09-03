@@ -218,6 +218,7 @@ button { font: inherit; }
 .ai-ops { padding: 8px; border: 1px solid #d9e4e7; background: #f4fafb; color: #3d5660; font-size: 12px; line-height: 1.6; }
 .ai-ops div { padding-left: 8px; }
 .ai-prompt { min-height: 110px; resize: vertical; }
+
 .ai-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .ai-error { color: #c53030; background: #fff5f5; border: 1px solid #fed7d7; padding: 7px 8px; font-size: 12px; }
 .ai-answer { white-space: pre-wrap; background: #f8fafb; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px; min-height: 100px; }
@@ -352,10 +353,14 @@ button { font: inherit; }
 .bd-bar-fill { height: 100%; background: #2f7d55; border-radius: 999px; transition: width .18s ease; }
 .bd-bar-fill.bd-bar-over { background: #c53030; }
 
-.bd-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.bd-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; }
 .bd-controls label { display: flex; flex-direction: column; gap: 3px; }
+.bd-controls .bd-k { line-height: 16px; min-height: 16px; }
 .bd-controls .bd-grow { flex: 1; min-width: 200px; }
-.bd-controls input, .bd-controls select { font: inherit; font-size: 13px; padding: 5px 7px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #16202a; }
+/* One fixed control height for every widget in the row: the budget input, the
+   scale picker, the currency picker and the install-factor picker all sit on
+   the same horizontal line with matching tops and bottoms. */
+.bd-controls input, .bd-controls select { font: inherit; font-size: 13px; height: 26px; box-sizing: border-box; padding: 0 7px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #16202a; }
 .bd-controls input { width: 130px; text-align: right; font-variant-numeric: tabular-nums; }
 .bd-controls .bd-grow select { width: 100%; }
 
@@ -381,10 +386,10 @@ button { font: inherit; }
 .bd-fine { margin: 0; flex: 1; font-size: 10.5px; line-height: 1.45; color: #98a2ac; }
 .bd-csv { white-space: nowrap; padding: 6px 12px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font: inherit; font-size: 12.5px; cursor: pointer; }
 .bd-csv:hover { background: #eef2f7; }
-.bd-target { display: flex; gap: 4px; }
+.bd-target { display: flex; gap: 4px; align-items: center; }
 .bd-target input { width: 96px; }
-.bd-target select { padding: 5px 4px; }
-.bd-hint { font-size: 10.5px; color: #8a95a0; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.bd-target select { padding: 0 4px; }
+.bd-hint { font-size: 10.5px; color: #8a95a0; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* --- per-component price block in the property panel --- */
 .prop-cost { gap: 4px; }

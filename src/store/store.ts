@@ -18,6 +18,7 @@ import { getSymbol } from '../symbols/registry'
 import { portWorld } from '../canvas/alignment'
 import { isProcessClass } from '../canvas/lineStyle'
 import { compatibleKinds } from '../canvas/connectionRules'
+import { type Direction, portDirection, rotateDir } from '../canvas/shapes'
 import { formatTag, parseTag } from '../isa/tag'
 
 export interface StoreState {
@@ -157,12 +158,32 @@ function touched(doc: ProjectDoc): ProjectDoc {
 const canonicalTag = (value: string | undefined): string | null => {
   if (!value?.trim()) return null
   const parsed = parseTag(value)
-  return parsed ? formatTag(parsed) : value.trim().toUpperCase()
+  // "X01", "X-01" and "X-1" all name the same object — normalize the loop
+  // number so a pending tag typed with leading zeros still finds the device
+  // the user tags as X-1.
+  return parsed ? formatTag({ ...parsed, loop: String(Number(parsed.loop)) }) : value.trim().toUpperCase()
 }
 
-/** Resolve explicit free-end targets after either side of the workflow changes. */
+const DIR_VECTOR: Record<Direction, { x: number; y: number }> = {
+  left: { x: -1, y: 0 },
+  right: { x: 1, y: 0 },
+  top: { x: 0, y: -1 },
+  bottom: { x: 0, y: 1 },
+}
+
+/**
+ * Resolve explicit free-end targets after either side of the workflow changes:
+ * the user drew a line to empty space, gave the free end the tag of a device
+ * that is not on the sheet yet, and that device has now appeared (or been
+ * tagged or labelled). The free end becomes the device port the pipe should
+ * arrive at — preferably one whose nozzle faces back along the line, so the
+ * pipe lands head-on on the right side of the device (a pump's discharge
+ * toward the vessel it feeds, not its suction) — otherwise the nearest free,
+ * compatible port.
+ */
 function resolvePendingConnections(sheet: Sheet): Sheet {
   const nodes = sheet.nodes
+  const byId = new Map(nodes.map((n) => [n.id, n]))
   let edges = sheet.edges
   const occupied = new Set<string>()
   for (const edge of edges) {
@@ -184,12 +205,33 @@ function resolvePendingConnections(sheet: Sheet): Sheet {
       for (const end of ['source', 'target'] as const) {
         const point = edge[end]
         if (isPortEnd(point) || canonicalTag(point.pendingTag) !== tag) continue
+        // Where the pipe comes from: the far end of the line. A port on the
+        // device "faces" it when the pipe can leave the nozzle straight
+        // toward the far end instead of having to wrap around the device.
+        const other = edge[end === 'source' ? 'target' : 'source']
+        const farAt: { x: number; y: number } | null = isPortEnd(other)
+          ? (() => {
+              const far = byId.get(other.nodeId)
+              return far ? portWorld(far, other.portId) : null
+            })()
+          : other
         const candidates = ports
           .filter((p) => !occupied.has(`${node.id}/${p.id}`))
           .filter((p) => compatibleKinds(p.kind, isProcessClass(edge.lineClass) ? 'process' : 'signal'))
           .map((p) => ({ p, at: portWorld(node, p.id) }))
           .filter((v): v is { p: (typeof ports)[number]; at: { x: number; y: number } } => v.at !== null)
-          .sort((a, b) => Math.hypot(a.at.x - point.x, a.at.y - point.y) - Math.hypot(b.at.x - point.x, b.at.y - point.y))
+          .map(({ p, at }) => {
+            const dir = portDirection(node.symbolId, p.id)
+            const facing = Boolean(dir && farAt && (() => {
+              const v = DIR_VECTOR[rotateDir(dir, node.rotation)]
+              return v.x * (farAt.x - at.x) + v.y * (farAt.y - at.y) > 0
+            })())
+            return { p, at, facing }
+          })
+          .sort((a, b) =>
+            Number(b.facing) - Number(a.facing) ||
+            Math.hypot(a.at.x - point.x, a.at.y - point.y) - Math.hypot(b.at.x - point.x, b.at.y - point.y),
+          )
         const chosen = candidates[0]
         if (!chosen) continue
         edges = edges.map((current) => current.id === edge.id
@@ -410,7 +452,9 @@ export const useStore = create<StoreState>()(
         },
 
         setLabel(id, label) {
-          patchSheet((sh) => ({ ...sh, nodes: sh.nodes.map((n) => (n.id === id ? { ...n, label } : n)) }))
+          patchSheet((sh) =>
+            resolvePendingConnections({ ...sh, nodes: sh.nodes.map((n) => (n.id === id ? { ...n, label } : n)) }),
+          )
         },
 
         setTagOffset(id, off) {

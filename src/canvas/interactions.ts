@@ -234,13 +234,21 @@ export function attachInteractions(paper: dia.Paper, graph: dia.Graph): () => vo
     const sheet = activeSheet(store())
     const edge = sheet.edges.find((e) => e.id === id)
     if (!edge) return
-    const toDocEnd = (e: dia.Link.EndJSON): PlantEdge['source'] | null => {
+    const toDocEnd = (e: dia.Link.EndJSON, current: PlantEdge['source']): PlantEdge['source'] | null => {
       if (e.id) return e.port ? { nodeId: String(e.id), portId: String(e.port) } : null
-      if (typeof e.x === 'number' && typeof e.y === 'number') return { x: snap8(e.x), y: snap8(e.y) }
+      if (typeof e.x === 'number' && typeof e.y === 'number') {
+        const point = { x: snap8(e.x), y: snap8(e.y) }
+        // A reserved endpoint keeps its pending-device tag while the stub is
+        // nudged or merely clicked — rewriting it as a bare point here would
+        // silently drop the reservation the moment the line is re-selected.
+        return !isPortEnd(current) && current.pendingTag
+          ? { ...point, pendingTag: current.pendingTag }
+          : point
+      }
       return null
     }
-    const src = toDocEnd(link.source())
-    const tgt = toDocEnd(link.target())
+    const src = toDocEnd(link.source(), edge.source)
+    const tgt = toDocEnd(link.target(), edge.target)
     const revert = () => {
       const asEnd = (end: PlantEdge['source']): dia.Link.EndJSON =>
         isPortEnd(end) ? { id: end.nodeId, port: end.portId } : { x: end.x, y: end.y }

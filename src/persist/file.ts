@@ -7,6 +7,7 @@ import { loadDoc } from '../model/migrate'
 import { createEmptyDoc } from '../model/doc'
 import { importDexpi } from '../import/dexpi'
 import { useStore } from '../store/store'
+import { tr } from '../i18n'
 
 /**
  * `pretty` (the default) keeps the on-disk `.pnid` human-readable, which the
@@ -34,7 +35,7 @@ export const PNID_MIME = 'application/x-pnid'
 
 const PICKER_TYPES = [
   { description: 'IPD Studio drawing', accept: { [PNID_MIME]: [PNID_EXT] } },
-  { description: 'Legacy JSON drawing', accept: { 'application/json': ['.json'] } },
+  { description: tr('Legacy JSON drawing'), accept: { 'application/json': ['.json'] } },
   { description: 'DEXPI / Proteus XML', accept: { 'application/xml': ['.xml'] } },
 ]
 
@@ -43,12 +44,12 @@ export function loadAnyText(name: string, text: string): void {
     // a DEXPI import starts a fresh doc — flag the silent HMI wipe the audit found
     const cur = useStore.getState().doc
     const hasHmi = cur.hmiScreens.some((sc) => sc.widgets.length > 0 || sc.pipes.length > 0)
-    if (hasHmi && !window.confirm('Importing this DEXPI file starts a NEW document — your current HMI screens are discarded. Continue?')) return
+    if (hasHmi && !window.confirm(tr('Importing this DEXPI file starts a NEW document — your current HMI screens are discarded. Continue?'))) return
     const { sheet, warnings } = importDexpi(text)
     const doc = createEmptyDoc(sheet.name || name.replace(/\.[^.]+$/, ''))
     doc.sheets = [sheet]
     useStore.getState().loadIntoStore(doc)
-    if (warnings.length) window.alert(`DEXPI import finished with warnings:\n${warnings.join('\n')}`)
+    if (warnings.length) window.alert(`${tr('DEXPI import finished with warnings:')}\n${warnings.join('\n')}`)
     return
   }
   useStore.getState().loadIntoStore(deserializeDoc(text))

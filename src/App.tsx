@@ -46,7 +46,7 @@ export default function App() {
       {showPalette ? (
         <Palette onCollapse={() => togglePalette(false)} />
       ) : (
-        <button className="panel-strip strip-left" title="Show symbol palette" onClick={() => togglePalette(true)}>
+        <button className="panel-strip strip-left" title={t('Show symbol palette')} onClick={() => togglePalette(true)}>
           {t('Symbols')} ▸
         </button>
       )}
@@ -58,7 +58,7 @@ export default function App() {
       {showProps ? (
         <PropertyPanel onCollapse={() => toggleProps(false)} />
       ) : (
-        <button className="panel-strip strip-right" title="Show properties" onClick={() => toggleProps(true)}>
+        <button className="panel-strip strip-right" title={t('Show properties')} onClick={() => toggleProps(true)}>
           ◂ {t('Properties')}
         </button>
       )}

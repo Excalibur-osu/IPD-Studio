@@ -43,7 +43,7 @@ export default function SheetTabs() {
                   title={t('Delete sheet')}
                   onClick={(e) => {
                     e.stopPropagation()
-                    if (window.confirm(`Delete ${sh.name} and everything on it?`)) deleteSheet(sh.id)
+                    if (window.confirm(`${t('Delete this sheet and everything on it?')} (${sh.name})`)) deleteSheet(sh.id)
                   }}
                 >
                   ×

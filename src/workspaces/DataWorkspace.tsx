@@ -32,7 +32,7 @@ export default function DataWorkspace() {
   const [tab, setTab] = useState<Tab>('instruments')
 
   const rows = tab === 'instruments' ? instrumentIndexRows(doc) : lineListRows(doc)
-  const columns = tab === 'instruments' ? INSTRUMENT_INDEX_COLUMNS : LINE_LIST_COLUMNS
+  const columns = (tab === 'instruments' ? INSTRUMENT_INDEX_COLUMNS : LINE_LIST_COLUMNS).map((c) => t(c))
 
   // Invariant: every row in every report is a jump, never just text.
   const jump = (r: ReportRow) => {

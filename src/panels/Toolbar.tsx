@@ -46,14 +46,14 @@ function ZoomCluster() {
     if (paper && graph) fitView(paper, graph, sheetSize)
   }
   return (
-    <span className="tb-zoom" role="group" aria-label="Zoom">
-      <button data-testid="tb-zoom-out" title="Zoom out"
+    <span className="tb-zoom" role="group" aria-label={t('Zoom')}>
+      <button data-testid="tb-zoom-out" title={t('Zoom out')}
         onClick={() => canvasRef.paper && zoomCenter(canvasRef.paper, 1 / 1.2)}>−</button>
-      <button className="tb-zoom-pct" data-testid="tb-zoom-pct" title="Reset to 100%"
+      <button className="tb-zoom-pct" data-testid="tb-zoom-pct" title={t('Reset to 100%')}
         onClick={() => canvasRef.paper && zoomActual(canvasRef.paper)}>{pct}%</button>
-      <button data-testid="tb-zoom-in" title="Zoom in"
+      <button data-testid="tb-zoom-in" title={t('Zoom in')}
         onClick={() => canvasRef.paper && zoomCenter(canvasRef.paper, 1.2)}>+</button>
-      <button data-testid="tb-fit" title="Fit the whole sheet in the visible canvas (Shift+F)"
+      <button data-testid="tb-fit" title={t('Fit the whole sheet in the visible canvas (Shift+F)')}
         onClick={fit}>{t('Fit')}</button>
     </span>
   )
@@ -79,7 +79,7 @@ export default function Toolbar() {
   }, [])
 
   const newDoc = () => {
-    if (dirty && !window.confirm('Discard unsaved changes?')) return
+    if (dirty && !window.confirm(t('Discard unsaved changes?'))) return
     useStore.getState().loadIntoStore(createEmptyDoc())
   }
 
@@ -91,14 +91,14 @@ export default function Toolbar() {
       <button onClick={newDoc}>{t('New')}</button>
       <button onClick={() => void openFile()}>{t('Open')}</button>
       <button data-testid="tb-save" onClick={() => void saveNow()}
-        title="Save (Ctrl+S) — stores this drawing in your account when you are signed in">
+        title={t('Save (Ctrl+S) — stores this drawing in your account when you are signed in')}>
         {t('Save')}
       </button>
       <button data-testid="tb-download" onClick={() => void saveFile()}
-        title="Download a .pnid file to this computer">
+        title={t('Download a .pnid file to this computer')}>
         {t('Download')}
       </button>
-      <button className="tb-icon" onClick={() => setHistoryOpen(true)} title="Restore an earlier snapshot">⏱</button>
+      <button className="tb-icon" onClick={() => setHistoryOpen(true)} title={t('Restore an earlier snapshot')}>⏱</button>
       {historyOpen && <HistoryDialog onClose={() => setHistoryOpen(false)} />}
       <select
         className="tb-template"
@@ -106,7 +106,7 @@ export default function Toolbar() {
         onChange={(e) => {
           const pick = e.target.value
           if (!pick) return
-          if (dirty && !window.confirm('Discard unsaved changes?')) return
+          if (dirty && !window.confirm(t('Discard unsaved changes?'))) return
           const source = pick === 'sample' ? samplePlant : pick === 'refinery' ? sampleRefinery : pick === 'hmi-demo' ? templateHmiDemo : pick === 'blank' ? templateBlank : templateUtility
           useStore.getState().loadIntoStore(loadDoc(source))
         }}
@@ -124,7 +124,7 @@ export default function Toolbar() {
           const state = useStore.getState()
           const sheet = activeSheet(state)
           if (sheet.underlay) {
-            if (window.confirm('Remove the DXF underlay from this sheet?')) state.setUnderlay(undefined)
+            if (window.confirm(t('Remove the DXF underlay from this sheet?'))) state.setUnderlay(undefined)
             return
           }
           const input = document.createElement('input')
@@ -137,36 +137,36 @@ export default function Toolbar() {
               const px = sheetPx(sheet.sheetSize)
               const { polylines, warnings } = parseDxfUnderlay(await file.text(), px)
               state.setUnderlay({ name: file.name, polylines })
-              if (warnings.length) window.alert(`Underlay loaded with notes:\n${warnings.join('\n')}`)
+              if (warnings.length) window.alert(t('Underlay loaded with notes:') + '\n' + warnings.join('\n'))
             } catch (err) {
-              window.alert(`Could not read DXF: ${(err as Error).message}`)
+              window.alert(t('Could not read DXF:') + ' ' + (err as Error).message)
             }
           }
           input.click()
         }}
-        title="Load a DXF as a locked trace-over background"
+        title={t('Load a DXF as a locked trace-over background')}
       >
         {t('Underlay')}
       </button>
       <span className="tb-sep" />
-      <button className="tb-icon" onClick={undo} title="Undo (Ctrl+Z)">↩</button>
-      <button className="tb-icon" onClick={redo} title="Redo (Ctrl+Y)">↪</button>
+      <button className="tb-icon" onClick={undo} title={t('Undo (Ctrl+Z)')}>↩</button>
+      <button className="tb-icon" onClick={redo} title={t('Redo (Ctrl+Y)')}>↪</button>
       <span className="tb-sep" />
       <label className="tb-line">
         <span className="tb-line-label">{t('Draw:')}</span>
         <select value={activeLineClass} onChange={(e) => setActiveLineClass(e.target.value as LineClass)}>
           {Object.entries(LINE_CLASS_LABELS).map(([v, label]) => (
-            <option key={v} value={v}>{label}</option>
+            <option key={v} value={v}>{t(label)}</option>
           ))}
         </select>
       </label>
       <button data-testid="tb-fluids" onClick={() => setFluidsOpen(true)}
-        title="Define fluids/services (Water, Steam…) — assign them to lines in the line's properties">
+        title={t("Define fluids/services (Water, Steam…) — assign them to lines in the line's properties")}>
         {t('Fluids')}
       </button>
       {fluidsOpen && <FluidsDialog onClose={() => setFluidsOpen(false)} />}
       <BudgetChip />
-      <button data-testid="ai-open" onClick={() => setAiOpen(true)} title="Ask AI about this drawing">AI</button>
+      <button data-testid="ai-open" onClick={() => setAiOpen(true)} title={t('Ask AI about this drawing')}>AI</button>
       {aiOpen && <AiPanel onClose={() => setAiOpen(false)} />}
       <span className="tb-sep" />
       <ZoomCluster />

@@ -121,7 +121,7 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
         <h2>{t('Symbols')}</h2>
         <span className="sp" />
         {onCollapse && (
-          <button className="panel-collapse" title="Hide the symbol palette" onClick={onCollapse}>◂</button>
+          <button className="panel-collapse" title={t('Hide the symbol palette')} onClick={onCollapse}>◂</button>
         )}
       </div>
       <div className="palette-head">
@@ -146,14 +146,14 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
           </button>
           {!collapsed.has('typicals') && (
             <div className="typical-list">
-              {TYPICALS.map((t) => (
+              {TYPICALS.map((typical) => (
                 <button
-                  key={t.id}
+                  key={typical.id}
                   className="typical-entry"
-                  title={`Place a wired, tagged ${t.name.toLowerCase()}`}
-                  onClick={() => placeTypicalAtCenter(t.id)}
+                  title={t('Place a wired, tagged') + ' ' + t(typical.name)}
+                  onClick={() => placeTypicalAtCenter(typical.id)}
                 >
-                  ⚡ {t.name}
+                  ⚡ {t(typical.name)}
                 </button>
               ))}
             </div>
@@ -166,8 +166,8 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
             <Entry
               key={hit.symbolId + (hit.presetLetters ?? '')}
               def={getSymbol(hit.symbolId)}
-              label={hit.label}
-              title={hit.name}
+              label={t(hit.label)}
+              title={t(hit.name)}
               presetLetters={hit.presetLetters}
             />
           ))}
@@ -180,7 +180,7 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
           const isFull = expanded.has(cat)
           const bubble = cat === 'instruments' ? defs.find((d) => d.id === 'instr.bubble') : undefined
           const preset = (p: InstrumentPreset) => (
-            <Entry key={p.letters} def={bubble!} label={p.letters} title={p.name} presetLetters={p.letters} />
+            <Entry key={p.letters} def={bubble!} label={p.letters} title={t(p.name)} presetLetters={p.letters} />
           )
           return (
             <section key={cat}>
@@ -196,8 +196,8 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
                   ) : (
                     <>
                       {PRESET_GROUPS.map((g) => (
-                        <div key={g}>
-                          <div className="palette-subhead">{g}</div>
+                          <div key={g}>
+                          <div className="palette-subhead">{t(g)}</div>
                           <div className="palette-grid">
                             {INSTRUMENT_PRESETS.filter((p) => p.group === g).map(preset)}
                           </div>
@@ -205,7 +205,7 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
                       ))}
                       <div className="palette-grid">
                         {defs.map((def) => (
-                          <Entry key={def.id} def={def} label={def.name} />
+                          <Entry key={def.id} def={def} label={t(def.name)} title={t(def.name)} />
                         ))}
                       </div>
                     </>
@@ -217,7 +217,7 @@ export default function Palette({ onCollapse }: { onCollapse?: () => void }) {
                 <>
                   <div className="palette-grid">
                     {(isFull ? defs : defs.slice(0, VISIBLE)).map((def) => (
-                      <Entry key={def.id} def={def} label={def.name} />
+                      <Entry key={def.id} def={def} label={t(def.name)} title={t(def.name)} />
                     ))}
                   </div>
                   {defs.length > VISIBLE && moreButton(cat, defs.length - VISIBLE)}
