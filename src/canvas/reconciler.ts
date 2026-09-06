@@ -65,6 +65,13 @@ export function reconcile(
 
   for (const cell of graph.getCells()) {
     const id = String(cell.id)
-    if (!keep.has(id)) cell.remove()
+    if (!keep.has(id)) {
+      // Decorations are stored as link labels and JointJS can leave their
+      // SVG nodes behind when a link is removed during a reconciliation
+      // pass. Clear them explicitly so a deleted pending-device annotation
+      // cannot remain visible on the canvas.
+      if (cell.isLink()) cell.labels([])
+      cell.remove()
+    }
   }
 }
