@@ -48,7 +48,7 @@ export default function FluidsDialog({ onClose }: { onClose(): void }) {
         )}
         <button data-testid="fluid-add" onClick={() => addFluid(t('New fluid'), '#607d8b')}>＋ {t('Add fluid')}</button>
         <p style={{ fontSize: 11, color: '#889', margin: 0 }}>
-          {t('Pick a fluid on a selected line — it colors the whole connected run (through valves, pumps, fittings; stops at vessels).')}
+          {t('Pick a fluid on a selected line section — it colors only that section.')}
         </p>
       </div>
     </Modal>

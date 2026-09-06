@@ -64,14 +64,26 @@ function decorateLink(paper: dia.Paper, link: dia.Link): void {
     labels.push({
       markup: PENDING_MARKUP,
       attrs: { ...PENDING_ATTRS, text: { ...PENDING_ATTRS.text, text: pending.source } },
-      position: { distance: 0.02, offset: { x: 6, y: -14 }, args: { keepGradient: true } },
+      // Place at the link end, but keep this annotation horizontal regardless
+      // of the link tangent or endpoint direction.
+      position: {
+        distance: 0.02,
+        offset: { x: 6, y: -14 },
+        angle: 0,
+        args: { keepGradient: false, ensureLegibility: false },
+      },
     })
   }
   if (pending?.target) {
     labels.push({
       markup: PENDING_MARKUP,
       attrs: { ...PENDING_ATTRS, text: { ...PENDING_ATTRS.text, text: pending.target } },
-      position: { distance: 0.98, offset: { x: 6, y: -14 }, args: { keepGradient: true } },
+      position: {
+        distance: 0.98,
+        offset: { x: 6, y: -14 },
+        angle: 0,
+        args: { keepGradient: false, ensureLegibility: false },
+      },
     })
   }
   const current = link.labels()

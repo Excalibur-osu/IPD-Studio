@@ -284,12 +284,21 @@ button { font: inherit; }
 .pid-pinning [joint-selector='hit'] { cursor: crosshair !important; }
 .arm-on { background: #dbeafe !important; border-color: #2b6cb0 !important; color: #2b6cb0; }
 .pid-port-hit:hover { fill: rgba(43, 108, 176, 0.22); stroke: #2b6cb0; }
+.joint-element.pid-selected [joint-selector='selectionFrame'] {
+  fill: rgba(43, 108, 176, 0.08);
+  stroke: #2b6cb0;
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+}
 /* While dragging a link, every legal target port shows a slim ring. */
 .pid-port-hit.available-magnet { fill: rgba(43, 108, 176, 0.12); stroke: #2b6cb0; stroke-width: 1.25; r: 5px; }
 /* Magnetic docking: dragging a symbol (from the palette or across the sheet)
    raises every connection dot, and a ring marks the point it will click onto
    and connect to when the drag is released. */
 .pid-docking .pid-port-dot { opacity: 1; }
+.joint-link [joint-selector='wrapper'] { cursor: crosshair; }
+.pid-branching [joint-selector='wrapper'] { cursor: crosshair; }
+.pid-branch-preview { opacity: .72; }
 .pid-dock-hint {
   fill: rgba(43, 108, 176, 0.2);
   stroke: #2b6cb0;
@@ -335,10 +344,19 @@ button { font: inherit; }
   align-items: center;
   z-index: 30;
 }
+.line-popover.dragging { user-select: none; }
 .line-popover select { font: inherit; font-size: 12px; max-width: 160px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 4px; }
 .line-popover button { border: 1px solid #ccc; background: #fff; border-radius: 4px; cursor: pointer; padding: 2px 7px; font-size: 12px; }
 .line-popover button:hover { background: #eef2f7; }
 .line-popover button.on { background: #dbeafe; border-color: #2b6cb0; color: #2b6cb0; }
+.line-popover button.line-popover-drag {
+  width: 18px; height: 26px; flex: none; padding: 0;
+  border-color: transparent; background: transparent; color: #8a94a0;
+  cursor: grab; touch-action: none; font-size: 15px; line-height: 1;
+}
+.line-popover button.line-popover-drag:hover { background: #eef2f7; color: #2b6cb0; }
+.line-popover button.line-popover-drag:active,
+.line-popover.dragging button.line-popover-drag { cursor: grabbing; }
 
 /* --- Budget & cost estimate dialog (panels/BudgetDialog.tsx) --- */
 .bd { display: flex; flex-direction: column; gap: 12px; }
@@ -400,7 +418,7 @@ button { font: inherit; }
 .prop-cost-reset:hover { background: #eef2f7; }
 .prop-cost-note { font-size: 10.5px; color: #8a95a0; text-transform: none; font-variant-numeric: tabular-nums; }
 .prop-cost-note.prop-cost-on { color: #0e6e7a; font-weight: 600; }
-.prop-cost-basis { font-size: 10px; line-height: 1.35; color: #a4adb6; text-transform: none; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.prop-cost-basis { font-size: 10px; line-height: 1.35; color: #a4adb6; text-transform: none; display: -webkit-box; line-clamp: 3; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .prop-est { padding: 0 4px; border-radius: 2px; background: #f4ebdb; color: #9a6a15; font-size: 9px; letter-spacing: .05em; text-transform: uppercase; cursor: help; }
 
 /* the palette's own chrome, aligned to the panel header above it */

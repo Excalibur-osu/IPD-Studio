@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { getSymbol } from '../symbols/registry'
 import { activeSheet, pauseHistory, resumeHistory, useStore } from '../store/store'
 import type { EdgeEnd, LineClass, PlantEdge, PlantNode, SheetSize } from '../model/types'
-import { isPortEnd } from '../model/types'
+import { isJunctionEnd, isPortEnd } from '../model/types'
 import { LINE_CLASS_LABELS } from '../canvas/lineStyle'
 import TagEditor from './TagEditor'
 import { applyAlignment, duplicateSelection } from '../canvas/interactions'
@@ -219,12 +219,15 @@ function EdgeProps({ edge }: { edge: PlantEdge }) {
   const isProcess = edge.lineClass.startsWith('process')
   const isPipe = isProcess || edge.lineClass.startsWith('pipe.')
   const fluid = (doc.fluids ?? []).find((f) => f.id === edge.fluidId)
+  const arrowOn = edge.arrow === 'flow'
   const ln = edge.lineNumber ?? { size: '', spec: '', service: '', seq: '' }
   const setLn = (patch: Partial<typeof ln>) => { setEdge(edge.id, { lineNumber: { ...ln, ...patch } }); pauseHistory() }
   const setPendingTag = (end: 'source' | 'target', value: string) => {
     const current = edge[end]
     if (isPortEnd(current)) return
-    const next: EdgeEnd = value.trim() ? { ...current, pendingTag: value } : { x: current.x, y: current.y }
+    const next: EdgeEnd = value.trim()
+      ? { ...current, pendingTag: value }
+      : { x: current.x, y: current.y, ...(current.junctionId ? { junctionId: current.junctionId } : {}) }
     setEdge(edge.id, { [end]: next })
   }
   return (
@@ -232,7 +235,7 @@ function EdgeProps({ edge }: { edge: PlantEdge }) {
       <div className="prop-title">{t('Line')}</div>
       {(['source', 'target'] as const).map((end) => {
         const point = edge[end]
-        if (isPortEnd(point)) return null
+        if (isPortEnd(point) || isJunctionEnd(point)) return null
         return (
           <label className="prop-field" key={end}>
             {t('Pending device tag')} ({t(end === 'source' ? 'Source' : 'Target')})
@@ -253,7 +256,7 @@ function EdgeProps({ edge }: { edge: PlantEdge }) {
       <label className="prop-check">
         <input
           type="checkbox"
-          checked={edge.arrow === 'flow'}
+          checked={arrowOn}
           onChange={(e) => setEdge(edge.id, { arrow: e.target.checked ? 'flow' : 'none' })}
         />
         {t('Flow arrow')}
@@ -269,7 +272,7 @@ function EdgeProps({ edge }: { edge: PlantEdge }) {
             <select
               data-testid="edge-fluid"
               value={edge.fluidId ?? ''}
-              title={t('Assigning a fluid colors the whole connected run')}
+              title={t('Assigning a fluid colors this line section')}
               onChange={(e) => setEdgeFluid(edge.id, e.target.value === '' ? undefined : e.target.value)}
             >
               <option value="">{t('— none —')}</option>

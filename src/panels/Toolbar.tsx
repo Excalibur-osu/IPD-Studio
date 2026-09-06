@@ -25,7 +25,6 @@ import samplePlant from '../../examples/sample-plant.pnid.json'
 import sampleRefinery from '../../examples/sample-refinery-unit.pnid.json'
 import templateHmiDemo from '../../examples/template-hmi-demo.pnid.json'
 import { setLanguage, useLanguage, useT } from '../i18n'
-import AiPanel from './AiPanel'
 
 /** Live zoom readout, so the scale is never a mystery. */
 function ZoomCluster() {
@@ -70,7 +69,6 @@ export default function Toolbar() {
   const name = useStore((s) => s.doc.meta.name)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [fluidsOpen, setFluidsOpen] = useState(false)
-  const [aiOpen, setAiOpen] = useState(false)
 
   useEffect(() => {
     const onSave = () => void saveNow()
@@ -94,7 +92,7 @@ export default function Toolbar() {
         title={t('Save (Ctrl+S) — stores this drawing in your account when you are signed in')}>
         {t('Save')}
       </button>
-      <button data-testid="tb-download" onClick={() => void saveFile()}
+      <button data-testid="tb-download" onClick={() => void saveFile({ saveAs: true, rememberHandle: false })}
         title={t('Download a .pnid file to this computer')}>
         {t('Download')}
       </button>
@@ -166,8 +164,6 @@ export default function Toolbar() {
       </button>
       {fluidsOpen && <FluidsDialog onClose={() => setFluidsOpen(false)} />}
       <BudgetChip />
-      <button data-testid="ai-open" onClick={() => setAiOpen(true)} title={t('Ask AI about this drawing')}>AI</button>
-      {aiOpen && <AiPanel onClose={() => setAiOpen(false)} />}
       <span className="tb-sep" />
       <ZoomCluster />
       <span className="tb-grow" />

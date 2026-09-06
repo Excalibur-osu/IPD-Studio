@@ -12,8 +12,8 @@ import { nextLoopNumber } from '../isa/autonumber'
 import { buildTypical } from '../assist/typicals'
 import { activeSheet, useStore } from '../store/store'
 import { canvasRef } from './paperSetup'
+import { type Dock, dockEdge, dockRadius, findDock, showDockHint } from './autoConnect'
 import { tr } from '../i18n'
-import { type Dock, dockEdge, dockRadius, findDock, findFreeEndDock, showDockHint, type FreeEndDock } from './autoConnect'
 
 export function kindForSymbol(def: Pick<SymbolDef, 'tagRule' | 'category'>): NodeKind {
   switch (def.tagRule) {
@@ -76,7 +76,6 @@ async function openDroppedFile(file: File): Promise<void> {
   if (name.endsWith('.dxf')) {
     const { parseDxfUnderlay } = await import('../import/dxfUnderlay')
     const { sheetPx } = await import('../model/doc')
-    const { activeSheet } = await import('../store/store')
     const { polylines, warnings } = parseDxfUnderlay(text, sheetPx(activeSheet(store).sheetSize))
     store.setUnderlay({ name: file.name, polylines })
     if (warnings.length) window.alert(`${tr('Underlay loaded with notes:')}\n${warnings.join('\n')}`)
@@ -120,7 +119,7 @@ function previewDrop(
   paper: dia.Paper,
   clientX: number,
   clientY: number,
-): { node: PlantNode; dock: Dock | null; freeDock: FreeEndDock | null } | null {
+): { node: PlantNode; dock: Dock | null } | null {
   let def: SymbolDef
   try {
     def = getSymbol(payload.symbolId)
@@ -137,8 +136,7 @@ function previewDrop(
     state.activeLineClass,
     dockRadius(paper.scale().sx),
   )
-  const freeDock = dock ? null : findFreeEndDock(node, sheet.edges, dockRadius(paper.scale().sx))
-  return { node, dock, freeDock }
+  return { node, dock }
 }
 
 export function attachDropHandling(host: HTMLElement, paper: dia.Paper): () => void {
@@ -158,14 +156,15 @@ export function attachDropHandling(host: HTMLElement, paper: dia.Paper): () => v
     // Connection dots come up across the sheet so the user can see what there
     // is to aim at, and the ring says which one is currently caught.
     paper.el.classList.add('pid-docking')
-    const preview = previewDrop(payload, paper, e.clientX, e.clientY)
-    showDockHint(paper, preview?.dock?.at ?? preview?.freeDock?.at ?? null)
+    showDockHint(paper, previewDrop(payload, paper, e.clientX, e.clientY)?.dock?.at ?? null)
   }
+
   const onDragLeave = (e: DragEvent) => {
     const to = e.relatedTarget
     if (to instanceof Node && host.contains(to)) return
     clearPreview()
   }
+
   const onDragEnd = () => clearPreview()
 
   const onDrop = (e: DragEvent) => {
@@ -182,24 +181,20 @@ export function attachDropHandling(host: HTMLElement, paper: dia.Paper): () => v
     const payload = JSON.parse(raw) as DragPayload
     const preview = previewDrop(payload, paper, e.clientX, e.clientY)
     if (!preview) return
-    const { dock, freeDock } = preview
+    const { dock } = preview
     const store = useStore.getState()
     const id = ulid()
     const node: PlantNode = {
       ...preview.node,
       id,
-      ...(dock ? { x: dock.x, y: dock.y } : freeDock ? { x: freeDock.x, y: freeDock.y } : {}),
+      ...(dock ? { x: dock.x, y: dock.y } : {}),
     }
     if (payload.presetLetters) {
       node.tag = { letters: payload.presetLetters, loop: nextLoopNumber(store.doc, payload.presetLetters) }
     }
-    // Both forms are one undo step. A free-end dock reuses the existing line
-    // and changes only its coordinate endpoint into a stored port endpoint.
-    if (freeDock) {
-      store.attachNodeToFreeEnd(node, freeDock.edgeId, freeDock.end, freeDock.movingPortId)
-    } else {
-      store.addBatch([node], dock ? [{ ...dockEdge(id, dock), id: ulid() }] : [])
-    }
+    // One batch either way: the symbol and the line it docked onto arrive
+    // together, and one undo takes both back. addBatch selects the new node.
+    store.addBatch([node], dock ? [{ ...dockEdge(id, dock), id: ulid() }] : [])
   }
 
   host.addEventListener('dragover', onDragOver)

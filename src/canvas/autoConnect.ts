@@ -159,6 +159,11 @@ export function findDock(
   const mine = portsOf(moving)
   if (!mine.length) return null
 
+  // Equipment is positioned deliberately — dragging a tank or pump around
+  // must never snap it onto another symbol. Only smaller components (valves,
+  // instruments, fittings) dock onto a connection point while being moved.
+  if (moving.kind === 'equipment') return null
+
   const joined = new Set<string>()
   for (const e of edges) {
     const a = endKey(e.source)
